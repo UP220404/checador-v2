@@ -45,23 +45,34 @@ app.use(helmet({
 // CORS
 const corsOptions = {
   origin: function (origin, callback) {
-    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [];
-
-    // Sin origin (mobile/postman) → rechazar en producción
-    if (!origin) {
-      if (process.env.NODE_ENV === 'production') {
-        return callback(new Error('No permitido por CORS'));
+    const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim().replace(/\/$/, '')) || [];
+    
+    // En desarrollo, permitir siempre localhost
+    if (process.env.NODE_ENV !== 'production') {
+      if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        return callback(null, true);
       }
+    }
+
+    // Sin origin (peticiones directas de servidor a servidor o herramientas de test)
+    if (!origin) {
       return callback(null, true);
     }
 
-    if (allowedOrigins.includes(origin)) {
+    // Normalizar origen entrante
+    const normalizedOrigin = origin.replace(/\/$/, '');
+
+    if (allowedOrigins.includes(normalizedOrigin)) {
       callback(null, true);
     } else {
+      console.error(`[CORS] Bloqueado origen no autorizado: ${origin}`);
+      console.error(`[CORS] Orígenes permitidos configurados: ${allowedOrigins.join(', ')}`);
       callback(new Error('No permitido por CORS'));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 };
 app.use(cors(corsOptions));
 
