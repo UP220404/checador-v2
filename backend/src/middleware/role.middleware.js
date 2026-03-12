@@ -8,21 +8,36 @@ import { COLLECTIONS, HTTP_STATUS, ERROR_MESSAGES, ROLES } from '../config/const
 
 /**
  * Obtiene el rol y departamento del usuario desde Firestore
+ * Unifica con ADMIN_EMAILS del .env
  */
 async function getUserRoleData(email) {
   try {
+    const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
+    
+    // Si está en el .env, es Súper Admin (ADMIN_RH)
+    const isSuperAdmin = adminEmails.includes(email);
+
     const db = getFirestore();
     const usersRef = db.collection(COLLECTIONS.USUARIOS);
     const snapshot = await usersRef.where('correo', '==', email).limit(1).get();
 
     if (snapshot.empty) {
+      // Si no está en BD pero sí en .env, retornar datos básicos de admin
+      if (isSuperAdmin) {
+        return {
+          uid: 'super-admin',
+          role: ROLES.ADMIN_RH,
+          departamento: 'Direccion',
+          nombre: 'Super Administrador'
+        };
+      }
       return null;
     }
 
     const userData = snapshot.docs[0].data();
     return {
       uid: snapshot.docs[0].id,
-      role: userData.role || ROLES.EMPLEADO,
+      role: isSuperAdmin ? ROLES.ADMIN_RH : (userData.role || ROLES.EMPLEADO),
       departamento: userData.departamento || null,
       nombre: userData.nombre
     };
@@ -112,8 +127,15 @@ export async function attachRoleData(req, res, next) {
       req.user.departamento = roleData.departamento;
       req.user.roleData = roleData;
     } else {
-      req.user.role = ROLES.EMPLEADO;
-      req.user.departamento = null;
+      // Verificación final con .env por si getUserRoleData falló por algo
+      const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
+      if (adminEmails.includes(req.user.email)) {
+        req.user.role = ROLES.ADMIN_RH;
+        req.user.departamento = 'Direccion';
+      } else {
+        req.user.role = ROLES.EMPLEADO;
+        req.user.departamento = null;
+      }
     }
 
     next();

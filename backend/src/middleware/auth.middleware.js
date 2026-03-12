@@ -1,5 +1,5 @@
 import { getAuth } from '../config/firebase.js';
-import { ERROR_MESSAGES, HTTP_STATUS } from '../config/constants.js';
+import { ERROR_MESSAGES, HTTP_STATUS, ROLES } from '../config/constants.js';
 
 /**
  * Middleware para verificar token de Firebase Authentication
@@ -66,6 +66,7 @@ export async function authMiddleware(req, res, next) {
 
 /**
  * Middleware para verificar si el usuario es administrador
+ * Unifica ADMIN_EMAILS (.env) con el rol ADMIN_RH (Firestore)
  */
 export function adminMiddleware(req, res, next) {
   if (!req.user) {
@@ -76,8 +77,12 @@ export function adminMiddleware(req, res, next) {
   }
 
   const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
+  
+  // Es Admin si está en el .env O si ya tiene el rol admin_rh cargueado en req.user
+  const isSuperAdmin = adminEmails.includes(req.user.email);
+  const isRHAdmin = req.user.role === ROLES.ADMIN_RH;
 
-  if (!adminEmails.includes(req.user.email)) {
+  if (!isSuperAdmin && !isRHAdmin) {
     return res.status(HTTP_STATUS.FORBIDDEN).json({
       success: false,
       message: ERROR_MESSAGES.AUTH.NOT_ADMIN

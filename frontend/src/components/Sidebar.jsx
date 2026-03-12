@@ -35,6 +35,16 @@ function Sidebar() {
   const [notifications, setNotifications] = useState([]);
   const [loadingNotif, setLoadingNotif] = useState(true);
   const notifRef = useRef(null);
+  const [isAdmin, setIsAdmin] = useState(false); // Nuevo estado para isAdmin
+
+  // Verificar permisos de administrador (Súper Admin o RH)
+  useEffect(() => {
+    const sessionUserRole = sessionStorage.getItem('userRole');
+    const userEmail = auth.currentUser?.email;
+    const adminEmails = process.env.VITE_ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
+    
+    setIsAdmin(sessionUserRole === ROLES.ADMIN_RH || adminEmails.includes(userEmail));
+  }, [auth.currentUser?.email]); // Dependencia para re-evaluar si el usuario de auth cambia
 
   // Listener en tiempo real — sin polling, cero peticiones al backend
   useEffect(() => {

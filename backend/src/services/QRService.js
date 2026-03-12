@@ -47,12 +47,22 @@ class QRService {
    */
   async validateToken(qrCode, token, userEmail = null) {
     try {
+      const tokenRef = this.db.collection(this.qrCollection).doc('current');
+      const ahora = new Date();
+
+      // Registro de intento (ayuda a la regeneración automática)
+      await tokenRef.update({
+        ultimoIntento: ahora,
+        ultimoIntentoStatus: 'procesando'
+      }).catch(() => {}); // Ignorar si falla el log inicial
+
       // 1. Validar QR base
       if (qrCode !== CONFIG.QR_CODE_PREFIX) {
         await this.incrementStat('bloqueados');
+        await tokenRef.update({ usado: true, ultimoIntentoStatus: 'bloqueado_prefix' }).catch(() => {});
         return {
           valido: false,
-          mensaje: '❌ Código QR inválido'
+          mensaje: '❌ Código QR inválido (Base)'
         };
       }
 
@@ -62,7 +72,7 @@ class QRService {
       }
 
       // 3. Validar token dinámico
-      const tokenDoc = await this.db.collection(this.qrCollection).doc('current').get();
+      const tokenDoc = await tokenRef.get();
 
       if (!tokenDoc.exists) {
         await this.incrementStat('bloqueados');
@@ -73,21 +83,23 @@ class QRService {
       }
 
       const tokenData = tokenDoc.data();
-      const ahora = new Date();
       const expiracion = tokenData.expiracion?.toDate();
 
       // 4. Verificar que el token coincida
       if (tokenData.token !== token) {
         await this.incrementStat('bloqueados');
+        // Si no coincide, podrías ser un QR viejo. Forzamos regeneración marcándolo como usado
+        await tokenRef.update({ usado: true, ultimoIntentoStatus: 'token_mismatch' }).catch(() => {});
         return {
           valido: false,
-          mensaje: '❌ Token inválido. Escanea el QR más reciente.'
+          mensaje: '❌ QR expirado o ya utilizado. Escanea el código actualizado en la pantalla.'
         };
       }
 
       // 5. Verificar expiración
       if (ahora > expiracion) {
         await this.incrementStat('bloqueados');
+        await tokenRef.update({ usado: true, ultimoIntentoStatus: 'expirado' }).catch(() => {});
         return {
           valido: false,
           mensaje: '⏰ QR expirado. Solicita un nuevo código.'
@@ -110,17 +122,19 @@ class QRService {
 
         // Marcar como usado si no es modo pruebas
         if (!esUsuarioPruebas) {
-          await this.db.collection(this.qrCollection).doc('current').update({
+          await tokenRef.update({
             usado: true,
-            fechaUso: new Date(),
-            ultimoUsuario: userEmail || 'desconocido'
+            fechaUso: ahora,
+            ultimoUsuario: userEmail || 'desconocido',
+            ultimoIntentoStatus: 'exito'
           });
         }
       } else if (modoToken === 'estatico') {
         // Modo estático: múltiples usos permitidos
-        await this.db.collection(this.qrCollection).doc('current').update({
-          ultimoAcceso: new Date(),
+        await tokenRef.update({
+          ultimoAcceso: ahora,
           ultimoUsuario: userEmail || 'desconocido',
+          ultimoIntentoStatus: 'exito_estatico',
           contadorUsos: admin.firestore.FieldValue.increment(1)
         });
       }

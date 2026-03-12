@@ -15,6 +15,8 @@ function Checador() {
   const [historial, setHistorial] = useState([]);
   const [qrValido, setQrValido] = useState(false);
 
+  const [autoRegistrando, setAutoRegistrando] = useState(false);
+
   useEffect(() => {
     // Reloj
     const timer = setInterval(() => {
@@ -28,7 +30,7 @@ function Checador() {
       }));
     }, 1000);
 
-    // Validar QR
+    // Validar QR inicial
     validarQR();
 
     // Auth listener
@@ -51,6 +53,18 @@ function Checador() {
     };
   }, []);
 
+  // Lógica de registro automático
+  useEffect(() => {
+    if (qrValido && user && userData && !autoRegistrando && !registroInfo) {
+      console.log('🚀 Iniciando marcaje automático...');
+      setAutoRegistrando(true);
+      // Pequeña pausa para asegurar que el usuario vea el reloj antes del mensaje de éxito
+      setTimeout(() => {
+        registrarAsistencia();
+      }, 1500);
+    }
+  }, [qrValido, user, userData, autoRegistrando, registroInfo]);
+
   const validarQR = () => {
     const params = new URLSearchParams(window.location.search);
     const qrParam = params.get('qr');
@@ -58,13 +72,13 @@ function Checador() {
 
     if (qrParam === 'OFICINA2025' && tokenParam) {
       setQrValido(true);
-      mostrarStatus('success', '✅ QR válido. Puedes registrar tu asistencia.');
+      mostrarStatus('success', '✅ Código QR detectado. Procesando marcaje automático...');
     } else if (!qrParam && !tokenParam) {
       setQrValido(false);
-      mostrarStatus('warning', '⚠️ Debes escanear el código QR de la oficina para registrar asistencia.');
+      // No mostrar warning si no hay params (entrada normal al sitio)
     } else {
       setQrValido(false);
-      mostrarStatus('error', '❌ QR inválido. Escanea el código correcto.');
+      mostrarStatus('error', '❌ Código QR inválido o expirado.');
     }
   };
 
@@ -89,12 +103,12 @@ function Checador() {
       if (response.data.success) {
         setUserData(response.data.data);
       } else {
-        mostrarStatus('error', 'Usuario no encontrado en el sistema');
-        await handleLogout();
+        mostrarStatus('error', 'Usuario no registrado en el sistema.');
+        setTimeout(() => handleLogout(), 3000);
       }
     } catch (error) {
       console.error('Error cargando usuario:', error);
-      mostrarStatus('error', 'Error al cargar datos del usuario');
+      mostrarStatus('error', 'Error de conexión con el servidor.');
     }
   };
 
@@ -106,14 +120,13 @@ function Checador() {
 
       const response = await api.getAttendanceRecords({
         userId: uid,
-        limit: 50,
+        limit: 10,
         startDate: hace7Dias.toISOString().split('T')[0],
         endDate: hoy.toISOString().split('T')[0]
       });
 
       if (response.data.success) {
-        const registros = response.data.data || [];
-        setHistorial(registros.slice(0, 10));
+        setHistorial(response.data.data || []);
       }
     } catch (error) {
       console.error('Error cargando historial:', error);
@@ -123,8 +136,8 @@ function Checador() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      sessionStorage.removeItem('authToken');
-      mostrarStatus('primary', 'Sesión cerrada correctamente');
+      sessionStorage.clear();
+      window.location.href = '/login';
     } catch (error) {
       console.error('Error en logout:', error);
     }
@@ -137,7 +150,7 @@ function Checador() {
     }
 
     if (!user || !userData) {
-      mostrarStatus('error', '❌ Debes iniciar sesión primero');
+      mostrarStatus('error', '❌ Sesión no válida');
       return;
     }
 
@@ -145,30 +158,48 @@ function Checador() {
       const params = new URLSearchParams(window.location.search);
       const token = params.get('token');
 
+      // Obtener ubicación si es posible
+      let location = null;
+      try {
+        const pos = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject);
+        });
+        location = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy
+        };
+      } catch (e) {
+        console.warn('No se pudo obtener ubicación');
+      }
+
       const response = await api.registerAttendance({
-        userId: user.uid,
-        qrToken: token,
-        type: 'auto'
+        qrCode: 'OFICINA2025',
+        token: token,
+        location: location
       });
 
       if (response.data.success) {
         const registro = response.data.data;
         setRegistroInfo({
-          nombre: userData.name,
-          email: userData.email,
+          nombre: userData.nombre,
           tipo: userData.role,
-          fecha: new Date().toLocaleDateString('es-MX'),
-          hora: new Date().toLocaleTimeString('es-MX'),
-          evento: registro.type === 'entry' ? 'Entrada' : 'Salida'
+          fecha: registro.fecha,
+          hora: registro.hora,
+          evento: registro.tipoEvento === 'entrada' ? 'ENTRADA' : 'SALIDA',
+          estado: registro.estado
         });
-        mostrarStatus('success', `✅ ${registro.type === 'entry' ? 'Entrada' : 'Salida'} registrada correctamente`);
+        mostrarStatus('success', registro.tipoEvento === 'entrada' ? '✅ ¡Entrada Registrada!' : '📤 ¡Salida Registrada!');
         await cargarHistorial(user.uid);
       } else {
         mostrarStatus('error', `❌ ${response.data.message}`);
+        setAutoRegistrando(false); // Permitir reintento manual si falló por horario/CORS/etc
       }
     } catch (error) {
       console.error('Error registrando asistencia:', error);
-      mostrarStatus('error', '❌ Error al registrar asistencia');
+      const msg = error.response?.data?.message || 'Error al conectar con el servidor';
+      mostrarStatus('error', `❌ ${msg}`);
+      setAutoRegistrando(false);
     }
   };
 
@@ -244,30 +275,77 @@ function Checador() {
 
           {registroInfo && (
             <motion.div 
-              className="mt-4 p-3 bg-white rounded shadow-sm text-start"
+              className="mt-4 p-4 bg-white rounded-4 shadow-sm text-start border border-success border-opacity-25"
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
             >
-              <h6 className="border-bottom pb-2 mb-3">Último Registro</h6>
-              <div className="small">
-                <div className="d-flex justify-content-between mb-1">
-                  <span className="text-muted">Evento:</span>
-                  <span className="fw-bold text-success">{registroInfo.evento}</span>
+              <div className="d-flex align-items-center mb-3">
+                <div className="bg-success bg-opacity-10 p-2 rounded-circle me-3">
+                  <i className="bi bi-calendar-check text-success fs-4"></i>
                 </div>
-                <div className="d-flex justify-content-between mb-1">
+                <div>
+                  <h6 className="mb-0 fw-bold">Registro Exitoso</h6>
+                  <p className="text-muted small mb-0">{registroInfo.fecha}</p>
+                </div>
+              </div>
+
+              <div className="attendance-details-grid small mb-4">
+                <div className="d-flex justify-content-between p-2 rounded-3 bg-light mb-2">
+                  <span className="text-muted">Colaborador:</span>
+                  <span className="fw-bold">{registroInfo.nombre}</span>
+                </div>
+                <div className="d-flex justify-content-between p-2 rounded-3 bg-light mb-2">
+                  <span className="text-muted">Movimiento:</span>
+                  <span className={`fw-bold ${registroInfo.evento === 'ENTRADA' ? 'text-primary' : 'text-danger'}`}>
+                    {registroInfo.evento}
+                  </span>
+                </div>
+                <div className="d-flex justify-content-between p-2 rounded-3 bg-light mb-2">
                   <span className="text-muted">Hora:</span>
-                  <span>{registroInfo.hora}</span>
+                  <span className="fw-bold">{registroInfo.hora}</span>
                 </div>
+                <div className="d-flex justify-content-between p-2 rounded-3 bg-light">
+                  <span className="text-muted">Estado:</span>
+                  <span className={`badge rounded-pill ${
+                    registroInfo.estado === 'puntual' ? 'bg-success' : 
+                    registroInfo.estado === 'retardo' ? 'bg-warning text-dark' : 'bg-info'
+                  }`}>
+                    {registroInfo.estado.toUpperCase()}
+                  </span>
+                </div>
+              </div>
+
+              <div className="d-grid gap-2">
+                <a href="/empleado/portal" className="btn btn-primary rounded-pill py-2">
+                  <i className="bi bi-person-workspace me-2"></i>
+                  Ir a mi Portal de Empleado
+                </a>
+                
+                {(userData?.role === 'admin_rh' || isAdmin) && (
+                  <a href="/admin/dashboard" className="btn btn-dark rounded-pill py-2">
+                    <i className="bi bi-shield-lock me-2"></i>
+                    Panel de Administración (RH)
+                  </a>
+                )}
+
+                <button 
+                  onClick={() => setRegistroInfo(null)}
+                  className="btn btn-link link-secondary text-decoration-none small mt-2"
+                >
+                  Finalizar y cerrar
+                </button>
               </div>
             </motion.div>
           )}
 
-          <div className="text-center mt-4">
-            <a href="/empleado/portal" className="btn btn-link link-success text-decoration-none">
-              <i className="bi bi-person-circle me-1"></i>
-              Mi Portal de Empleado
-            </a>
-          </div>
+          {!registroInfo && (
+            <div className="text-center mt-4">
+              <a href="/empleado/portal" className="btn btn-link link-success text-decoration-none">
+                <i className="bi bi-person-circle me-1"></i>
+                Ver mi Portal de Empleado
+              </a>
+            </div>
+          )}
         </motion.div>
       </motion.div>
     </div>

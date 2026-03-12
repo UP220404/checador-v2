@@ -1,12 +1,13 @@
-/**
- * Controlador de Asistencias
- */
-
 import AttendanceService from '../services/AttendanceService.js';
-import { HTTP_STATUS, ERROR_MESSAGES } from '../config/constants.js';
+import { HTTP_STATUS, ERROR_MESSAGES, ROLES } from '../config/constants.js';
 import { isAdmin } from '../config/firebase.js';
 
 class AttendanceController {
+  // Helper para verificar si el usuario tiene permisos de admin (Email o Rol)
+  _isUserAdmin(user) {
+    return isAdmin(user.email) || user.role === ROLES.ADMIN_RH;
+  }
+
   /**
    * POST /api/v1/attendance/check-in
    * Registra entrada o salida
@@ -47,15 +48,13 @@ class AttendanceController {
   /**
    * GET /api/v1/attendance/history/:userId
    * Obtiene historial de asistencias de un usuario
-   * Query params: limit, startDate, endDate (YYYY-MM-DD)
    */
   async getHistory(req, res) {
     try {
       const { userId } = req.params;
-      const { limit, startDate, endDate } = req.query;
 
       // Solo admins pueden ver historial de otros usuarios
-      if (!isAdmin(req.user.email) && req.user.uid !== userId) {
+      if (!this._isUserAdmin(req.user) && req.user.uid !== userId) {
         return res.status(HTTP_STATUS.FORBIDDEN).json({
           success: false,
           message: 'No autorizado para ver este historial'
@@ -64,9 +63,9 @@ class AttendanceController {
 
       const history = await AttendanceService.getHistory(
         userId,
-        parseInt(limit) || 30,
-        startDate,
-        endDate
+        parseInt(req.query.limit) || 30,
+        req.query.startDate,
+        req.query.endDate
       );
 
       res.json({
@@ -92,11 +91,10 @@ class AttendanceController {
     try {
       const { userId } = req.params;
 
-      // Solo admins pueden ver asistencias de otros usuarios
-      if (!isAdmin(req.user.email) && req.user.uid !== userId) {
+      if (!this._isUserAdmin(req.user) && req.user.uid !== userId) {
         return res.status(HTTP_STATUS.FORBIDDEN).json({
           success: false,
-          message: 'No autorizado para ver estas asistencias'
+          message: 'No autorizado'
         });
       }
 
@@ -104,7 +102,6 @@ class AttendanceController {
 
       res.json({
         success: true,
-        count: weekly.length,
         data: weekly
       });
 
@@ -123,6 +120,13 @@ class AttendanceController {
    */
   async getToday(req, res) {
     try {
+      if (!this._isUserAdmin(req.user)) {
+        return res.status(HTTP_STATUS.FORBIDDEN).json({
+          success: false,
+          message: 'Acceso restringido a administradores'
+        });
+      }
+
       const today = await AttendanceService.getTodayAttendance();
 
       res.json({
@@ -140,10 +144,6 @@ class AttendanceController {
     }
   }
 
-  // ============================================
-  // MÉTODOS PARA PORTAL EMPLEADO V2
-  // ============================================
-
   /**
    * GET /api/v1/attendance/summary/:uid
    * Obtiene resumen de horas trabajadas (semana/mes)
@@ -151,10 +151,8 @@ class AttendanceController {
   async getSummary(req, res) {
     try {
       const { uid } = req.params;
-      const userUid = req.user.uid;
 
-      // Solo puede ver su propio resumen (o admin)
-      if (uid !== userUid && !isAdmin(req.user.email)) {
+      if (uid !== req.user.uid && !this._isUserAdmin(req.user)) {
         return res.status(HTTP_STATUS.FORBIDDEN).json({
           success: false,
           message: 'No autorizado'
@@ -168,7 +166,7 @@ class AttendanceController {
         data: summary
       });
     } catch (error) {
-      console.error('Error obteniendo resumen de asistencia:', error);
+      console.error('Error obteniendo resumen:', error);
       res.status(HTTP_STATUS.INTERNAL_ERROR).json({
         success: false,
         message: ERROR_MESSAGES.GENERAL.INTERNAL_ERROR
@@ -183,28 +181,15 @@ class AttendanceController {
   async getMonthlyReport(req, res) {
     try {
       const { uid, year, month } = req.params;
-      const userUid = req.user.uid;
 
-      // Solo puede ver su propio reporte (o admin)
-      if (uid !== userUid && !isAdmin(req.user.email)) {
+      if (uid !== req.user.uid && !this._isUserAdmin(req.user)) {
         return res.status(HTTP_STATUS.FORBIDDEN).json({
           success: false,
           message: 'No autorizado'
         });
       }
 
-      // Validar año y mes
-      const yearNum = parseInt(year);
-      const monthNum = parseInt(month);
-
-      if (isNaN(yearNum) || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
-        return res.status(HTTP_STATUS.BAD_REQUEST).json({
-          success: false,
-          message: 'Año o mes inválido'
-        });
-      }
-
-      const report = await AttendanceService.getMonthlyReport(uid, yearNum, monthNum);
+      const report = await AttendanceService.getMonthlyReport(uid, parseInt(year), parseInt(month));
 
       res.json({
         success: true,
@@ -221,15 +206,12 @@ class AttendanceController {
 
   /**
    * GET /api/v1/attendance/today-record/:uid
-   * Obtiene el registro de hoy para un usuario
    */
   async getTodayRecord(req, res) {
     try {
       const { uid } = req.params;
-      const userUid = req.user.uid;
 
-      // Solo puede ver su propio registro (o admin)
-      if (uid !== userUid && !isAdmin(req.user.email)) {
+      if (uid !== req.user.uid && !this._isUserAdmin(req.user)) {
         return res.status(HTTP_STATUS.FORBIDDEN).json({
           success: false,
           message: 'No autorizado'

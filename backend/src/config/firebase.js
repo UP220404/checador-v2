@@ -89,12 +89,13 @@ export function getAuth() {
 }
 
 /**
- * Verifica si un email es administrador
+ * Verifica si un email es administrador (según ADMIN_EMAILS del .env)
  */
-export function isAdmin(email) {
+export const isAdmin = (email) => {
+  if (!email) return false;
   const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
   return adminEmails.includes(email);
-}
+};
 
 export default {
   initializeFirebase,
