@@ -163,6 +163,13 @@ export function estaEnRango(fecha, inicio, fin) {
 }
 
 /**
+ * Obtiene timestamp de servidor (para Firestore)
+ */
+export function getServerTimestamp() {
+  return new Date();
+}
+
+/**
  * Helper para obtener componentes de fecha en zona México (Exportado para validaciones)
  */
 export function getMexicoTimeComponents(date = new Date()) {
