@@ -174,10 +174,10 @@ function QRGenerator() {
     unsubscribeRef.current = onSnapshot(tokenRef, (snap) => {
       if (!snap.exists()) return;
       const data = snap.data();
-      // Reacciona si ES el token activo y ya fue marcado como usado 
-      // o si hay un intento de procesamiento (para 'quemar' el QR rápido)
-      const debeRegenerar = data.token === tokenActivoRef.current && 
-                           (data.usado === true || data.ultimoIntentoStatus === 'procesando');
+      // Solo regeneramos si el token activo ha sido marcado como usado
+      // Esto evita la condición de carrera donde el generador cambia el token
+      // mientras el servidor aún lo está validando.
+      const debeRegenerar = data.token === tokenActivoRef.current && data.usado === true;
 
       if (debeRegenerar) {
         setStatus('escaneado');

@@ -16,10 +16,11 @@ function Checador() {
   const [qrValido, setQrValido] = useState(false);
 
   const [autoRegistrando, setAutoRegistrando] = useState(false);
+  const registradoRef = useRef(false);
 
   useEffect(() => {
     // Reloj
-    const timer = setInterval(() => {
+    const timerTick = setInterval(() => {
       const now = new Date();
       setTime(now.toLocaleTimeString('es-MX', { hour12: false }));
       setDate(now.toLocaleDateString('es-MX', {
@@ -44,26 +45,33 @@ function Checador() {
         setUserData(null);
         setRegistroInfo(null);
         setHistorial([]);
+        registradoRef.current = false;
       }
     });
 
     return () => {
-      clearInterval(timer);
+      clearInterval(timerTick);
       unsubscribe();
     };
   }, []);
 
   // Lógica de registro automático
   useEffect(() => {
-    if (qrValido && user && userData && !autoRegistrando && !registroInfo) {
-      console.log('🚀 Iniciando marcaje automático...');
+    if (qrValido && user && userData && !registradoRef.current && !registroInfo) {
+      // Candado definitivo para evitar bucles
+      registradoRef.current = true;
       setAutoRegistrando(true);
-      // Pequeña pausa para asegurar que el usuario vea el reloj antes del mensaje de éxito
-      setTimeout(() => {
+      
+      console.log('🚀 Disparando marcaje automático robusto...');
+      
+      // Pausa breve para que el usuario capte el contexto
+      const autoTimer = setTimeout(() => {
         registrarAsistencia();
-      }, 1500);
+      }, 1000);
+      
+      return () => clearTimeout(autoTimer);
     }
-  }, [qrValido, user, userData, autoRegistrando, registroInfo]);
+  }, [qrValido, user, userData, registroInfo]);
 
   const validarQR = () => {
     const params = new URLSearchParams(window.location.search);
@@ -72,13 +80,15 @@ function Checador() {
 
     if (qrParam === 'OFICINA2025' && tokenParam) {
       setQrValido(true);
-      mostrarStatus('success', '✅ Código QR detectado. Procesando marcaje automático...');
+      mostrarStatus('success', '✅ QR Detectado. Registrando entrada/salida automáticamente...');
       
-      // LIMPIEZA DE URL (Anti-Trampa)
-      // Removemos los parámetros de la URL para que no se puedan copiar, compartir o bookmarkear
+      // Limpieza retrasada: No borramos hasta que el registro automático haya tenido 
+      // tiempo suficiente de leer el token de la URL.
       setTimeout(() => {
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }, 500);
+        if (window.location.search.includes('token=')) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      }, 5000);
 
     } else if (!qrParam && !tokenParam) {
       setQrValido(false);
@@ -214,8 +224,11 @@ function Checador() {
     setStatus({ show: true, type, message });
     setTimeout(() => {
       setStatus({ show: false, type: '', message: '' });
-    }, 5000);
+    }, 6000);
   };
+
+  // Determinar si es administrador para mostrar botón de RH
+  const isAdmin = userData?.role === 'admin_rh' || sessionStorage.getItem('userRole') === 'admin_rh';
 
   return (
     <div className="login-container"> {/* Reutilizamos el container premium */}
@@ -252,15 +265,21 @@ function Checador() {
           <div className="d-grid gap-2 mb-4">
             <button
               onClick={registrarAsistencia}
-              disabled={!qrValido}
-              className="btn btn-success btn-lg rounded-pill"
+              disabled={autoRegistrando && !registroInfo}
+              className={`btn btn-lg rounded-pill ${qrValido ? 'btn-success fw-bold' : 'btn-outline-secondary'}`}
             >
-              <i className="bi bi-check-circle-fill me-2"></i>
-              Registrar Asistencia
+              <i className={`bi ${autoRegistrando && !registroInfo ? 'bi-hourglass-split' : 'bi-check-circle-fill'} me-2`}></i>
+              {autoRegistrando && !registroInfo ? 'Procesando...' : 'Registrar Asistencia'}
             </button>
+            
+            <a href="/empleado/portal" className="btn btn-outline-primary rounded-pill py-2">
+              <i className="bi bi-person-circle me-2"></i>
+              Ir a mi Portal
+            </a>
+
             <button
               onClick={handleLogout}
-              className="btn btn-outline-danger border-0"
+              className="btn btn-link text-danger text-decoration-none mt-2"
             >
               <i className="bi bi-box-arrow-right me-2"></i>
               Cerrar Sesión

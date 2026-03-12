@@ -23,6 +23,9 @@ import contractEvaluationsRoutes from './routes/contractEvaluations.routes.js';
 
 const app = express();
 
+// Confía en el proxy (necesario para Render/Vercel y Rate Limit)
+app.set('trust proxy', 1);
+
 // ===== INICIALIZAR FIREBASE =====
 initializeFirebase();
 

@@ -50,16 +50,9 @@ class QRService {
       const tokenRef = this.db.collection(this.qrCollection).doc('current');
       const ahora = new Date();
 
-      // Registro de intento (ayuda a la regeneración automática)
-      await tokenRef.update({
-        ultimoIntento: ahora,
-        ultimoIntentoStatus: 'procesando'
-      }).catch(() => {}); // Ignorar si falla el log inicial
-
       // 1. Validar QR base
       if (qrCode !== CONFIG.QR_CODE_PREFIX) {
         await this.incrementStat('bloqueados');
-        await tokenRef.update({ usado: true, ultimoIntentoStatus: 'bloqueado_prefix' }).catch(() => {});
         return {
           valido: false,
           mensaje: '❌ Código QR inválido (Base)'
@@ -88,8 +81,7 @@ class QRService {
       // 4. Verificar que el token coincida
       if (tokenData.token !== token) {
         await this.incrementStat('bloqueados');
-        // Si no coincide, podrías ser un QR viejo. Forzamos regeneración marcándolo como usado
-        await tokenRef.update({ usado: true, ultimoIntentoStatus: 'token_mismatch' }).catch(() => {});
+        // Si no coincide, no quemamos el 'current' porque el usuario escaneó uno viejo/distinto.
         return {
           valido: false,
           mensaje: '❌ QR expirado o ya utilizado. Escanea el código actualizado en la pantalla.'
@@ -99,6 +91,7 @@ class QRService {
       // 5. Verificar expiración
       if (ahora > expiracion) {
         await this.incrementStat('bloqueados');
+        // Quemar el token expirado para que el generador ponga uno nuevo si no lo ha hecho
         await tokenRef.update({ usado: true, ultimoIntentoStatus: 'expirado' }).catch(() => {});
         return {
           valido: false,
