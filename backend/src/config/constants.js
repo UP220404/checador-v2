@@ -18,11 +18,11 @@ export const CONFIG = {
   HORA_INICIO_REGISTRO: { hours: 7, minutes: 0 }, // 7:00 AM
   HORA_FIN_REGISTRO: { hours: 22, minutes: 0 }, // 10:00 PM
 
-  // Geolocalización (oficina)
+  // Geolocalización (Configurada exclusivamente desde variables de entorno para seguridad)
   OFICINA: {
-    lat: 21.92545657925517,
-    lng: -102.31327431392519,
-    radio_metros: 40
+    lat: parseFloat(process.env.OFFICE_LAT),
+    lng: parseFloat(process.env.OFFICE_LNG),
+    radio_metros: parseInt(process.env.OFFICE_RADIUS) || 300 // Radio sugerido si no se define
   },
 
   // QR

@@ -34,7 +34,16 @@ export function calcularDistanciaMetros(lat1, lng1, lat2, lng2) {
  * @returns {Object} { dentroDeRango: boolean, distancia: number }
  */
 export function verificarUbicacionOficina(coords) {
-  if (!coords || !coords.lat || !coords.lng) {
+  if (!coords || isNaN(coords.lat) || isNaN(coords.lng)) {
+    console.error('❌ ERROR: Coordenadas de oficina no configuradas en el servidor (OFFICE_LAT/OFFICE_LNG)');
+    return {
+      dentroDeRango: false,
+      distancia: null,
+      error: 'Configuración de servidor incompleta'
+    };
+  }
+
+  if (!coords.lat || !coords.lng) {
     return {
       dentroDeRango: false,
       distancia: null,
@@ -48,6 +57,8 @@ export function verificarUbicacionOficina(coords) {
     CONFIG.OFICINA.lat,
     CONFIG.OFICINA.lng
   );
+
+  console.log(`📍 Validación de ubicación: Distancia a oficina = ${Math.round(distancia)}m (Límite: ${CONFIG.OFICINA.radio_metros}m)`);
 
   return {
     dentroDeRango: distancia <= CONFIG.OFICINA.radio_metros,
