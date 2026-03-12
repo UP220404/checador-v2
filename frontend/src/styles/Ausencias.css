@@ -1,0 +1,672 @@
+/* Estilos para la página de Ausencias */
+
+/* ============================================
+   Botones de acciones en tabla
+   ============================================ */
+
+.ausencia-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 140px;
+}
+
+.acciones-principales {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.acciones-secundarias {
+  display: flex;
+  gap: 0.3rem;
+}
+
+/* Botón base */
+.btn-accion {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.75rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+  white-space: nowrap;
+}
+
+.btn-accion:hover {
+  opacity: 0.85;
+  transform: translateY(-1px);
+}
+
+.btn-accion i {
+  font-size: 0.8rem;
+}
+
+.btn-aprobar {
+  background: #10b981;
+  color: white;
+}
+
+.btn-rechazar {
+  background: #ef4444;
+  color: white;
+}
+
+/* Botones secundarios (ícono solo) */
+.btn-accion-sm {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+  font-size: 0.8rem;
+}
+
+.btn-accion-sm:hover {
+  opacity: 0.85;
+  transform: translateY(-1px);
+}
+
+.btn-ver {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.btn-editar {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+
+.btn-eliminar {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.stat-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15) !important;
+}
+
+.filter-bar {
+  background: white;
+  border: 1px solid #dee2e6;
+}
+
+.filter-bar .form-select,
+.filter-bar .form-control {
+  font-size: 0.95rem;
+}
+
+.table-success {
+  background-color: #155d27 !important;
+  color: white !important;
+}
+
+.table-success th {
+  border: none;
+  font-weight: 600;
+}
+
+.table-hover tbody tr:hover {
+  background-color: rgba(21, 93, 39, 0.1);
+}
+
+/* Modal personalizado */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.modal-content-custom {
+  background: white;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-content-custom .modal-header {
+  border-radius: 12px 12px 0 0;
+  padding: 1.5rem;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-content-custom .modal-body {
+  padding: 2rem;
+}
+
+.modal-content-custom .modal-footer {
+  padding: 1rem 2rem;
+  border-top: 1px solid #dee2e6;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+/* Badges de estado */
+.badge {
+  padding: 0.5em 0.75em;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Botones en la tabla */
+.table tbody .btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+/* Iconos en la tabla */
+.table tbody i {
+  font-size: 1.1rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .section-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .section-header > div {
+    width: 100%;
+  }
+
+  .section-header button {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+
+  .filter-bar .row > div {
+    margin-bottom: 0.5rem;
+  }
+
+  .modal-content-custom {
+    width: 95%;
+    max-height: 95vh;
+  }
+
+  .modal-content-custom .modal-body {
+    padding: 1rem;
+  }
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.table tbody tr {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* ============================================ */
+/* MODAL MEJORADO - DISEÑO MODERNO */
+/* ============================================ */
+
+.modal-ausencia-mejorado {
+  max-width: 700px;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header del Modal Mejorado */
+.modal-header-custom {
+  background: linear-gradient(135deg, #198754 0%, #155d27 100%);
+  padding: 2rem;
+  border-radius: 12px 12px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  position: relative;
+  color: white;
+}
+
+.modal-icon-header {
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  backdrop-filter: blur(10px);
+}
+
+.modal-title-group {
+  flex: 1;
+}
+
+.modal-title-main {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+}
+
+.modal-subtitle {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.btn-close-custom {
+  width: 35px;
+  height: 35px;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-close-custom:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
+}
+
+/* Body del Modal Mejorado */
+.modal-body-custom {
+  padding: 2.5rem;
+  background: #f8f9fa;
+}
+
+.form-group-custom {
+  margin-bottom: 0;
+}
+
+.form-label-custom {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  color: #155d27;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+}
+
+.form-label-custom i {
+  color: #198754;
+}
+
+.form-control-custom {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 2px solid #dee2e6;
+  border-radius: 10px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.form-control-custom:focus {
+  outline: none;
+  border-color: #198754;
+  box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.15);
+}
+
+.form-control-custom::placeholder {
+  color: #adb5bd;
+}
+
+select.form-control-custom {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23198754' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 16px;
+  padding-right: 3rem;
+}
+
+textarea.form-control-custom {
+  resize: vertical;
+  min-height: 100px;
+  font-family: inherit;
+}
+
+.form-text-helper {
+  display: block;
+  margin-top: 0.5rem;
+  color: #6c757d;
+  font-size: 0.875rem;
+}
+
+/* Footer del Modal Mejorado */
+.modal-footer-custom {
+  padding: 1.5rem 2.5rem;
+  background: white;
+  border-top: 1px solid #dee2e6;
+  border-radius: 0 0 12px 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.btn-cancel-custom,
+.btn-save-custom {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.btn-cancel-custom {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-cancel-custom:hover {
+  background: #5a6268;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+}
+
+.btn-save-custom {
+  background: linear-gradient(135deg, #198754 0%, #155d27 100%);
+  color: white;
+}
+
+.btn-save-custom:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(25, 135, 84, 0.4);
+}
+
+/* Responsive para Modal Mejorado */
+@media (max-width: 768px) {
+  .modal-ausencia-mejorado {
+    width: 95%;
+    max-width: 95%;
+  }
+
+  .modal-header-custom {
+    padding: 1.5rem;
+    flex-wrap: wrap;
+  }
+
+  .modal-icon-header {
+    width: 50px;
+    height: 50px;
+    font-size: 1.5rem;
+  }
+
+  .modal-title-main {
+    font-size: 1.25rem;
+  }
+
+  .modal-body-custom {
+    padding: 1.5rem;
+  }
+
+  .modal-footer-custom {
+    padding: 1rem 1.5rem;
+    flex-direction: column;
+  }
+
+  .btn-cancel-custom,
+  .btn-save-custom {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ============================================ */
+/* MODAL DE DETALLES - DISEÑO BONITO */
+/* ============================================ */
+
+.modal-detalles-ausencia {
+  max-width: 800px;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.bg-gradient-info {
+  background: linear-gradient(135deg, #0dcaf0 0%, #0a8fbd 100%) !important;
+}
+
+.modal-detalles-body {
+  padding: 2rem;
+  background: #f8f9fa;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Secciones de Detalles */
+.detalle-section {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.detalle-section:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.detalle-section-aprobado {
+  border-left: 4px solid #198754;
+  background: linear-gradient(to right, rgba(25, 135, 84, 0.05), white);
+}
+
+.detalle-section-rechazado {
+  border-left: 4px solid #dc3545;
+  background: linear-gradient(to right, rgba(220, 53, 69, 0.05), white);
+}
+
+/* Header de Sección */
+.detalle-section-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.detalle-section-header h5 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #155d27;
+}
+
+.detalle-section-header i {
+  font-size: 1.3rem;
+  color: #0dcaf0;
+}
+
+/* Grid de Detalles */
+.detalle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.25rem;
+}
+
+.detalle-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.detalle-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detalle-value {
+  font-size: 1rem;
+  color: #212529;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.detalle-tipo {
+  display: flex;
+  align-items: center;
+  color: #0dcaf0;
+  font-weight: 600;
+}
+
+.detalle-dias {
+  color: #198754;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.detalle-badge {
+  width: fit-content;
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+}
+
+/* Descripción de Motivo/Observaciones */
+.detalle-description {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 1rem;
+  font-size: 0.95rem;
+  color: #495057;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.detalle-admin-comment {
+  background: linear-gradient(to right, #fff3cd, #fff8e6);
+  border-left: 4px solid #ffc107;
+  font-weight: 500;
+}
+
+/* Footer del Modal de Detalles */
+.btn-close-custom-footer {
+  padding: 0.875rem 2rem;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+  color: white;
+}
+
+.btn-close-custom-footer:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+  background: linear-gradient(135deg, #5a6268 0%, #495057 100%);
+}
+
+/* Scrollbar personalizado para modal de detalles */
+.modal-detalles-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-detalles-body::-webkit-scrollbar-track {
+  background: #e9ecef;
+  border-radius: 10px;
+}
+
+.modal-detalles-body::-webkit-scrollbar-thumb {
+  background: #0dcaf0;
+  border-radius: 10px;
+}
+
+.modal-detalles-body::-webkit-scrollbar-thumb:hover {
+  background: #0a8fbd;
+}
+
+/* Responsive para Modal de Detalles */
+@media (max-width: 768px) {
+  .modal-detalles-ausencia {
+    width: 95%;
+    max-width: 95%;
+  }
+
+  .modal-detalles-body {
+    padding: 1rem;
+    max-height: 60vh;
+  }
+
+  .detalle-section {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .detalle-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .detalle-section-header h5 {
+    font-size: 1rem;
+  }
+
+  .btn-close-custom-footer {
+    width: 100%;
+    justify-content: center;
+  }
+}

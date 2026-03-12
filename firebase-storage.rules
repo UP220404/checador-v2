@@ -1,0 +1,27 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Función auxiliar para verificar si es admin
+    function isAdmin() {
+      return request.auth != null &&
+        (request.auth.token.email == 'sistemas16ch@gmail.com' ||
+         request.auth.token.email == 'rh@cielitohome.com');
+    }
+
+    // Fotos de perfil - el usuario puede subir/ver su propia foto
+    // Otros usuarios autenticados pueden ver fotos (para mostrar en dashboard, etc)
+    match /fotos-perfil/{uid}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth.uid == uid
+                   && request.resource.size < 5 * 1024 * 1024  // Max 5MB
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Documentos - empleado lee los suyos, admin lee/escribe todos
+    match /documentos/{uid}/{docId}/{fileName} {
+      allow read: if request.auth.uid == uid || isAdmin();
+      allow write: if isAdmin()
+                   && request.resource.size < 10 * 1024 * 1024; // Max 10MB
+    }
+  }
+}

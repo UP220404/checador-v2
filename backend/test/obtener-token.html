@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Obtener Token Firebase</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .card {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    button {
+      background: #4285f4;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #357ae8;
+    }
+    #token-container {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f0f0f0;
+      border-radius: 5px;
+      word-break: break-all;
+      display: none;
+    }
+    .success {
+      color: #0f9d58;
+      font-weight: bold;
+    }
+    .error {
+      color: #db4437;
+      font-weight: bold;
+    }
+    #status {
+      margin: 15px 0;
+      padding: 10px;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🔐 Obtener Token de Firebase</h1>
+    <p>Usa este token para probar el backend en Postman</p>
+
+    <div id="status"></div>
+
+    <button id="btn-login">🔑 Iniciar Sesión con Google</button>
+    <button id="btn-get-token" style="display: none;">📋 Obtener Token</button>
+    <button id="btn-logout" style="display: none;">🚪 Cerrar Sesión</button>
+
+    <div id="token-container">
+      <h3>Tu Token:</h3>
+      <div id="token-display" style="font-family: monospace; font-size: 12px;"></div>
+      <button id="btn-copy">📋 Copiar Token</button>
+    </div>
+
+    <div style="margin-top: 30px; padding: 15px; background: #e3f2fd; border-radius: 5px;">
+      <h4>📝 Instrucciones:</h4>
+      <ol>
+        <li>Haz click en "Iniciar Sesión con Google"</li>
+        <li>Usa un email de admin (sistemas16ch@gmail.com, etc.)</li>
+        <li>Haz click en "Obtener Token"</li>
+        <li>Copia el token y pégalo en Postman</li>
+      </ol>
+      <p><strong>Nota:</strong> El token expira después de 1 hora.</p>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getAuth,
+      GoogleAuthProvider,
+      signInWithPopup,
+      signOut,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    // Configuración de Firebase (la misma del sistema actual)
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2o2FyUwVZafKIv-qtM6fmA663ldB_1Uo",
+      authDomain: "qr-acceso-cielito-home.firebaseapp.com",
+      projectId: "qr-acceso-cielito-home",
+      storageBucket: "qr-acceso-cielito-home.appspot.com",
+      messagingSenderId: "229634415256",
+      appId: "1:229634415256:web:c576ba8879e58e441c4eed"
+    };
+
+    // Inicializar Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // Elementos del DOM
+    const btnLogin = document.getElementById('btn-login');
+    const btnGetToken = document.getElementById('btn-get-token');
+    const btnLogout = document.getElementById('btn-logout');
+    const btnCopy = document.getElementById('btn-copy');
+    const status = document.getElementById('status');
+    const tokenContainer = document.getElementById('token-container');
+    const tokenDisplay = document.getElementById('token-display');
+
+    function showStatus(message, isError = false) {
+      status.textContent = message;
+      status.className = isError ? 'error' : 'success';
+      status.style.display = 'block';
+    }
+
+    // Login con Google
+    btnLogin.addEventListener('click', async () => {
+      try {
+        const provider = new GoogleAuthProvider();
+        await signInWithPopup(auth, provider);
+        showStatus('✅ Sesión iniciada correctamente!');
+      } catch (error) {
+        console.error(error);
+        showStatus('❌ Error al iniciar sesión: ' + error.message, true);
+      }
+    });
+
+    // Obtener Token
+    btnGetToken.addEventListener('click', async () => {
+      try {
+        const user = auth.currentUser;
+        if (!user) {
+          showStatus('❌ No hay usuario logueado', true);
+          return;
+        }
+
+        showStatus('⏳ Obteniendo token...');
+        const token = await user.getIdToken();
+
+        tokenDisplay.textContent = token;
+        tokenContainer.style.display = 'block';
+
+        showStatus('✅ Token obtenido! Usuario: ' + user.email);
+
+        console.log('=== TOKEN DE FIREBASE ===');
+        console.log(token);
+        console.log('=== FIN DEL TOKEN ===');
+      } catch (error) {
+        console.error(error);
+        showStatus('❌ Error obteniendo token: ' + error.message, true);
+      }
+    });
+
+    // Copiar token al portapapeles
+    btnCopy.addEventListener('click', () => {
+      const token = tokenDisplay.textContent;
+      navigator.clipboard.writeText(token).then(() => {
+        showStatus('✅ Token copiado al portapapeles!');
+      }).catch(err => {
+        showStatus('❌ Error al copiar: ' + err.message, true);
+      });
+    });
+
+    // Logout
+    btnLogout.addEventListener('click', async () => {
+      try {
+        await signOut(auth);
+        showStatus('✅ Sesión cerrada');
+        tokenContainer.style.display = 'none';
+      } catch (error) {
+        showStatus('❌ Error al cerrar sesión: ' + error.message, true);
+      }
+    });
+
+    // Observador de autenticación
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        btnLogin.style.display = 'none';
+        btnGetToken.style.display = 'inline-block';
+        btnLogout.style.display = 'inline-block';
+        showStatus('👤 Logueado como: ' + user.email);
+      } else {
+        btnLogin.style.display = 'inline-block';
+        btnGetToken.style.display = 'none';
+        btnLogout.style.display = 'none';
+        showStatus('⚠️ No has iniciado sesión', true);
+      }
+    });
+  </script>
+</body>
+</html>

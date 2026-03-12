@@ -1,0 +1,844 @@
+:root {
+  --verde: #155d27;
+  --verde-claro: #e6f0e9;
+  --dorado: #c1a35f;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WRAPPER — fijo al viewport, sin scroll
+   ═══════════════════════════════════════════════════════════ */
+.qr-page-wrapper {
+  position: fixed;
+  inset: 0;
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(135deg, var(--verde) 0%, var(--dorado) 100%);
+  padding: 0.45rem;
+  box-sizing: border-box;
+  display: flex;
+  align-items: stretch;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   GRID PRINCIPAL
+   ═══════════════════════════════════════════════════════════ */
+.main-container {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 0.55rem;
+  width: 100%;
+  max-width: 1500px;
+  margin: 0 auto;
+  height: 100%;
+  align-items: stretch;
+  animation: fadeIn 0.45s ease-out;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TARJETAS BASE
+   ═══════════════════════════════════════════════════════════ */
+.qr-section,
+.info-section {
+  border-radius: 16px;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  color: #333;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.qr-section::before,
+.info-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--verde), var(--dorado));
+  flex-shrink: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PANEL IZQUIERDO — QR
+   ═══════════════════════════════════════════════════════════ */
+.qr-section {
+  text-align: center;
+  justify-content: space-between;
+}
+
+.logo-section {
+  flex-shrink: 0;
+  padding-top: 0.2rem;
+}
+
+.title {
+  font-size: clamp(1.1rem, 1.8vw, 1.6rem);
+  font-weight: 700;
+  color: var(--verde);
+  margin: 0 0 0.15rem 0;
+  letter-spacing: -0.4px;
+}
+
+.subtitle {
+  color: #6c757d;
+  font-size: clamp(0.72rem, 0.9vw, 0.88rem);
+  font-weight: 500;
+  margin: 0;
+}
+
+/* Zona del QR — ocupa el espacio disponible entre logo y botón */
+.qr-display {
+  background: #f8f9fa;
+  border-radius: 14px;
+  border: 2px dashed var(--verde);
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0.6rem 0;
+  /* SIN overflow:hidden → el status badge en top:-11px no se recorta */
+}
+
+.status-badge {
+  position: absolute;
+  top: -11px;
+  right: 14px;
+  background: var(--verde);
+  color: white;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+  z-index: 1;
+  transition: background 0.3s;
+}
+
+.status-success { background: #198754; }
+.status-warning { background: #ffc107; color: #000; }
+.status-danger  { background: #dc3545; }
+.status-night   { background: #6c757d; }
+
+/* Canvas: escala al ancho Y alto del contenedor manteniendo cuadrado */
+.qr-canvas {
+  display: block;
+  max-width: min(93%, 340px);
+  max-height: 90%;
+  width: auto;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+}
+
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.loading-icon {
+  animation: pulse 2s ease-in-out infinite;
+  font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+  color: var(--verde);
+}
+
+.loading-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--verde);
+  margin: 0;
+}
+
+.mode-indicator {
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 8px;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.mode-dinamico {
+  background: rgba(255, 87, 34, 0.1);
+  border-color: rgba(255, 87, 34, 0.3);
+  color: #d84315;
+}
+
+.mode-estatico {
+  background: rgba(76, 175, 80, 0.1);
+  border-color: rgba(76, 175, 80, 0.3);
+  color: #388e3c;
+}
+
+.refresh-button {
+  background: linear-gradient(135deg, var(--verde), var(--dorado));
+  border: none;
+  border-radius: 10px;
+  padding: 0.7rem 1.2rem;
+  color: white;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  width: 100%;
+  flex-shrink: 0;
+  margin-top: 0.5rem;
+}
+
+.refresh-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 16px rgba(21, 93, 39, 0.3);
+}
+
+.refresh-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PANEL DERECHO — agenda arriba (4-5 items) + fechas abajo
+   ═══════════════════════════════════════════════════════════ */
+.info-section {
+  justify-content: flex-start;
+  gap: 0;
+}
+
+/* Agenda y Fechas — espacio igual, ambas scrollables */
+.agenda-panel {
+  flex: 1 1 0;        /* crece para llenar todo el espacio disponible */
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0.65rem;
+}
+
+.fechas-panel {
+  flex: 0 0 auto;     /* ocupa solo lo que necesita su contenido */
+  max-height: 36%;    /* nunca más del 36% aunque haya muchos items */
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1.5px solid #eee;
+  padding-top: 0.65rem;
+  overflow: hidden;
+}
+
+.panel-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--verde);
+  margin-bottom: 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.38rem;
+  flex-shrink: 0;
+}
+
+.agenda-fecha-badge {
+  margin-left: auto;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #999;
+  background: #f0f0f0;
+  padding: 0.1rem 0.42rem;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+
+.panel-loading,
+.panel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  flex: 1;
+  color: #bbb;
+  font-size: 0.78rem;
+  text-align: center;
+  padding: 0.6rem;
+}
+
+.panel-loading i,
+.panel-empty i {
+  font-size: 1.2rem;
+  color: #ccc;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   AGENDA LISTA — scroll automático por tiempo
+   ═══════════════════════════════════════════════════════════ */
+.agenda-lista {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding-right: 3px;
+}
+
+.agenda-lista::-webkit-scrollbar { width: 3px; }
+.agenda-lista::-webkit-scrollbar-track { background: #f0f0f0; border-radius: 3px; }
+.agenda-lista::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+
+.agenda-mas {
+  font-size: 0.68rem;
+  color: #aaa;
+  font-weight: 600;
+  text-align: center;
+  padding: 0.15rem 0;
+}
+
+.agenda-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 10px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-left: 4px solid var(--verde);
+  transition: background 0.15s, opacity 0.3s;
+  flex-shrink: 0;
+}
+
+.agenda-item:hover { background: #f0f5f1; }
+
+.agenda-hora {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--verde);
+  min-width: 50px;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+
+.agenda-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.agenda-meeting {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agenda-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.28rem;
+}
+
+.agenda-cliente {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--dorado);
+}
+
+.agenda-asignada {
+  font-size: 0.8rem;
+  color: #777;
+}
+
+.agenda-comentario {
+  font-size: 0.75rem;
+  color: #999;
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agenda-link {
+  flex-shrink: 0;
+  color: var(--verde);
+  font-size: 0.85rem;
+  text-decoration: none;
+  padding: 1px 3px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.agenda-link:hover { color: var(--dorado); }
+
+/* ═══════════════════════════════════════════════════════════
+   LIVE DOT
+   ═══════════════════════════════════════════════════════════ */
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #28a745;
+  flex-shrink: 0;
+  animation: livePulse 2.5s ease-in-out infinite;
+}
+
+.live-dot.actualizada {
+  background: var(--dorado);
+  animation: none;
+  transform: scale(1.5);
+}
+
+@keyframes livePulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.85); }
+  50%       { opacity: 1;   transform: scale(1.15); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SECCIONES DE AGENDA — En Curso / Próximas
+   ═══════════════════════════════════════════════════════════ */
+.agenda-seccion-header {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0;
+  flex-shrink: 0;
+}
+
+.agenda-seccion-header.en-curso-header {
+  color: #c0392b;
+}
+
+.agenda-seccion-header.en-curso-header i {
+  animation: pulseRed 1.2s ease-in-out infinite;
+}
+
+.agenda-seccion-header.proximas-header {
+  color: var(--verde);
+}
+
+.agenda-seccion-header.con-separador {
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 1px dashed #e0e0e0;
+}
+
+@keyframes pulseRed {
+  0%, 100% { opacity: 0.45; }
+  50%       { opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ESTADOS DE JUNTAS
+   ═══════════════════════════════════════════════════════════ */
+.agenda-item.en-curso-item {
+  border-left: 4px solid #c0392b;
+  background: #fef9f9;
+  box-shadow: 0 0 0 1px rgba(192, 57, 43, 0.12), 0 2px 8px rgba(192, 57, 43, 0.08);
+}
+
+.agenda-item.en-curso-item .agenda-hora {
+  color: #c0392b;
+  font-weight: 900;
+}
+
+.agenda-item.pasada {
+  opacity: 0.33;
+  filter: grayscale(60%);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FECHAS IMPORTANTES — scrollable, llena espacio restante
+   ═══════════════════════════════════════════════════════════ */
+.fechas-lista-qr {
+  display: flex;
+  flex-direction: column;
+  gap: 0.38rem;
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 3px;
+  min-height: 0;
+}
+
+.fechas-lista-qr::-webkit-scrollbar { width: 3px; }
+.fechas-lista-qr::-webkit-scrollbar-track { background: #f0f0f0; border-radius: 3px; }
+.fechas-lista-qr::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+
+.fecha-qr-item {
+  display: grid;
+  grid-template-columns: 32px 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 9px;
+  border: 1px solid #e8e8e8;
+  background: #fafafa;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.fecha-qr-item:hover { background: #f0f5f1; }
+.fecha-qr-item.cumpleanos  { border-left: 3px solid var(--dorado); }
+.fecha-qr-item.aniversario { border-left: 3px solid var(--verde); }
+
+.fecha-qr-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.fecha-qr-item.cumpleanos .fecha-qr-icon  { background: #fdf3e1; color: #b8860b; }
+.fecha-qr-item.aniversario .fecha-qr-icon { background: var(--verde-claro); color: var(--verde); }
+
+.fecha-qr-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+  min-width: 0;
+}
+
+.fecha-qr-nombre {
+  font-weight: 700;
+  font-size: 0.84rem;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fecha-qr-desc {
+  font-size: 0.68rem;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fecha-qr-dias {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #444;
+  text-align: right;
+  flex-shrink: 0;
+  min-width: 24px;
+}
+
+.badge-hoy {
+  background: var(--dorado);
+  color: #fff;
+  padding: 0.12rem 0.38rem;
+  border-radius: 6px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ANIMACIONES
+   ═══════════════════════════════════════════════════════════ */
+@keyframes pulse {
+  0%, 100% { transform: scale(1);   opacity: 0.8; }
+  50%       { transform: scale(1.1); opacity: 1;   }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════════ */
+
+/* Pantallas medianas */
+@media (max-width: 1100px) {
+  .main-container {
+    grid-template-columns: 1fr 1.4fr;
+    gap: 0.5rem;
+  }
+}
+
+/* Tablets — apilado vertical, scroll activado */
+@media (max-width: 860px) {
+  .qr-page-wrapper {
+    position: relative;
+    min-height: 100vh;
+    overflow-y: auto;
+    padding: 0.4rem;
+  }
+
+  .main-container {
+    grid-template-columns: 1fr;
+    height: auto;
+    gap: 0.5rem;
+  }
+
+  .qr-section {
+    min-height: 420px;
+  }
+
+  .qr-display {
+    min-height: 240px;
+  }
+
+  /* En tablet ambos se ven igual */
+  .agenda-panel,
+  .fechas-panel {
+    flex: 1;
+    min-height: 180px;
+  }
+
+  .info-section {
+    min-height: 500px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SLEEP SCREEN — reposo antes de 7 AM / después de 5 PM
+   ═══════════════════════════════════════════════════════════ */
+.sleep-screen {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(160deg, #0a1f0e 0%, #1a1a2e 60%, #0d1117 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Inter', sans-serif;
+  color: white;
+  z-index: 9999;
+}
+
+.sleep-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  text-align: center;
+  padding: 2rem;
+  animation: fadeIn 1s ease-out;
+}
+
+.sleep-icon {
+  font-size: clamp(3rem, 8vw, 5.5rem);
+  color: var(--dorado);
+  opacity: 0.85;
+  animation: sleepPulse 4s ease-in-out infinite;
+  margin-bottom: 0.4rem;
+}
+
+.sleep-time {
+  font-size: clamp(3.5rem, 9vw, 7rem);
+  font-weight: 800;
+  letter-spacing: -2px;
+  color: #fff;
+  line-height: 1;
+  margin-bottom: 0.2rem;
+}
+
+.sleep-date {
+  font-size: clamp(1rem, 2.5vw, 1.5rem);
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: capitalize;
+  letter-spacing: 0.5px;
+}
+
+.sleep-msg {
+  font-size: clamp(0.8rem, 1.6vw, 1rem);
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 1.2rem;
+  font-weight: 500;
+}
+
+.sleep-brand {
+  font-size: clamp(0.75rem, 1.4vw, 0.95rem);
+  font-weight: 700;
+  color: var(--dorado);
+  opacity: 0.7;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-top: 2rem;
+}
+
+@keyframes sleepPulse {
+  0%, 100% { opacity: 0.6; transform: scale(1);    }
+  50%       { opacity: 1;   transform: scale(1.05); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CARRUSEL — 10 AM a 1 PM en el panel izquierdo
+   ═══════════════════════════════════════════════════════════ */
+
+/* El wrapper ocupa todo el interior de .qr-section (position:relative, overflow:hidden) */
+.carrusel-wrapper {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0d1117;
+}
+
+.carrusel-foto {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: carruselFade 0.8s ease-in-out;
+}
+
+@keyframes carruselFade {
+  from { opacity: 0; transform: scale(1.04); }
+  to   { opacity: 1; transform: scale(1);    }
+}
+
+/* Degradado inferior para el nombre de la marca */
+.carrusel-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1.5rem 1rem 3.2rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, transparent 100%);
+  z-index: 2;
+}
+
+.carrusel-brand {
+  color: white;
+  font-size: clamp(1.1rem, 2.2vw, 1.6rem);
+  font-weight: 800;
+  text-align: center;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+/* Puntos de navegación en la parte inferior */
+.carrusel-dots {
+  position: absolute;
+  bottom: 1rem;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 0.45rem;
+  z-index: 3;
+}
+
+.carrusel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.carrusel-dot.activo {
+  background: white;
+  transform: scale(1.3);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.7);
+}
+
+/* Estado vacío — sin fotos configuradas */
+.carrusel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.82rem;
+  text-align: center;
+  padding: 2rem;
+  z-index: 2;
+}
+
+.carrusel-empty i {
+  font-size: 2.5rem;
+  opacity: 0.4;
+  margin-bottom: 0.3rem;
+}
+
+.carrusel-empty code {
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  color: var(--dorado);
+}
+
+/* Reloj en esquina superior derecha del carrusel */
+.carrusel-time {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.9rem;
+  background: rgba(0, 0, 0, 0.45);
+  color: white;
+  font-size: clamp(1rem, 1.8vw, 1.3rem);
+  font-weight: 700;
+  padding: 0.3rem 0.7rem;
+  border-radius: 8px;
+  z-index: 4;
+  backdrop-filter: blur(4px);
+  letter-spacing: 0.5px;
+}
+
+/* Indicador de modo — carrusel */
+.mode-carrusel {
+  background: rgba(21, 93, 39, 0.1);
+  border-color: rgba(21, 93, 39, 0.3);
+  color: var(--verde);
+}
+
+/* Móviles */
+@media (max-width: 580px) {
+  .qr-page-wrapper {
+    padding: 0.3rem;
+  }
+
+  .qr-section,
+  .info-section {
+    border-radius: 12px;
+    padding: 0.85rem 0.9rem;
+  }
+
+  .title    { font-size: 1.15rem; }
+  .subtitle { font-size: 0.7rem; }
+
+  .qr-display { min-height: 200px; }
+
+  .refresh-button {
+    padding: 0.6rem 1rem;
+    font-size: 0.8rem;
+  }
+
+  .qr-section { min-height: 360px; }
+  .info-section { min-height: 460px; }
+}

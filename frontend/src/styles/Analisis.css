@@ -1,0 +1,325 @@
+/* Estilos para la p�gina de An�lisis */
+
+.chart-container {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.5rem;
+}
+
+.chart-container h4 {
+  color: #155d27;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+/* Estilos del ranking de puntualidad */
+.ranking-card {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.ranking-card .card-header {
+  font-weight: 600;
+  font-size: 1.1rem;
+  padding: 1rem;
+}
+
+#ranking-puntualidad .list-group-item {
+  margin-bottom: 0 !important;
+  padding: 0.5rem 1rem !important;
+  font-size: 1rem;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 3rem;
+  transition: background-color 0.2s;
+}
+
+#ranking-puntualidad .list-group-item:hover {
+  background-color: #f8f9fa;
+}
+
+/* Medallas: diamante, rub�, oro, plata, bronce */
+.ranking-medalla {
+  padding: 0.3em 0.8em;
+  border-radius: 8px;
+  font-weight: 700;
+  margin-left: 0.5em;
+  margin-right: 0.5em;
+  font-size: 0.9em;
+  display: inline-block;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ranking-diamante {
+  background: linear-gradient(135deg, #0dcaf0, #17a2b8);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(13, 202, 240, 0.4);
+}
+
+.ranking-rubi {
+  background: linear-gradient(135deg, #dc3545, #c82333);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.4);
+}
+
+.ranking-oro {
+  background: linear-gradient(135deg, #ffc107, #e0a800);
+  color: #222;
+  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.4);
+}
+
+.ranking-plata {
+  background: linear-gradient(135deg, #adb5bd, #868e96);
+  color: #222;
+  box-shadow: 0 2px 8px rgba(173, 181, 189, 0.4);
+}
+
+.ranking-bronce {
+  background: linear-gradient(135deg, #b87333, #996633);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(184, 115, 51, 0.4);
+}
+
+/* Selector de mes/a�o */
+.selector-mes-container {
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.selector-mes-container label {
+  font-weight: 600;
+  color: #6c757d;
+  margin-bottom: 0;
+}
+
+.selector-mes-container .form-select {
+  border-color: #ced4da;
+  font-size: 0.9rem;
+}
+
+.selector-mes-container .form-select:focus {
+  border-color: #155d27;
+  box-shadow: 0 0 0 0.2rem rgba(21, 93, 39, 0.25);
+}
+
+/* Mensaje cuando no hay datos */
+.ranking-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+
+.ranking-empty i {
+  font-size: 3rem;
+  color: #6c757d;
+  margin-bottom: 1rem;
+}
+
+.ranking-empty h5 {
+  color: #6c757d;
+  margin-top: 1rem;
+  font-weight: 600;
+}
+
+.ranking-empty p {
+  color: #adb5bd;
+  margin-top: 0.5rem;
+}
+
+/* ===== RANKING DE PUNTUALIDAD MEJORADO ===== */
+.ranking-item-nuevo {
+  list-style: none;
+  margin-bottom: 0.75rem;
+  animation: slideInUp 0.5s ease-out;
+}
+
+.ranking-card-nuevo {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  color: white;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border: 2px solid rgba(255,255,255,0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.ranking-card-nuevo::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
+}
+
+.ranking-card-nuevo:hover::before {
+  left: 100%;
+}
+
+.ranking-card-nuevo:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+}
+
+.ranking-position-nuevo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-right: 1.25rem;
+  min-width: 70px;
+}
+
+.position-number-nuevo {
+  font-size: 1.8rem;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+}
+
+.position-emoji-nuevo {
+  font-size: 1.4rem;
+  margin-top: 0.3rem;
+  filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.3));
+}
+
+.ranking-info-nuevo {
+  flex: 1;
+  padding: 0 1rem;
+}
+
+.ranking-name-nuevo {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.4);
+  letter-spacing: 0.3px;
+}
+
+.ranking-medal-nuevo {
+  font-size: 0.95rem;
+  opacity: 0.95;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ranking-medal-nuevo i {
+  font-size: 1.1rem;
+  filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.3));
+}
+
+.ranking-points-nuevo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-width: 90px;
+  background: rgba(0,0,0,0.1);
+  padding: 0.5rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.points-number-nuevo {
+  font-size: 1.7rem;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+}
+
+.points-text-nuevo {
+  font-size: 0.8rem;
+  opacity: 0.9;
+  text-transform: lowercase;
+  margin-top: 0.2rem;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .chart-container {
+    padding: 1rem;
+  }
+
+  .ranking-medalla {
+    font-size: 0.8em;
+    padding: 0.2em 0.6em;
+  }
+
+  .selector-mes-container {
+    padding: 1rem !important;
+  }
+
+  .ranking-card-nuevo {
+    padding: 1rem 1.5rem;
+    min-height: 70px;
+  }
+
+  .ranking-position-nuevo {
+    margin-right: 1rem;
+    min-width: 60px;
+  }
+
+  .ranking-info-nuevo {
+    padding: 0 1rem;
+  }
+
+  .ranking-points-nuevo {
+    min-width: 90px;
+    padding: 0.5rem 0.75rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .ranking-card-nuevo {
+    padding: 0.8rem 1rem;
+    flex-direction: column;
+    text-align: center;
+    min-height: auto;
+  }
+
+  .ranking-position-nuevo {
+    margin-right: 0;
+    margin-bottom: 0.5rem;
+  }
+
+  .ranking-info-nuevo {
+    padding: 0;
+    margin-bottom: 0.5rem;
+  }
+
+  .ranking-name-nuevo {
+    font-size: 1rem;
+  }
+
+  .position-number-nuevo,
+  .points-number-nuevo {
+    font-size: 1.5rem;
+  }
+
+  .ranking-points-nuevo {
+    min-width: 80px;
+  }
+}

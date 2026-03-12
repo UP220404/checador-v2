@@ -1,0 +1,322 @@
+.auditoria-container {
+  padding: 20px;
+}
+
+/* Cards generales */
+.auditoria-container .card {
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  border: none;
+}
+
+/* Stats Cards */
+.auditoria-container .stat-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.auditoria-container .stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12) !important;
+}
+
+.stat-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+/* Avatar pequeño */
+.avatar-sm {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+/* Timeline de auditoría */
+.audit-timeline {
+  position: relative;
+  padding: 0;
+}
+
+.audit-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  position: relative;
+  padding: 1rem 1.25rem;
+  background: #fff;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  border: 1px solid #e9ecef;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.audit-item:hover {
+  border-color: #28a745;
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.1);
+}
+
+.audit-item.selected {
+  border-color: #28a745;
+  background: linear-gradient(to right, #f8fff9, #fff);
+}
+
+/* Icon wrapper para el timeline */
+.audit-icon-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.audit-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.audit-line {
+  width: 2px;
+  flex-grow: 1;
+  min-height: 30px;
+  background: #e9ecef;
+  margin-top: 8px;
+}
+
+.audit-content {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.audit-arrow {
+  display: flex;
+  align-items: center;
+  color: #6c757d;
+  transition: transform 0.2s;
+}
+
+.audit-item.selected .audit-arrow {
+  color: #28a745;
+}
+
+/* Badges de acciones */
+.audit-item .badge {
+  font-size: 0.75rem;
+  padding: 0.35em 0.65em;
+  font-weight: 500;
+}
+
+/* Detalles expandibles */
+.audit-details {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+  border: 1px solid #e9ecef;
+}
+
+.audit-details pre {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  margin: 0;
+  max-height: 200px;
+  overflow: auto;
+}
+
+/* Botón expandir */
+.btn-expand {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.btn-expand:hover {
+  background-color: #28a745 !important;
+  color: white !important;
+}
+
+.btn-expand.expanded {
+  background-color: #28a745;
+  color: white;
+  transform: rotate(180deg);
+}
+
+/* Filtros */
+.auditoria-container .filter-card {
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+}
+
+.auditoria-container .form-select,
+.auditoria-container .form-control {
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.auditoria-container .form-select:focus,
+.auditoria-container .form-control:focus {
+  border-color: #28a745;
+  box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.15);
+}
+
+/* Tabla estilo */
+.auditoria-container .table {
+  font-size: 0.9rem;
+}
+
+.auditoria-container .table th {
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+  color: #6c757d;
+}
+
+.auditoria-container .table td {
+  vertical-align: middle;
+}
+
+/* Empty state */
+.empty-state {
+  padding: 3rem 1rem;
+}
+
+.empty-state .display-1 {
+  font-size: 4rem;
+  opacity: 0.3;
+}
+
+/* Info section */
+.info-section {
+  background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.info-section h6 {
+  color: #2e7d32;
+}
+
+/* Paginación */
+.pagination .page-link {
+  border-radius: 8px;
+  margin: 0 2px;
+  border: none;
+  color: #28a745;
+}
+
+.pagination .page-link:hover {
+  background-color: #e8f5e9;
+}
+
+.pagination .page-item.active .page-link {
+  background-color: #28a745;
+  border-color: #28a745;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .auditoria-container {
+    padding: 10px;
+  }
+
+  .audit-item {
+    padding: 0.75rem;
+  }
+
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+
+  .avatar-sm {
+    width: 32px;
+    height: 32px;
+    font-size: 0.85rem;
+  }
+
+  .audit-details pre {
+    font-size: 0.7rem;
+  }
+}
+
+/* Animaciones */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.audit-item {
+  animation: fadeIn 0.3s ease;
+}
+
+/* Colores de acción */
+.action-crear { color: #28a745; }
+.action-aprobar { color: #17a2b8; }
+.action-rechazar { color: #dc3545; }
+.action-modificar { color: #fd7e14; }
+.action-eliminar { color: #dc3545; }
+.action-login { color: #6f42c1; }
+
+/* Hover en items de lista */
+.list-group-item-action:hover {
+  background-color: #f8fff9;
+  border-color: #28a745;
+}
+
+/* Descripción clara de la acción */
+.audit-description {
+  background: linear-gradient(to right, #ffffff, #f8f9fa);
+  border-left: 4px solid #28a745;
+}
+
+.audit-description p {
+  color: #333;
+  line-height: 1.5;
+}
+
+/* Cambios inline */
+.cambios-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cambios-inline .badge {
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid #dee2e6;
+}

@@ -1,0 +1,39 @@
+{
+  "name": "checador-cielitohome-backend",
+  "version": "1.0.0",
+  "description": "Backend API para Sistema de Checador QR y Nómina - Cielito Home",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "checador",
+    "nomina",
+    "asistencia",
+    "firebase",
+    "express"
+  ],
+  "author": "Cielito Home",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "date-fns": "^3.0.6",
+    "dotenv": "^16.3.1",
+    "exceljs": "^4.4.0",
+    "express": "^4.18.2",
+    "express-async-errors": "^3.1.1",
+    "express-rate-limit": "^7.1.5",
+    "firebase-admin": "^12.0.0",
+    "helmet": "^7.1.0",
+    "joi": "^17.11.0",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.10.1",
+    "pdfkit": "^0.14.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

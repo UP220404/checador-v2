@@ -1,0 +1,498 @@
+.usuarios-container {
+  padding: 20px;
+}
+
+/* Stats Cards */
+.usuarios-container .stat-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+  border-radius: 12px;
+}
+
+.usuarios-container .stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12) !important;
+}
+
+.stat-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+/* ================================================
+   TARJETA CORPORATIVA DE EMPLEADO
+   ================================================ */
+
+.employee-card {
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  border: none;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  background: #fff;
+}
+
+.employee-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+}
+
+.employee-card.inactive {
+  opacity: 0.6;
+  filter: grayscale(40%);
+}
+
+/* Header de la tarjeta con gradiente */
+.employee-card-header {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  padding: 20px;
+  position: relative;
+  min-height: 80px;
+}
+
+.employee-card-header.admin-rh {
+  background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+}
+
+.employee-card-header.admin-area {
+  background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+}
+
+/* Badge de rol */
+.employee-role-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(255, 255, 255, 0.25);
+  color: white;
+  backdrop-filter: blur(4px);
+}
+
+/* Avatar grande estilo foto corporativa */
+.employee-avatar {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #28a745;
+  border: 4px solid white;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  margin: 0 auto;
+  margin-top: -45px;
+  position: relative;
+  z-index: 2;
+}
+
+.employee-avatar.admin-rh {
+  color: #dc3545;
+}
+
+.employee-avatar.admin-area {
+  color: #fd7e14;
+}
+
+/* Contenido de la tarjeta */
+.employee-card-body {
+  padding: 15px 20px 20px;
+  text-align: center;
+}
+
+.employee-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #212529;
+  margin-bottom: 2px;
+}
+
+.employee-puesto {
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+/* Info Carousel - Slider horizontal de información */
+.employee-info-carousel {
+  display: flex;
+  overflow-x: auto;
+  gap: 8px;
+  padding: 8px 0;
+  margin-bottom: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: #28a745 #f0f0f0;
+  scroll-snap-type: x mandatory;
+}
+
+.employee-info-carousel::-webkit-scrollbar {
+  height: 4px;
+}
+
+.employee-info-carousel::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 4px;
+}
+
+.employee-info-carousel::-webkit-scrollbar-thumb {
+  background: #28a745;
+  border-radius: 4px;
+}
+
+.info-slide {
+  flex: 0 0 auto;
+  min-width: 140px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding: 12px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #e9ecef;
+  scroll-snap-align: start;
+  transition: all 0.2s ease;
+}
+
+.info-slide:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #28a745;
+}
+
+.info-slide-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.info-slide-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.info-slide-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6c757d;
+  font-weight: 600;
+}
+
+.info-slide-value {
+  font-size: 0.8rem;
+  color: #212529;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+
+.info-slide-value.info-email {
+  font-size: 0.7rem;
+  max-width: 110px;
+}
+
+/* Estado del empleado */
+.employee-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.employee-status.active {
+  background: #d4edda;
+  color: #155724;
+}
+
+.employee-status.inactive {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+/* Footer con acciones */
+.employee-card-footer {
+  padding: 12px 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.employee-card-footer .btn {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  border-radius: 6px;
+}
+
+.employee-card-footer .btn i {
+  font-size: 0.9rem;
+}
+
+/* ================================================
+   FIN TARJETA CORPORATIVA
+   ================================================ */
+
+/* Avatar circles para tabla */
+.avatar-circle-sm {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+/* Filter card */
+.usuarios-container .card {
+  border-radius: 12px;
+}
+
+/* Form controls */
+.usuarios-container .form-control,
+.usuarios-container .form-select {
+  border-radius: 8px;
+}
+
+.usuarios-container .form-control:focus,
+.usuarios-container .form-select:focus {
+  border-color: #28a745;
+  box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.15);
+}
+
+.usuarios-container .input-group-text {
+  border-radius: 8px 0 0 8px;
+}
+
+.usuarios-container .input-group .form-control {
+  border-radius: 0 8px 8px 0;
+}
+
+/* Buttons */
+.usuarios-container .btn {
+  border-radius: 8px;
+}
+
+.usuarios-container .btn-group .btn {
+  border-radius: 0;
+}
+
+.usuarios-container .btn-group .btn:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.usuarios-container .btn-group .btn:last-child {
+  border-radius: 0 8px 8px 0;
+}
+
+.usuarios-container .btn-group .btn:only-child {
+  border-radius: 8px;
+}
+
+/* Tables */
+.usuarios-container .table th {
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6c757d;
+  border-bottom-width: 1px;
+}
+
+.usuarios-container .table td {
+  vertical-align: middle;
+  padding: 1rem 0.75rem;
+}
+
+.usuarios-container .table-hover tbody tr:hover {
+  background-color: rgba(40, 167, 69, 0.05);
+}
+
+/* Modal */
+.usuarios-container .modal-content {
+  border-radius: 12px;
+}
+
+.usuarios-container .modal-header {
+  border-radius: 12px 12px 0 0;
+}
+
+/* Badges */
+.usuarios-container .badge {
+  font-weight: 500;
+  padding: 0.4em 0.8em;
+}
+
+/* Toast container */
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1060;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .usuarios-container {
+    padding: 10px;
+  }
+
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+
+  .usuarios-container .stat-card h3 {
+    font-size: 1.5rem;
+  }
+
+  .employee-avatar {
+    width: 70px;
+    height: 70px;
+    font-size: 1.5rem;
+    margin-top: -35px;
+  }
+
+  .employee-card-header {
+    min-height: 60px;
+    padding: 15px;
+  }
+
+  .employee-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-header h2 {
+    font-size: 1.3rem;
+  }
+
+  .page-header .btn-lg {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.employee-card {
+  animation: fadeInUp 0.3s ease;
+}
+
+/* Empty state */
+.usuarios-container .display-1 {
+  font-size: 5rem;
+}
+
+/* Section headers in modal */
+.usuarios-container h6.text-muted {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+/* Input group styling */
+.usuarios-container .input-group .form-control.border-start-0 {
+  border-left: none;
+}
+
+.usuarios-container .input-group .input-group-text.border-end-0 {
+  border-right: none;
+}
+
+/* Text truncate helper */
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Switches */
+.usuarios-container .form-switch .form-check-input:checked {
+  background-color: #28a745 !important;
+  border-color: #28a745 !important;
+}
+
+.usuarios-container .form-switch .form-check-input:focus {
+  box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25) !important;
+  border-color: rgba(40, 167, 69, 0.5) !important;
+}
+
+.usuarios-container .form-check-label {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Hover states for action buttons */
+.usuarios-container .btn-outline-primary:hover {
+  background-color: #0d6efd;
+  color: white;
+}
+
+.usuarios-container .btn-outline-warning:hover {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.usuarios-container .btn-outline-danger:hover {
+  background-color: #dc3545;
+  color: white;
+}
+
+.usuarios-container .btn-outline-success:hover {
+  background-color: #28a745;
+  color: white;
+}
+
+/* Table success header */
+.table-success {
+  background-color: #155d27 !important;
+  color: white !important;
+}
+
+.table-success th {
+  border: none;
+  font-weight: 600;
+}

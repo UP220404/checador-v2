@@ -1,0 +1,238 @@
+.documentos-admin-container {
+  padding: 20px;
+}
+
+/* Stats Cards */
+.stat-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+  border-radius: 12px;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+}
+
+.stat-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+/* Avatar Circles */
+.avatar-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.avatar-circle-sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+/* Employee List */
+.employee-list {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.employee-list .list-group-item {
+  border-left: none;
+  border-right: none;
+  padding: 0.875rem 1rem;
+  transition: all 0.2s;
+}
+
+.employee-list .list-group-item:first-child {
+  border-top: none;
+}
+
+.employee-list .list-group-item:hover {
+  background-color: #f8f9fa;
+}
+
+.employee-list .list-group-item.active {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+/* Documents List */
+.documents-list {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.documents-list .table {
+  margin-bottom: 0;
+}
+
+.documents-list .table th {
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6c757d;
+  border-bottom-width: 1px;
+}
+
+.documents-list .table td {
+  vertical-align: middle;
+  padding: 0.875rem 1rem;
+}
+
+.documents-list .table tbody tr {
+  transition: background-color 0.2s;
+}
+
+.documents-list .table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* Document Icon */
+.doc-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+/* Upload Zone */
+.upload-zone {
+  border: 2px dashed #dee2e6 !important;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+
+.upload-zone:hover {
+  border-color: #0d6efd !important;
+  background-color: #f0f7ff !important;
+}
+
+.upload-zone input[type="file"] {
+  margin-top: 10px;
+}
+
+/* Cards */
+.documentos-admin-container .card {
+  border-radius: 12px;
+}
+
+.documentos-admin-container .card-header {
+  border-radius: 12px 12px 0 0;
+}
+
+/* Modals */
+.modal-content {
+  border-radius: 12px;
+}
+
+.modal-header {
+  border-radius: 12px 12px 0 0;
+}
+
+/* Scrollbar styling */
+.employee-list::-webkit-scrollbar,
+.documents-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.employee-list::-webkit-scrollbar-track,
+.documents-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 6px;
+}
+
+.employee-list::-webkit-scrollbar-thumb,
+.documents-list::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 6px;
+}
+
+.employee-list::-webkit-scrollbar-thumb:hover,
+.documents-list::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+  .employee-list {
+    max-height: 300px;
+  }
+
+  .documents-list {
+    max-height: 400px;
+  }
+}
+
+@media (max-width: 768px) {
+  .documentos-admin-container {
+    padding: 10px;
+  }
+
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+
+  .page-header h2 {
+    font-size: 1.3rem;
+  }
+
+  .page-header .btn-lg {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .doc-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+  }
+}
+
+/* Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.documents-list .table tbody tr {
+  animation: fadeIn 0.3s ease;
+}
+
+/* Badge improvements */
+.documents-list .badge {
+  font-weight: 500;
+  font-size: 0.75rem;
+}

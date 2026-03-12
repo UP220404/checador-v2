@@ -1,0 +1,516 @@
+.section-header {
+  margin-bottom: 1rem;
+}
+
+.section-header h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--verde);
+  margin-bottom: 0.5rem;
+}
+
+.card {
+  border: none;
+  border-radius: 15px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.card:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+.card-header {
+  background: white;
+  border-bottom: 2px solid #f0f0f0;
+  padding: 1rem 1.25rem;
+  font-weight: 600;
+  color: #333;
+  border-radius: 15px 15px 0 0;
+  font-size: 0.95rem;
+}
+
+.card-body {
+  padding: 1.25rem;
+}
+
+.card-metric {
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.card-metric:hover {
+  transform: translateY(-5px);
+}
+
+.card-metric .icon-wrapper {
+  width: 60px;
+  height: 60px;
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+  font-size: 1.8rem;
+}
+
+.icon-wrapper.icon-success {
+  background: rgba(25, 135, 84, 0.1);
+  color: #198754;
+}
+
+.icon-wrapper.icon-info {
+  background: rgba(13, 202, 240, 0.1);
+  color: #0dcaf0;
+}
+
+.icon-wrapper.icon-primary {
+  background: rgba(13, 110, 253, 0.1);
+  color: #0d6efd;
+}
+
+.card-metric h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #6c757d;
+  margin-bottom: 0.5rem;
+}
+
+.metric-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #333;
+  margin: 0.5rem 0;
+}
+
+.quick-access-card {
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.quick-access-card:hover {
+  border-color: var(--verde);
+  transform: translateY(-5px);
+}
+
+/* Contenedores de gráficas con altura fija */
+.chart-container {
+  position: relative;
+  height: 300px;
+  width: 100%;
+}
+
+.chart-container-small {
+  position: relative;
+  height: 250px;
+  width: 100%;
+}
+
+/* Estilos responsivos para pantallas pequeñas y cuando se abre DevTools */
+@media (max-width: 1200px) {
+  .card-body {
+    padding: 1rem;
+  }
+
+  .metric-value {
+    font-size: 1.75rem;
+  }
+
+  .card-metric h3 {
+    font-size: 0.9rem;
+  }
+
+  .chart-container {
+    height: 250px;
+  }
+
+  .chart-container-small {
+    height: 220px;
+  }
+}
+
+@media (max-width: 992px) {
+  .section-header h2 {
+    font-size: 1.4rem;
+  }
+
+  .card-metric {
+    padding: 1rem !important;
+  }
+
+  .metric-value {
+    font-size: 1.5rem;
+  }
+
+  .card-metric h3 {
+    font-size: 0.85rem;
+  }
+
+  .card-metric .icon-wrapper {
+    width: 50px;
+    height: 50px;
+    font-size: 1.5rem;
+  }
+
+  .chart-container {
+    height: 220px;
+  }
+
+  .chart-container-small {
+    height: 200px;
+  }
+}
+
+@media (max-width: 768px) {
+  .content-wrapper {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .content {
+    padding: 1rem;
+  }
+
+  .section-header h2 {
+    font-size: 1.3rem;
+  }
+
+  .metric-value {
+    font-size: 1.5rem;
+  }
+
+  .card-metric {
+    padding: 0.75rem !important;
+  }
+
+  .card-metric h3 {
+    font-size: 0.8rem;
+  }
+
+  .card-header {
+    font-size: 0.9rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .chart-container {
+    height: 200px;
+  }
+
+  .chart-container-small {
+    height: 180px;
+  }
+}
+
+/* ================================================
+   CALENDARIO ESTILO APPLE
+   ================================================ */
+
+.apple-calendar {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 12px;
+}
+
+.apple-calendar-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.apple-day-name {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #8e8e93;
+  padding: 10px 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.apple-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.apple-calendar-day {
+  min-height: 90px;
+  border-right: 1px solid #f0f0f0;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  transition: background 0.15s ease;
+}
+
+.apple-calendar-day:nth-child(7n) {
+  border-right: none;
+}
+
+.apple-calendar-day:hover:not(.empty) {
+  background: #f5f5f7;
+}
+
+.apple-calendar-day.empty {
+  background: #fafafa;
+}
+
+.apple-calendar-day.weekend {
+  background: #fefbf3;
+}
+
+.apple-calendar-day.weekend:hover {
+  background: #fdf6e3;
+}
+
+.apple-calendar-day.today {
+  background: #f0fdf4;
+}
+
+.apple-day-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
+}
+
+.apple-day-number {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: #1d1d1f;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.apple-day-number.today-badge {
+  background: #28a745;
+  color: white;
+  font-weight: 600;
+}
+
+.apple-events-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.apple-event-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.apple-event-pill i {
+  font-size: 0.6rem;
+  flex-shrink: 0;
+}
+
+.apple-event-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.apple-more-events {
+  font-size: 0.6rem;
+  color: #8e8e93;
+  padding: 2px 4px;
+  font-weight: 500;
+}
+
+/* Responsive Apple Calendar */
+@media (max-width: 992px) {
+  .apple-calendar-day {
+    min-height: 75px;
+    padding: 3px;
+  }
+
+  .apple-day-number {
+    font-size: 0.75rem;
+    width: 22px;
+    height: 22px;
+  }
+
+  .apple-event-pill {
+    font-size: 0.6rem;
+    padding: 2px 4px;
+  }
+
+  .apple-event-pill i {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .apple-calendar-day {
+    min-height: 60px;
+    padding: 2px;
+  }
+
+  .apple-day-name {
+    font-size: 0.6rem;
+    padding: 6px 2px;
+  }
+
+  .apple-day-number {
+    font-size: 0.7rem;
+    width: 20px;
+    height: 20px;
+  }
+
+  .apple-event-pill {
+    font-size: 0.55rem;
+    padding: 1px 3px;
+    border-radius: 3px;
+  }
+
+  .apple-event-text {
+    max-width: 50px;
+  }
+
+  .apple-more-events {
+    font-size: 0.5rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .apple-calendar-day {
+    min-height: 50px;
+  }
+
+  .apple-event-pill .apple-event-text {
+    display: none;
+  }
+
+  .apple-event-pill {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .apple-event-pill i {
+    display: block;
+    font-size: 0.7rem;
+  }
+}
+
+/* Lista de eventos debajo del calendario */
+.apple-events-list {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e5e5;
+}
+
+.events-list-header {
+  display: flex;
+  align-items: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1d1d1f;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+.events-count {
+  background: #28a745;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 8px;
+}
+
+.events-list-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.event-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.event-list-item:hover {
+  background: #f0f0f0;
+  transform: translateX(4px);
+}
+
+.event-list-date {
+  min-width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: white;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.event-list-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.event-list-name {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #1d1d1f;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.event-list-type {
+  font-size: 0.7rem;
+  color: #8e8e93;
+  text-transform: capitalize;
+  margin-top: 2px;
+}
+
+@media (max-width: 768px) {
+  .events-list-items {
+    grid-template-columns: 1fr;
+    max-height: 150px;
+  }
+
+  .event-list-item {
+    padding: 8px 10px;
+  }
+
+  .event-list-date {
+    min-width: 32px;
+    height: 32px;
+    font-size: 0.8rem;
+  }
+
+  .event-list-name {
+    font-size: 0.8rem;
+  }
+}

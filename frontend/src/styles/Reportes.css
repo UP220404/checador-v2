@@ -1,0 +1,38 @@
+/* Estilos para la página de Reportes */
+
+.card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+}
+
+.card-header {
+  font-weight: 600;
+  border-radius: 12px 12px 0 0 !important;
+}
+
+.btn-group .btn-check:checked + .btn-outline-success {
+  background-color: #155d27;
+  border-color: #155d27;
+  color: white;
+}
+
+.btn-outline-success:hover {
+  background-color: #155d27;
+  border-color: #155d27;
+  color: white;
+}
+
+.table-sm {
+  font-size: 0.9rem;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+  .col-lg-4 {
+    margin-top: 1rem;
+  }
+}
