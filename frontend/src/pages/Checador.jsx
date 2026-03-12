@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { auth } from '../config/firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { api } from '../services/api';
