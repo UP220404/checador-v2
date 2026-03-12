@@ -1,6 +1,6 @@
 import { getFirestore } from '../config/firebase.js';
 import { CONFIG, HTTP_STATUS } from '../config/constants.js';
-import { isWeekend } from '../utils/dateUtils.js';
+import { isWeekend, getMexicoTimeComponents } from '../utils/dateUtils.js';
 
 /**
  * Servicio de Nómina - Sistema Completo
@@ -216,10 +216,7 @@ class PayrollService {
     }
 
     // ✅ LÍMITE: Solo contar días hasta HOY (no incluir días futuros)
-    const hoy = new Date();
-    const diaActual = hoy.getDate();
-    const mesActual = hoy.getMonth() + 1; // getMonth() es 0-indexed
-    const anioActual = hoy.getFullYear();
+    const { day: diaActual, month: mesActual, year: anioActual } = getMexicoTimeComponents();
 
     // Si estamos calculando un período futuro, no hay días laborales aún
     if (anio > anioActual || (anio === anioActual && mes > mesActual)) {

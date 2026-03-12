@@ -4,7 +4,7 @@
 
 import { getFirestore } from '../config/firebase.js';
 import { COLLECTIONS, CONFIG, USUARIOS_REMOTOS, USUARIOS_MODO_PRUEBAS, USUARIOS_MULTI_REGISTRO } from '../config/constants.js';
-import { getTodayString, dateToString, getTimeString, evaluarPuntualidad, isWeekend, getStartOfWeek } from '../utils/dateUtils.js';
+import { getTodayString, dateToString, getTimeString, evaluarPuntualidad, isWeekend, getStartOfWeek, getMexicoTimeComponents } from '../utils/dateUtils.js';
 import { verificarUbicacionOficina } from '../utils/geoUtils.js';
 import QRService from './QRService.js';
 import UserService from './UserService.js';
@@ -139,8 +139,8 @@ class AttendanceService {
     }
 
     // Validar horario general (7 AM - 10 PM)
-    const hora = ahora.getHours();
-    if (hora < 7 || hora >= 22) {
+    const { hour } = getMexicoTimeComponents(ahora);
+    if (hour < 7 || hour >= 22) {
       return {
         success: false,
         message: '❌ Solo puedes registrar entre 7:00 am y 10:00 pm.'
@@ -187,11 +187,13 @@ class AttendanceService {
   validarHorario(tipoEvento, tipoUsuario) {
     const ahora = new Date();
 
+    const { hour: horaActual, minute: minutosActuales } = getMexicoTimeComponents(ahora);
+
     if (tipoEvento === 'entrada') {
       // Validar ventana de entrada (7 AM - límite según tipo)
       const horaLimite = tipoUsuario === 'becario' ? 13 : 16;
 
-      if (ahora.getHours() >= horaLimite) {
+      if (horaActual >= horaLimite) {
         return {
           success: false,
           message: `❌ Ya no puedes registrar entrada después de las ${horaLimite}:00.`
@@ -203,8 +205,6 @@ class AttendanceService {
         ? CONFIG.HORA_LIMITE_SALIDA_BECARIO
         : CONFIG.HORA_LIMITE_SALIDA_EMPLEADO;
 
-      const horaActual = ahora.getHours();
-      const minutosActuales = ahora.getMinutes();
       const minutosMinimos = (horaSalida.hours * 60) + horaSalida.minutes;
       const minutosReales = (horaActual * 60) + minutosActuales;
 

@@ -6,22 +6,17 @@
 /**
  * Obtiene la fecha actual en formato YYYY-MM-DD (zona horaria México)
  */
-export function getTodayString() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+export function getTodayString(date = new Date()) {
+  const options = { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' };
+  // Con fr-CA obtenemos YYYY-MM-DD
+  return new Intl.DateTimeFormat('fr-CA', options).format(date);
 }
 
 /**
  * Convierte Date a string YYYY-MM-DD
  */
 export function dateToString(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return getTodayString(date);
 }
 
 /**
@@ -46,10 +41,9 @@ export function getTimeString(date = new Date()) {
  * Evalúa si una hora es puntual o retardo
  */
 export function evaluarPuntualidad(date, limiteHora = 8, limiteMinutos = 10) {
-  const hora = date.getHours();
-  const minutos = date.getMinutes();
+  const { hour, minute } = getMexicoTimeComponents(date);
 
-  const minutosActuales = (hora * 60) + minutos;
+  const minutosActuales = (hour * 60) + minute;
   const minutosLimite = (limiteHora * 60) + limiteMinutos;
 
   return minutosActuales <= minutosLimite ? 'puntual' : 'retardo';
@@ -59,7 +53,7 @@ export function evaluarPuntualidad(date, limiteHora = 8, limiteMinutos = 10) {
  * Obtiene el día de la semana (0 = Domingo, 6 = Sábado)
  */
 export function getDayOfWeek(date = new Date()) {
-  return date.getDay();
+  return getMexicoTimeComponents(date).dayOfWeek;
 }
 
 /**
@@ -169,10 +163,33 @@ export function estaEnRango(fecha, inicio, fin) {
 }
 
 /**
- * Obtiene timestamp de servidor (para Firestore)
+ * Helper para obtener componentes de fecha en zona México (Exportado para validaciones)
  */
-export function getServerTimestamp() {
-  return new Date();
+export function getMexicoTimeComponents(date = new Date()) {
+  const options = {
+    timeZone: 'America/Mexico_City',
+    hour12: false,
+    hour: 'numeric',
+    minute: 'numeric',
+    day: 'numeric',
+    month: 'numeric',
+    year: 'numeric'
+  };
+  
+  const parts = new Intl.DateTimeFormat('en-US', options).formatToParts(date);
+  const map = {};
+  parts.forEach(({ type, value }) => map[type] = value);
+  
+  const d = new Date(date.toLocaleString('en-US', { timeZone: 'America/Mexico_City' }));
+  
+  return {
+    hour: parseInt(map.hour),
+    minute: parseInt(map.minute),
+    day: parseInt(map.day),
+    month: parseInt(map.month),
+    year: parseInt(map.year),
+    dayOfWeek: d.getDay()
+  };
 }
 
 export default {
@@ -180,6 +197,7 @@ export default {
   dateToString,
   stringToDate,
   getTimeString,
+  getMexicoTimeComponents,
   evaluarPuntualidad,
   getDayOfWeek,
   isWeekend,
