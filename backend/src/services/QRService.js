@@ -135,7 +135,7 @@ class QRService {
           ultimoAcceso: ahora,
           ultimoUsuario: userEmail || 'desconocido',
           ultimoIntentoStatus: 'exito_estatico',
-          contadorUsos: admin.firestore.FieldValue.increment(1)
+          contadorUsos: getFirestore().constructor.FieldValue.increment(1)
         });
       }
 
@@ -227,7 +227,7 @@ class QRService {
 
     try {
       await statsRef.update({
-        [tipo]: admin.firestore.FieldValue.increment(1),
+        [tipo]: getFirestore().constructor.FieldValue.increment(1),
         ultimaActualizacion: new Date()
       });
     } catch (error) {

@@ -132,15 +132,18 @@ function QRGenerator() {
 
   // Calcula cuándo expira el token según el modo
   const calcularExpiracion = (tipoModo) => {
-    const fin = new Date();
-    fin.setSeconds(0, 0);
+    const ahora = Date.now();
     if (tipoModo === 'dinamico') {
-      fin.setHours(HORA_CARRUSEL, 0, 0, 0); // Expira cuando empieza el carrusel
+      // El QR dinámico solo vive 2 minutos. Si nadie lo usa, se regenera.
+      // Esto evita "fotos compartidas" a larga distancia.
+      return ahora + (2 * 60 * 1000);
     } else {
-      fin.setHours(HORA_DORMIR, 0, 0, 0);   // Expira cuando el sistema se duerme
+      // Modo estático (Tarde): Vive hasta que el sistema se duerme
+      const fin = new Date();
+      fin.setHours(HORA_DORMIR, 0, 0, 0);
+      if (fin.getTime() < ahora) fin.setDate(fin.getDate() + 1);
+      return fin.getTime();
     }
-    if (fin.getTime() < Date.now()) fin.setDate(fin.getDate() + 1);
-    return fin.getTime();
   };
 
   // ─── Sleep / Wake ─────────────────────────────────────────────────────────
@@ -171,12 +174,16 @@ function QRGenerator() {
     unsubscribeRef.current = onSnapshot(tokenRef, (snap) => {
       if (!snap.exists()) return;
       const data = snap.data();
-      // Reacciona solo si ES el token activo y fue marcado como usado por el backend
-      if (data.token === tokenActivoRef.current && data.usado === true) {
+      // Reacciona si ES el token activo y ya fue marcado como usado 
+      // o si hay un intento de procesamiento (para 'quemar' el QR rápido)
+      const debeRegenerar = data.token === tokenActivoRef.current && 
+                           (data.usado === true || data.ultimoIntentoStatus === 'procesando');
+
+      if (debeRegenerar) {
         setStatus('escaneado');
         setShowQR(false);
-        setCountdown('Regenerando...');
-        setTimeout(() => generarQR(false), 1800);
+        setCountdown('Generando nuevo...');
+        setTimeout(() => generarQR(false), 1200);
       }
     });
   };

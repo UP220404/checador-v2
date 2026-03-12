@@ -73,6 +73,13 @@ function Checador() {
     if (qrParam === 'OFICINA2025' && tokenParam) {
       setQrValido(true);
       mostrarStatus('success', '✅ Código QR detectado. Procesando marcaje automático...');
+      
+      // LIMPIEZA DE URL (Anti-Trampa)
+      // Removemos los parámetros de la URL para que no se puedan copiar, compartir o bookmarkear
+      setTimeout(() => {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }, 500);
+
     } else if (!qrParam && !tokenParam) {
       setQrValido(false);
       // No mostrar warning si no hay params (entrada normal al sitio)

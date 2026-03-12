@@ -3,6 +3,17 @@ import { HTTP_STATUS, ERROR_MESSAGES, ROLES } from '../config/constants.js';
 import { isAdmin } from '../config/firebase.js';
 
 class AttendanceController {
+  constructor() {
+    // Vincular métodos para que 'this' no se pierda al ser llamados por Express
+    this.checkIn = this.checkIn.bind(this);
+    this.getHistory = this.getHistory.bind(this);
+    this.getWeekly = this.getWeekly.bind(this);
+    this.getToday = this.getToday.bind(this);
+    this.getSummary = this.getSummary.bind(this);
+    this.getMonthlyReport = this.getMonthlyReport.bind(this);
+    this.getTodayRecord = this.getTodayRecord.bind(this);
+  }
+
   // Helper para verificar si el usuario tiene permisos de admin (Email o Rol)
   _isUserAdmin(user) {
     return isAdmin(user.email) || user.role === ROLES.ADMIN_RH;
