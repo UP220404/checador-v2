@@ -6,7 +6,7 @@ import UserService from '../services/UserService.js';
 import AuditService from '../services/AuditService.js';
 import ContractEvaluationService from '../services/ContractEvaluationService.js';
 import NotificationService from '../services/NotificationService.js';
-import getCloudinary from '../config/Cloudinary.js';
+import getCloudinary from '../config/cloudinary.js';
 import { HTTP_STATUS, ERROR_MESSAGES, ROLES } from '../config/constants.js';
 import { isAdmin } from '../config/firebase.js';
 
