@@ -5,6 +5,7 @@
 import express from 'express';
 import AttendanceController from '../controllers/AttendanceController.js';
 import { authMiddleware, adminMiddleware } from '../middleware/auth.middleware.js';
+import { attachRoleData } from '../middleware/role.middleware.js';
 
 const router = express.Router();
 
