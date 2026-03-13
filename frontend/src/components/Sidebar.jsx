@@ -12,10 +12,17 @@ const ROLES = {
   ADMIN_RH: 'admin_rh'
 };
 
-function Sidebar() {
+function Sidebar({ isMobileOpen, onMobileClose }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { userRole: authRole, userName: authName, userDepartamento: authDept, loading: authLoading, refreshUser, user: authUser } = useAuth();
+
+  // Cerrar sidebar automáticamente al navegar en móviles
+  useEffect(() => {
+    if (isMobileOpen && onMobileClose) {
+      onMobileClose();
+    }
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Al montar el Sidebar, refrescar datos del usuario desde el backend
   // Esto garantiza que el nombre siempre esté actualizado sin necesidad de recargar
@@ -220,7 +227,7 @@ function Sidebar() {
   };
 
   return (
-    <div className="sidebar">
+    <div className={`sidebar ${isMobileOpen ? 'mobile-open' : ''}`}>
       <div className="sidebar-header">
         <div className="sidebar-header-row">
           <div>
@@ -228,13 +235,22 @@ function Sidebar() {
             <small className="text-light opacity-75">{getRoleLabel()}</small>
           </div>
 
-          {/* Campana */}
-          <div className="notif-admin-wrapper" ref={notifRef}>
-            <button
-              className={`notif-admin-bell ${showNotifDropdown ? 'active' : ''} ${unreadCount > 0 ? 'has-pending' : ''}`}
-              onClick={handleBellClick}
-              title="Notificaciones"
+          <div className="d-flex align-items-center gap-2">
+            {/* Botón de cierre para móviles */}
+            <button 
+              className="btn-close-sidebar d-md-none"
+              onClick={onMobileClose}
             >
+              <i className="bi bi-x-lg"></i>
+            </button>
+
+            {/* Campana */}
+            <div className="notif-admin-wrapper" ref={notifRef}>
+              <button
+                className={`notif-admin-bell ${showNotifDropdown ? 'active' : ''} ${unreadCount > 0 ? 'has-pending' : ''}`}
+                onClick={handleBellClick}
+                title="Notificaciones"
+              >
               <i className="bi bi-bell-fill"></i>
               {unreadCount > 0 && (
                 <span className="notif-admin-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
@@ -350,8 +366,9 @@ function Sidebar() {
               </div>
             )}
           </div>
-        </div>
+        </div> {/* Cierre de d-flex align-items-center gap-2 */}
       </div>
+    </div>
 
       {userRole === ROLES.ADMIN_AREA && userDepartamento && (
         <div className="department-banner">

@@ -548,12 +548,15 @@ textarea.form-control-portal {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap; /* Permitir que los elementos bajen de línea si no caben */
+  gap: 1.5rem;
 }
 
 .portal-header-v2 .user-info {
   display: flex;
   align-items: center;
   gap: 1rem;
+  min-width: 250px; /* Asegurar un ancho mínimo para el nombre */
 }
 
 .user-avatar-v2 {
@@ -597,6 +600,42 @@ textarea.form-control-portal {
 .header-actions {
   display: flex;
   gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .portal-header-v2 {
+    padding: 1.25rem 1rem;
+  }
+
+  .portal-header-v2 .header-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.25rem;
+  }
+
+  .header-actions {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .header-actions .btn-outline-success {
+    width: 100%;
+    margin-bottom: 0.25rem;
+    order: -1; /* Botón de Admin arriba */
+    justify-content: center;
+  }
+
+  .user-details h2 {
+    font-size: 1.25rem;
+  }
+  
+  .user-avatar-v2 {
+    width: 50px;
+    height: 50px;
+  }
 }
 
 .btn-icon {
