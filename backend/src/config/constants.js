@@ -14,9 +14,15 @@ export const CONFIG = {
   HORA_LIMITE_SALIDA_BECARIO: { hours: 13, minutes: 0 }, // 1:00 PM
   HORA_LIMITE_SALIDA_EMPLEADO: { hours: 16, minutes: 0 }, // 4:00 PM
 
-  // Ventana de registro
-  HORA_INICIO_REGISTRO: { hours: 7, minutes: 0 }, // 7:00 AM
-  HORA_FIN_REGISTRO: { hours: 22, minutes: 0 }, // 10:00 PM
+  // Ventana de registro (Configurable desde Render)
+  HORA_INICIO_REGISTRO: { 
+    hours: parseInt(process.env.REGISTRATION_START_HOUR) || 7, 
+    minutes: parseInt(process.env.REGISTRATION_START_MIN) || 0 
+  },
+  HORA_FIN_REGISTRO: { 
+    hours: parseInt(process.env.REGISTRATION_END_HOUR) || 22, 
+    minutes: parseInt(process.env.REGISTRATION_END_MIN) || 0 
+  },
 
   // Geolocalización (Configurada exclusivamente desde variables de entorno para seguridad)
   OFICINA: {

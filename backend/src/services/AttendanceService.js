@@ -138,12 +138,15 @@ class AttendanceService {
       };
     }
 
-    // Validar horario general (7 AM - 10 PM)
+    // Validar horario general dinámico
     const { hour } = getMexicoTimeComponents(ahora);
-    if (hour < 7 || hour >= 22) {
+    const inicio = CONFIG.HORA_INICIO_REGISTRO;
+    const fin = CONFIG.HORA_FIN_REGISTRO;
+
+    if (hour < inicio.hours || hour >= fin.hours) {
       return {
         success: false,
-        message: '❌ Solo puedes registrar entre 7:00 am y 10:00 pm.'
+        message: `❌ Solo puedes registrar entre ${inicio.hours}:00 am y ${fin.hours > 12 ? fin.hours - 12 : fin.hours}:00 ${fin.hours >= 12 ? 'pm' : 'am'}.`
       };
     }
 
