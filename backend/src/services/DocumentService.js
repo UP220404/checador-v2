@@ -272,6 +272,30 @@ class DocumentService {
       throw error;
     }
   }
+
+  /**
+   * Obtiene el conteo de documentos para todos los usuarios (admin)
+   */
+  async getAllDocumentCounts() {
+    try {
+      const querySnapshot = await this.db
+        .collection(this.documentsCollection)
+        .where('visible', '==', true)
+        .get();
+      
+      const counts = {};
+      querySnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.uid) {
+          counts[data.uid] = (counts[data.uid] || 0) + 1;
+        }
+      });
+      return counts;
+    } catch (error) {
+      console.error('Error en getAllDocumentCounts:', error);
+      throw error;
+    }
+  }
 }
 
 export default new DocumentService();

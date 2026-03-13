@@ -434,12 +434,41 @@ function PortalEmpleado() {
         <div className="portal-header portal-header-v2">
           <div className="header-content">
             <div className="user-info">
-              <div className="user-avatar-v2">
+              <div className="user-avatar-v2" onClick={() => document.getElementById('foto-upload-input').click()} title="Cambiar foto de perfil" style={{ cursor: 'pointer' }}>
                 {userData?.fotoUrl ? (
                   <img src={userData.fotoUrl} alt={userData.nombre} />
                 ) : (
                   <i className="bi bi-person-fill"></i>
                 )}
+                <div className="avatar-upload-overlay">
+                  <i className="bi bi-camera-fill"></i>
+                </div>
+                <input
+                  id="foto-upload-input"
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    if (file.size > 5 * 1024 * 1024) {
+                      setMensaje({ show: true, type: 'danger', text: 'La imagen no puede superar 5MB' });
+                      return;
+                    }
+                    try {
+                      setMensaje({ show: true, type: 'info', text: 'Subiendo foto...' });
+                      const response = await api.updateProfilePhoto(user.uid, file);
+                      if (response.data.success) {
+                        setUserData(prev => ({ ...prev, fotoUrl: response.data.data.fotoUrl }));
+                        setMensaje({ show: true, type: 'success', text: '¡Foto actualizada!' });
+                      }
+                    } catch (error) {
+                      console.error('Error subiendo foto:', error);
+                      setMensaje({ show: true, type: 'danger', text: 'Error al subir la foto' });
+                    }
+                    e.target.value = '';
+                  }}
+                />
               </div>
               <div className="user-details">
                 <h2>{userData?.nombre || user?.displayName || 'Empleado'}</h2>
@@ -458,17 +487,11 @@ function PortalEmpleado() {
               {/* Botón de volver a Administración (Solo para Admins) */}
               {(userRole === 'admin_rh' || userRole === 'admin_area') && (
                 <button 
-                  className="btn btn-outline-success d-flex align-items-center me-3 px-3 shadow-sm"
+                  className="btn-icon admin-shortcut"
                   onClick={() => navigate('/admin/dashboard')}
-                  style={{ 
-                    borderRadius: '12px', 
-                    fontWeight: '600',
-                    border: '1.5px solid var(--secondary-color)',
-                    background: 'rgba(13, 110, 56, 0.05)'
-                  }}
+                  title="Panel de Administración"
                 >
-                  <i className="bi bi-speedometer2 me-2"></i>
-                  Panel de Administración
+                  <i className="bi bi-speedometer2"></i>
                 </button>
               )}
 

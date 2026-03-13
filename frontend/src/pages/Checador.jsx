@@ -3,6 +3,8 @@ import { auth } from '../config/firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { api } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import ParticlesBackground from '../components/ParticlesBackground';
+import logoCielito from '../assets/logo-cielito.png';
 import '../styles/Checador.css';
 
 function Checador() {
@@ -231,59 +233,71 @@ function Checador() {
   const isAdmin = userData?.role === 'admin_rh' || sessionStorage.getItem('userRole') === 'admin_rh';
 
   return (
-    <div className="login-container"> {/* Reutilizamos el container premium */}
+    <div className="login-container" style={{ position: 'relative' }}>
+      <ParticlesBackground />
+      
       <motion.div 
         className="container py-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
+        style={{ position: 'relative', zIndex: 10 }}
       >
         <motion.div 
           className="login-card mx-auto" 
-          style={{ maxWidth: '500px' }}
+          style={{ maxWidth: '440px' }}
           initial={{ y: 20 }}
           animate={{ y: 0 }}
         >
           <div className="text-center mb-4">
-            <div className="logo-premium mb-3">
-              <i className="bi bi-person-badge-fill"></i>
+            <div className="logo-container-premium mb-2" style={{ transform: 'scale(0.8)', marginBottom: '-10px' }}>
+              <img src={logoCielito} alt="Cielito Home" className="login-logo-img" style={{ width: '100px' }} />
             </div>
-            <h2 className="mb-1">Control de Asistencia</h2>
-            <p className="text-muted small">Cielito Home</p>
+            <h2 className="welcome-text fs-3 mb-1">Control de Asistencia</h2>
+            <div className="brand-divider mx-auto mt-2" style={{ width: '60px' }}></div>
           </div>
 
-          <div className="user-info-banner mb-4 text-center">
-            <p className="mb-0 fw-bold">
-              {user ? `Bienvenido, ${userData?.name || user.displayName || user.email}` : 'Iniciando sesión...'}
+          <div className="mb-4 text-center">
+            <p className="mb-0 fw-medium text-white-50" style={{ fontSize: '1.1rem' }}>
+              {user ? (
+                <span>
+                  Bienvenido, <span className="text-white fw-bold">{userData?.name || user.displayName || user.email}</span>
+                </span>
+              ) : 'Identificación requerida'}
             </p>
           </div>
 
           <div className="time-display-premium mb-4 text-center">
-            <div className="display-4 fw-bold">{time}</div>
-            <div className="text-muted">{date}</div>
+            <div className="display-4 fw-bold" style={{ color: '#ffffff', letterSpacing: '2px', textShadow: '0 0 20px rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
+              {time}
+            </div>
+            <div className="text-white-50 small text-uppercase" style={{ letterSpacing: '1px' }}>{date}</div>
           </div>
 
-          <div className="d-grid gap-2 mb-4">
+          <div className="d-grid gap-3 mb-4">
             <button
               onClick={registrarAsistencia}
               disabled={autoRegistrando && !registroInfo}
-              className={`btn btn-lg rounded-pill ${qrValido ? 'btn-success fw-bold' : 'btn-outline-secondary'}`}
+              className={`btn btn-lg rounded-pill ${qrValido ? 'btn-success text-white fw-bold shadow-sm' : 'btn-outline-secondary text-white-50'}`}
+              style={qrValido ? { background: 'linear-gradient(135deg, #198754 0%, #157347 100%)', border: 'none' } : {}}
             >
-              <i className={`bi ${autoRegistrando && !registroInfo ? 'bi-hourglass-split' : 'bi-check-circle-fill'} me-2`}></i>
+              <i className={`bi ${autoRegistrando && !registroInfo ? 'bi-hourglass-split' : 'bi-fingerprint'} me-2 fs-5`}></i>
               {autoRegistrando && !registroInfo ? 'Procesando...' : 'Registrar Asistencia'}
             </button>
             
-            <a href="/empleado/portal" className="btn btn-outline-primary rounded-pill py-2">
-              <i className="bi bi-person-circle me-2"></i>
-              Ir a mi Portal
-            </a>
+            <div className="d-flex justify-content-between align-items-center mt-2 px-2">
+              <a href="/empleado/portal" className="text-white-50 text-decoration-none small hover-white transition-all">
+                <i className="bi bi-person-workspace me-1"></i>
+                Ir a mi Portal
+              </a>
 
-            <button
-              onClick={handleLogout}
-              className="btn btn-link text-danger text-decoration-none mt-2"
-            >
-              <i className="bi bi-box-arrow-right me-2"></i>
-              Cerrar Sesión
-            </button>
+              <button
+                onClick={handleLogout}
+                className="btn btn-link text-danger text-decoration-none small p-0 m-0 opacity-75 hover-opacity-100"
+              >
+                <i className="bi bi-box-arrow-right me-1"></i>
+                Cerrar Sesión
+              </button>
+            </div>
           </div>
 
           <AnimatePresence>
@@ -301,40 +315,41 @@ function Checador() {
 
           {registroInfo && (
             <motion.div 
-              className="mt-4 p-4 bg-white rounded-4 shadow-sm text-start border border-success border-opacity-25"
+              className="mt-4 p-4 rounded-4 text-start border border-success border-opacity-25"
+              style={{ background: 'rgba(25, 135, 84, 0.1)', backdropFilter: 'blur(10px)' }}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
             >
               <div className="d-flex align-items-center mb-3">
-                <div className="bg-success bg-opacity-10 p-2 rounded-circle me-3">
-                  <i className="bi bi-calendar-check text-success fs-4"></i>
+                <div className="bg-success text-white p-2 rounded-circle me-3 shadow-sm d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px' }}>
+                  <i className="bi bi-calendar-check fs-5"></i>
                 </div>
                 <div>
-                  <h6 className="mb-0 fw-bold">Registro Exitoso</h6>
-                  <p className="text-muted small mb-0">{registroInfo.fecha}</p>
+                  <h6 className="mb-0 fw-bold text-white">Registro Exitoso</h6>
+                  <p className="text-white-50 small mb-0">{registroInfo.fecha}</p>
                 </div>
               </div>
 
               <div className="attendance-details-grid small mb-4">
-                <div className="d-flex justify-content-between p-2 rounded-3 bg-light mb-2">
-                  <span className="text-muted">Colaborador:</span>
-                  <span className="fw-bold">{registroInfo.nombre}</span>
+                <div className="d-flex justify-content-between p-2 rounded-3 mb-1" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                  <span className="text-white-50">Colaborador:</span>
+                  <span className="fw-bold text-white">{registroInfo.nombre}</span>
                 </div>
-                <div className="d-flex justify-content-between p-2 rounded-3 bg-light mb-2">
-                  <span className="text-muted">Movimiento:</span>
-                  <span className={`fw-bold ${registroInfo.evento === 'ENTRADA' ? 'text-primary' : 'text-danger'}`}>
+                <div className="d-flex justify-content-between p-2 rounded-3 mb-1" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                  <span className="text-white-50">Movimiento:</span>
+                  <span className={`fw-bold ${registroInfo.evento === 'ENTRADA' ? 'text-info' : 'text-warning'}`}>
                     {registroInfo.evento}
                   </span>
                 </div>
-                <div className="d-flex justify-content-between p-2 rounded-3 bg-light mb-2">
-                  <span className="text-muted">Hora:</span>
-                  <span className="fw-bold">{registroInfo.hora}</span>
+                <div className="d-flex justify-content-between p-2 rounded-3 mb-1" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                  <span className="text-white-50">Hora:</span>
+                  <span className="fw-bold text-white">{registroInfo.hora}</span>
                 </div>
-                <div className="d-flex justify-content-between p-2 rounded-3 bg-light">
-                  <span className="text-muted">Estado:</span>
+                <div className="d-flex justify-content-between p-2 rounded-3" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                  <span className="text-white-50">Estado:</span>
                   <span className={`badge rounded-pill ${
-                    registroInfo.estado === 'puntual' ? 'bg-success' : 
-                    registroInfo.estado === 'retardo' ? 'bg-warning text-dark' : 'bg-info'
+                    registroInfo.estado === 'puntual' ? 'bg-success text-white' : 
+                    registroInfo.estado === 'retardo' ? 'bg-warning text-dark' : 'bg-info text-dark'
                   }`}>
                     {registroInfo.estado.toUpperCase()}
                   </span>
@@ -342,36 +357,14 @@ function Checador() {
               </div>
 
               <div className="d-grid gap-2">
-                <a href="/empleado/portal" className="btn btn-primary rounded-pill py-2">
+                <a href="/empleado/portal" className="btn btn-outline-light rounded-pill py-2">
                   <i className="bi bi-person-workspace me-2"></i>
-                  Ir a mi Portal de Empleado
+                  Ver Resumen Semanal
                 </a>
-                
-                {(userData?.role === 'admin_rh' || isAdmin) && (
-                  <a href="/admin/dashboard" className="btn btn-dark rounded-pill py-2">
-                    <i className="bi bi-shield-lock me-2"></i>
-                    Panel de Administración (RH)
-                  </a>
-                )}
-
-                <button 
-                  onClick={() => setRegistroInfo(null)}
-                  className="btn btn-link link-secondary text-decoration-none small mt-2"
-                >
-                  Finalizar y cerrar
-                </button>
               </div>
             </motion.div>
           )}
 
-          {!registroInfo && (
-            <div className="text-center mt-4">
-              <a href="/empleado/portal" className="btn btn-link link-success text-decoration-none">
-                <i className="bi bi-person-circle me-1"></i>
-                Ver mi Portal de Empleado
-              </a>
-            </div>
-          )}
         </motion.div>
       </motion.div>
     </div>

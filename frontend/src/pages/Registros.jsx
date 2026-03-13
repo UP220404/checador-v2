@@ -139,6 +139,7 @@ function Registros() {
 
   return (
     <AdminLayout>
+      <div className="registros-container">
       <div className="section-header">
         <h2>
           <i className="bi bi-table me-2"></i>
@@ -455,6 +456,7 @@ function Registros() {
           </div>
         </div>
       )}
+      </div>
     </AdminLayout>
   );
 }

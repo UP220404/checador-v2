@@ -48,7 +48,7 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
   useEffect(() => {
     const sessionUserRole = sessionStorage.getItem('userRole');
     const userEmail = auth.currentUser?.email;
-    const adminEmails = process.env.VITE_ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
+    const adminEmails = import.meta.env.VITE_ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
     
     setIsAdmin(sessionUserRole === ROLES.ADMIN_RH || adminEmails.includes(userEmail));
   }, [auth.currentUser?.email]); // Dependencia para re-evaluar si el usuario de auth cambia

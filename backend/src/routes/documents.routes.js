@@ -6,6 +6,7 @@ import express from 'express';
 import DocumentController from '../controllers/DocumentController.js';
 import { authMiddleware, adminMiddleware } from '../middleware/auth.middleware.js';
 import { attachRoleData, adminAreaOrRHMiddleware } from '../middleware/role.middleware.js';
+import { uploadDocument } from '../middleware/upload.middleware.js';
 
 const router = express.Router();
 
@@ -38,8 +39,11 @@ router.get('/:id', DocumentController.getDocument);
 // GET /api/v1/documents/user/:uid - Documentos de un usuario específico
 router.get('/user/:uid', adminAreaOrRHMiddleware, DocumentController.getUserDocuments);
 
-// POST /api/v1/documents/upload - Subir documento
-router.post('/upload', adminMiddleware, DocumentController.uploadDocument);
+// GET /api/v1/documents/admin/counts - Conteos globales (admin)
+router.get('/admin/counts', adminMiddleware, DocumentController.getGlobalCounts);
+
+// POST /api/v1/documents/upload - Subir documento (con archivo)
+router.post('/upload', adminMiddleware, uploadDocument, DocumentController.uploadDocument);
 
 // PUT /api/v1/documents/:id - Actualizar documento
 router.put('/:id', adminMiddleware, DocumentController.updateDocument);

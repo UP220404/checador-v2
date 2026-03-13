@@ -164,7 +164,14 @@ export const api = {
 
   // User Profile Extended
   updateProfileExtended: (uid, data) => apiClient.put(`/users/${uid}/profile-extended`, data),
-  updateProfilePhoto: (uid, fotoUrl) => apiClient.put(`/users/${uid}/foto`, { fotoUrl }),
+  updateProfilePhoto: (uid, file) => {
+    const formData = new FormData();
+    formData.append('foto', file);
+    return apiClient.put(`/users/${uid}/foto`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  deleteProfilePhoto: (uid) => apiClient.delete(`/users/${uid}/foto`),
 
   // Fechas Importantes
   getFechasImportantes: (uid) => apiClient.get(`/users/${uid}/fechas-importantes`),
@@ -189,11 +196,29 @@ export const api = {
 
   // Documents
   getMyDocuments: (params) => apiClient.get('/documents/my', { params }),
+  getGlobalDocumentCounts: () => apiClient.get('/documents/admin/counts'),
   getMyPayrollReceipts: (params) => apiClient.get('/documents/my/payroll', { params }),
   getMyDocumentCount: () => apiClient.get('/documents/my/count'),
   getDocument: (id) => apiClient.get(`/documents/${id}`),
   getUserDocuments: (uid, params) => apiClient.get(`/documents/user/${uid}`, { params }),
-  uploadDocument: (data) => apiClient.post('/documents/upload', data),
+  uploadDocument: (data) => {
+    // Si data tiene un archivo, enviar como FormData
+    if (data.archivo) {
+      const formData = new FormData();
+      formData.append('archivo', data.archivo);
+      formData.append('uid', data.uid);
+      formData.append('tipo', data.tipo);
+      formData.append('nombre', data.nombre);
+      if (data.descripcion) formData.append('descripcion', data.descripcion);
+      if (data.visible !== undefined) formData.append('visible', data.visible);
+      if (data.periodoNomina) formData.append('periodoNomina', data.periodoNomina);
+      return apiClient.post('/documents/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+    }
+    // Fallback para compatibilidad
+    return apiClient.post('/documents/upload', data);
+  },
   updateDocument: (id, data) => apiClient.put(`/documents/${id}`, data),
   deleteDocument: (id) => apiClient.delete(`/documents/${id}`),
 

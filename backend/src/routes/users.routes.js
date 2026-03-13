@@ -7,6 +7,7 @@ import UserController from '../controllers/UserController.js';
 import ContractEvaluationController from '../controllers/ContractEvaluationController.js';
 import { authMiddleware, adminMiddleware } from '../middleware/auth.middleware.js';
 import { attachRoleData, adminAreaOrRHMiddleware, adminRHMiddleware } from '../middleware/role.middleware.js';
+import { uploadSingle } from '../middleware/upload.middleware.js';
 
 const router = express.Router();
 
@@ -33,8 +34,11 @@ router.put('/:uid/profile', UserController.updateOwnProfile);
 // PUT /api/v1/users/:uid/profile-extended - Actualizar perfil extendido
 router.put('/:uid/profile-extended', UserController.updateProfileExtended);
 
-// PUT /api/v1/users/:uid/foto - Actualizar foto de perfil
-router.put('/:uid/foto', UserController.updateProfilePhoto);
+// PUT /api/v1/users/:uid/foto - Subir foto de perfil (Cloudinary)
+router.put('/:uid/foto', uploadSingle, UserController.updateProfilePhoto);
+
+// DELETE /api/v1/users/:uid/foto - Eliminar foto de perfil
+router.delete('/:uid/foto', UserController.deleteProfilePhoto);
 
 // GET /api/v1/users/:uid/fechas-importantes - Obtener fechas importantes
 router.get('/:uid/fechas-importantes', UserController.getFechasImportantes);

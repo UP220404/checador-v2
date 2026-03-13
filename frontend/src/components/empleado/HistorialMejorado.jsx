@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../../services/api';
 
@@ -7,7 +7,7 @@ const MONTH_NAMES = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
 
-const DAY_NAMES = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
+const DAY_NAMES = ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB', 'DOM'];
 
 function HistorialMejorado({ userData, attendanceSummary }) {
   const [historial, setHistorial] = useState([]);
@@ -17,41 +17,74 @@ function HistorialMejorado({ userData, attendanceSummary }) {
     year: new Date().getFullYear(),
     month: new Date().getMonth()
   });
-  const [selectedDay, setSelectedDay] = useState(null);
+  const [selectedDay, setSelectedDay] = useState(new Date().toISOString().split('T')[0]);
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = actual, -1 = previa, etc.
   const [filtro, setFiltro] = useState({
     fechaInicio: '',
     fechaFin: ''
   });
 
+  // Efecto para cargar historial según el modo y la semana
   useEffect(() => {
     if (userData) {
       if (viewMode === 'calendar') {
         cargarHistorialMes(currentMonth.year, currentMonth.month);
-      } else {
-        cargarHistorial();
+      } else if (viewMode === 'list') {
+        const { start, end } = getWeekDates(weekOffset);
+        cargarHistorialSemana(start, end);
       }
     }
-  }, [userData, currentMonth, viewMode]);
+  }, [userData, currentMonth, viewMode, weekOffset]);
 
-  const cargarHistorial = async () => {
+  const getWeekDates = (offset) => {
+    const today = new Date();
+    const day = today.getDay();
+    const diffToMonday = today.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(today.setDate(diffToMonday + (offset * 7)));
+    const sunday = new Date(new Date(monday).setDate(monday.getDate() + 6));
+    
+    return {
+      start: monday.toISOString().split('T')[0],
+      end: sunday.toISOString().split('T')[0],
+      mondayLabel: monday.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }),
+      sundayLabel: sunday.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })
+    };
+  };
+
+  const cargarHistorialSemana = async (start, end) => {
     try {
       setLoading(true);
-      const hoy = new Date();
-      const hace30Dias = new Date(hoy);
-      hace30Dias.setDate(hace30Dias.getDate() - 30);
-
       const response = await api.getAttendanceRecords({
         userId: userData.uid,
-        limit: 100,
-        startDate: filtro.fechaInicio || hace30Dias.toISOString().split('T')[0],
-        endDate: filtro.fechaFin || hoy.toISOString().split('T')[0]
+        limit: 50,
+        startDate: start,
+        endDate: end
       });
-
       if (response.data.success) {
         setHistorial(response.data.data || []);
       }
     } catch (error) {
-      console.error('Error cargando historial:', error);
+      console.error('Error cargando semana:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cargarHistorial = async () => {
+    // Mantengo esta para búsqueda manual
+    try {
+      setLoading(true);
+      const response = await api.getAttendanceRecords({
+        userId: userData.uid,
+        limit: 100,
+        startDate: filtro.fechaInicio,
+        endDate: filtro.fechaFin
+      });
+      if (response.data.success) {
+        setHistorial(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Error:', error);
     } finally {
       setLoading(false);
     }
@@ -190,214 +223,197 @@ function HistorialMejorado({ userData, attendanceSummary }) {
 
   return (
     <div className="historial-mejorado">
-      <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <h4 className="section-title mb-0">
-          <i className="bi bi-clock-history me-2 text-success"></i>
-          Historial de Asistencia
-        </h4>
-        <div className="view-toggle">
-          <button
-            className={`view-toggle-btn ${viewMode === 'calendar' ? 'active' : ''}`}
-            onClick={() => setViewMode('calendar')}
-          >
-            <i className="bi bi-calendar3"></i> Calendario
-          </button>
-          <button
-            className={`view-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
-            onClick={() => setViewMode('list')}
-          >
-            <i className="bi bi-list-ul"></i> Lista
-          </button>
-        </div>
-      </div>
-
-      {/* Resumen de horas */}
-      <div className="resumen-horas">
-        <div className="resumen-card">
-          <div className="resumen-icon">
-            <i className="bi bi-calendar-week"></i>
-          </div>
-          <div className="resumen-info">
-            <span className="resumen-value">
-              {formatHoras(attendanceSummary?.semana?.horasTrabajadas || 0)}
-            </span>
-            <span className="resumen-label">Esta semana</span>
-          </div>
-          <div className="resumen-extra">
-            <span>{attendanceSummary?.semana?.diasTrabajados || 0} dias</span>
-            {(attendanceSummary?.semana?.retardos || 0) > 0 && (
-              <span className="text-warning">{attendanceSummary.semana.retardos} retardos</span>
-            )}
+      <div className="history-top-navbar">
+        <div className="nav-left">
+          <h4 className="navbar-title">
+            <i className="bi bi-clock-history text-success me-2"></i>
+            Historial
+          </h4>
+          <div className="navbar-stats">
+            <div className="stat-v3">
+              <span className="v">{formatHoras(attendanceSummary?.semana?.horasTrabajadas || 0)}</span>
+              <span className="l">Semana</span>
+            </div>
+            <div className="stat-v3">
+              <span className="v">{formatHoras(attendanceSummary?.mes?.horasTrabajadas || 0)}</span>
+              <span className="l">Mes</span>
+            </div>
           </div>
         </div>
 
-        <div className="resumen-card">
-          <div className="resumen-icon">
-            <i className="bi bi-calendar-month"></i>
+        <div className="nav-center">
+          {viewMode === 'list' && (
+            <div className="week-nav-navbar">
+              <button className="nav-btn" onClick={() => setWeekOffset(prev => prev - 1)}>
+                <i className="bi bi-chevron-left"></i>
+              </button>
+              <div className="week-label-v3">
+                <span className="s">{weekOffset === 0 ? 'Esta Semana' : `Semana ${weekOffset}`}</span>
+                <span className="d">{getWeekDates(weekOffset).mondayLabel} - {getWeekDates(weekOffset).sundayLabel}</span>
+              </div>
+              <button className="nav-btn" onClick={() => setWeekOffset(prev => prev + 1)} disabled={weekOffset >= 0}>
+                <i className="bi bi-chevron-right"></i>
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="nav-right">
+          <div className="navbar-search">
+            <input
+              type="date"
+              className="navbar-date-input"
+              value={filtro.fechaInicio}
+              onChange={(e) => setFiltro({ ...filtro, fechaInicio: e.target.value })}
+            />
+            <button className="navbar-search-btn" onClick={handleBuscar}>
+              <i className="bi bi-search"></i>
+            </button>
           </div>
-          <div className="resumen-info">
-            <span className="resumen-value">
-              {formatHoras(attendanceSummary?.mes?.horasTrabajadas || 0)}
-            </span>
-            <span className="resumen-label">Este mes</span>
-          </div>
-          <div className="resumen-extra">
-            <span>{attendanceSummary?.mes?.diasTrabajados || 0} dias</span>
-            {(attendanceSummary?.mes?.retardos || 0) > 0 && (
-              <span className="text-warning">{attendanceSummary.mes.retardos} retardos</span>
-            )}
+          <div className="navbar-toggles">
+            <button
+              className={`nav-toggle-btn ${viewMode === 'calendar' ? 'active' : ''}`}
+              onClick={() => setViewMode('calendar')}
+              title="Calendario"
+            >
+              <i className="bi bi-calendar3"></i>
+            </button>
+            <button
+              className={`nav-toggle-btn ${viewMode === 'list' ? 'active' : ''}`}
+              onClick={() => setViewMode('list')}
+              title="Lista"
+            >
+              <i className="bi bi-list-ul"></i>
+            </button>
           </div>
         </div>
       </div>
 
       {viewMode === 'calendar' ? (
-        /* ============ CALENDAR VIEW ============ */
-        <div className="attendance-calendar">
-          {/* Month Navigation */}
-          <div className="calendar-nav">
-            <button className="btn-cal-nav" onClick={() => navigateMonth(-1)}>
-              <i className="bi bi-chevron-left"></i>
-            </button>
-            <h5 className="calendar-month-label">
-              {MONTH_NAMES[currentMonth.month]} {currentMonth.year}
-            </h5>
-            <button className="btn-cal-nav" onClick={() => navigateMonth(1)}>
-              <i className="bi bi-chevron-right"></i>
-            </button>
-          </div>
-
-          {loading ? (
-            <div className="text-center py-5">
-              <div className="spinner-border text-success" role="status">
-                <span className="visually-hidden">Cargando...</span>
-              </div>
+        /* ============ CALENDAR VIEW (DUAL LAYOUT) ============ */
+        <div className="calendar-dual-layout">
+          {/* Columna Izquierda: Calendario */}
+          <div className="calendar-main-col">
+            <div className="calendar-nav">
+              <button className="btn-cal-nav" onClick={() => navigateMonth(-1)}>
+                <i className="bi bi-chevron-left"></i>
+              </button>
+              <h5 className="calendar-month-label">
+                {MONTH_NAMES[currentMonth.month]} {currentMonth.year}
+              </h5>
+              <button className="btn-cal-nav" onClick={() => navigateMonth(1)}>
+                <i className="bi bi-chevron-right"></i>
+              </button>
             </div>
-          ) : (
-            <>
-              {/* Day Headers */}
+
+            {loading ? (
+              <div className="text-center py-5">
+                <div className="spinner-border text-success" role="status">
+                  <span className="visually-hidden">Cargando...</span>
+                </div>
+              </div>
+            ) : (
               <div className="calendar-grid">
                 {DAY_NAMES.map(day => (
                   <div key={day} className="calendar-header-cell">{day}</div>
                 ))}
 
-                {/* Day Cells */}
                 {calendarDays.map((dayData, idx) => (
                   <motion.div
                     key={idx}
-                    className={`calendar-cell ${dayData.status || ''} ${dayData.isToday ? 'today' : ''} ${selectedDay === dayData.dateStr ? 'selected' : ''} ${dayData.type === 'padding' ? 'padding' : ''}`}
+                    className={`calendar-cell ${dayData.status || ''} ${dayData.isToday ? 'is-today' : ''} ${selectedDay === dayData.dateStr ? 'is-selected' : ''} ${dayData.type === 'padding' ? 'is-padding' : ''}`}
                     onClick={() => {
                       if (dayData.day && !dayData.isFuture && dayData.status !== 'weekend') {
                         setSelectedDay(selectedDay === dayData.dateStr ? null : dayData.dateStr);
                       }
                     }}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: idx * 0.008, duration: 0.2 }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.005, duration: 0.2 }}
                   >
                     {dayData.day && (
-                      <>
+                      <div className="cell-content">
                         <span className="calendar-day-number">{dayData.day}</span>
-                        <span className="calendar-status-dot"></span>
                         {dayData.record?.entrada && (
-                          <span className="calendar-time-mini">{dayData.record.entrada}</span>
+                          <div className="cell-info-hover">
+                            <span className="mini-time">{dayData.record.entrada}</span>
+                            <span className="status-dot-inner"></span>
+                          </div>
                         )}
-                      </>
+                      </div>
                     )}
                   </motion.div>
                 ))}
               </div>
+            )}
+          </div>
 
-              {/* Legend */}
-              <div className="calendar-legend">
-                <span><span className="legend-dot complete"></span> Puntual</span>
-                <span><span className="legend-dot late"></span> Retardo</span>
-                <span><span className="legend-dot partial"></span> Incompleto</span>
-                <span><span className="legend-dot no-record"></span> Sin registro</span>
-              </div>
-
-              {/* Selected Day Detail */}
-              <AnimatePresence>
-                {selectedDay && (
-                  <motion.div
-                    className="day-detail-card"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <h6>
-                      <i className="bi bi-calendar-day me-2"></i>
-                      {new Date(selectedDay + 'T00:00:00').toLocaleDateString('es-MX', {
-                        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-                      })}
-                    </h6>
-                    {registrosAgrupados[selectedDay] ? (
-                      <div className="day-detail-times">
-                        <div>
-                          <i className="bi bi-box-arrow-in-right text-success me-2"></i>
-                          <strong>Entrada:</strong> {registrosAgrupados[selectedDay].entrada || '--:--'}
-                        </div>
-                        <div>
-                          <i className="bi bi-box-arrow-right text-danger me-2"></i>
-                          <strong>Salida:</strong> {registrosAgrupados[selectedDay].salida || '--:--'}
-                        </div>
-                        <div>
-                          {registrosAgrupados[selectedDay].retardo ? (
-                            <span className="badge bg-warning text-dark">
-                              <i className="bi bi-exclamation-triangle me-1"></i> Retardo
-                            </span>
-                          ) : registrosAgrupados[selectedDay].entrada ? (
-                            <span className="badge bg-success">
-                              <i className="bi bi-check-circle me-1"></i> Puntual
-                            </span>
-                          ) : (
-                            <span className="badge bg-secondary">Sin registro</span>
-                          )}
-                        </div>
+          {/* Columna Derecha: Panel de Info */}
+          <div className="calendar-side-panel">
+            {/* Detalle del Dia */}
+            <div className="side-panel-section detail">
+              <h6 className="side-panel-title">Detalle del Día</h6>
+              {selectedDay ? (
+                <div className="selected-day-info">
+                  <div className="selected-date-badge">
+                    {new Date(selectedDay + 'T00:00:00').toLocaleDateString('es-MX', {
+                      weekday: 'short', day: 'numeric', month: 'short'
+                    })}
+                  </div>
+                  {registrosAgrupados[selectedDay] ? (
+                    <div className="side-times">
+                      <div className="side-time-item">
+                        <span className="label">Entrada</span>
+                        <span className="val">{registrosAgrupados[selectedDay].entrada || '--:--'}</span>
                       </div>
-                    ) : (
-                      <p className="text-muted mb-0">
-                        <i className="bi bi-info-circle me-1"></i>
-                        No hay registros para este dia
-                      </p>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </>
-          )}
+                      <div className="side-time-item">
+                        <span className="label">Salida</span>
+                        <span className="val">{registrosAgrupados[selectedDay].salida || '--:--'}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="no-data-msg">Sin registros</p>
+                  )}
+                </div>
+              ) : (
+                <div className="select-prompt">
+                  <i className="bi bi-cursor-fill"></i>
+                  <span>Selecciona un día</span>
+                </div>
+              )}
+            </div>
+
+            {/* Leyenda y Stats integradas al costado */}
+            <div className="side-panel-section stats">
+              <h6 className="side-panel-title">Resumen del Mes</h6>
+              <div className="side-stats-grid">
+                <div className="side-stat success">
+                  <span className="v">{calendarStats.completos}</span>
+                  <span className="l">Puntuales</span>
+                </div>
+                <div className="side-stat warn">
+                  <span className="v">{calendarStats.retardos}</span>
+                  <span className="l">Retardos</span>
+                </div>
+                <div className="side-stat error">
+                  <span className="v">{calendarStats.sinRegistro}</span>
+                  <span className="l">Faltas</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="side-panel-section legend">
+              <div className="mini-legend">
+                <div className="leg-item"><span className="dot complete"></span> Puntual</div>
+                <div className="leg-item"><span className="dot late"></span> Retardo</div>
+                <div className="leg-item"><span className="dot no-record"></span> Vacío</div>
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         /* ============ LIST VIEW ============ */
-        <>
-          {/* Filtros */}
-          <div className="filtros-bar">
-            <div className="filtro-item">
-              <label className="form-label">Desde</label>
-              <input
-                type="date"
-                className="form-control-portal"
-                value={filtro.fechaInicio}
-                onChange={(e) => setFiltro({ ...filtro, fechaInicio: e.target.value })}
-              />
-            </div>
-            <div className="filtro-item">
-              <label className="form-label">Hasta</label>
-              <input
-                type="date"
-                className="form-control-portal"
-                value={filtro.fechaFin}
-                onChange={(e) => setFiltro({ ...filtro, fechaFin: e.target.value })}
-              />
-            </div>
-            <div className="filtro-item d-flex align-items-end">
-              <button className="btn-portal btn-portal-primary" onClick={handleBuscar}>
-                <i className="bi bi-search"></i>
-                Buscar
-              </button>
-            </div>
-          </div>
-
+        <div className="historial-list-view">
           {loading ? (
             <div className="text-center py-5">
               <div className="spinner-border text-success" role="status">
@@ -422,60 +438,77 @@ function HistorialMejorado({ userData, attendanceSummary }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {diasOrdenados.map((fecha) => {
-                    const reg = registrosAgrupados[fecha];
-                    const fechaObj = new Date(fecha + 'T00:00:00');
-                    const diaSemana = fechaObj.toLocaleDateString('es-MX', { weekday: 'short' });
-                    const fechaFormateada = fechaObj.toLocaleDateString('es-MX', {
-                      day: '2-digit',
-                      month: 'short'
+                  {(() => {
+                    const groups = {};
+                    diasOrdenados.forEach(fecha => {
+                      const fechaObj = new Date(fecha + 'T00:00:00');
+                      // Obtener el lunes de esa semana para agrupar
+                      const day = fechaObj.getDay();
+                      const diff = fechaObj.getDate() - day + (day === 0 ? -6 : 1);
+                      const monday = new Date(fechaObj.setDate(diff));
+                      const label = `Semana del ${monday.toLocaleDateString('es-MX', { day: '2-digit', month: 'long' })}`;
+                      
+                      if (!groups[label]) groups[label] = [];
+                      groups[label].push(fecha);
                     });
 
-                    return (
-                      <tr key={fecha}>
-                        <td>
-                          <div className="fecha-cell">
-                            <span className="dia-semana">{diaSemana}</span>
-                            <span className="fecha-texto">{fechaFormateada}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <span className={`hora-cell ${reg.entrada ? 'recorded' : 'missing'}`}>
-                            <i className={`bi ${reg.entrada ? 'bi-box-arrow-in-right' : 'bi-dash'} me-1`}></i>
-                            {reg.entrada || '--:--'}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`hora-cell ${reg.salida ? 'recorded' : 'missing'}`}>
-                            <i className={`bi ${reg.salida ? 'bi-box-arrow-right' : 'bi-dash'} me-1`}></i>
-                            {reg.salida || '--:--'}
-                          </span>
-                        </td>
-                        <td>
-                          {reg.retardo ? (
-                            <span className="estado-badge retardo">
-                              <i className="bi bi-exclamation-triangle me-1"></i>
-                              Retardo
-                            </span>
-                          ) : reg.entrada ? (
-                            <span className="estado-badge puntual">
-                              <i className="bi bi-check-circle me-1"></i>
-                              Puntual
-                            </span>
-                          ) : (
-                            <span className="estado-badge sin-registro">
-                              Sin registro
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                    return Object.entries(groups).map(([semana, dias]) => (
+                      <React.Fragment key={semana}>
+                        <tr className="week-header-row">
+                          <td colSpan="4">
+                            <div className="week-label">
+                              <i className="bi bi-calendar-range me-2"></i>
+                              {semana}
+                            </div>
+                          </td>
+                        </tr>
+                        {dias.map((fecha) => {
+                          const reg = registrosAgrupados[fecha];
+                          const fechaObj = new Date(fecha + 'T00:00:00');
+                          const diaSemana = fechaObj.toLocaleDateString('es-MX', { weekday: 'long' });
+                          const diaMes = fechaObj.getDate();
+                          const mesNombre = fechaObj.toLocaleDateString('es-MX', { month: 'short' });
+
+                          return (
+                            <tr key={fecha} className="list-row">
+                              <td>
+                                <div className="fecha-cell-v3">
+                                  <span className="dia-texto">{diaSemana}</span>
+                                  <span className="fecha-num">{diaMes} {mesNombre}</span>
+                                </div>
+                              </td>
+                              <td>
+                                <div className={`hora-badge ${reg.entrada ? 'success' : 'missing'}`}>
+                                  <i className={`bi ${reg.entrada ? 'bi-box-arrow-in-right' : 'bi-dash'}`}></i>
+                                  {reg.entrada || '--:--'}
+                                </div>
+                              </td>
+                              <td>
+                                <div className={`hora-badge ${reg.salida ? 'info' : 'missing'}`}>
+                                  <i className={`bi ${reg.salida ? 'bi-box-arrow-in-left' : 'bi-dash'}`}></i>
+                                  {reg.salida || '--:--'}
+                                </div>
+                              </td>
+                              <td>
+                                {reg.retardo ? (
+                                  <span className="status-pill warning">Retardo</span>
+                                ) : reg.entrada ? (
+                                  <span className="status-pill success">Puntual</span>
+                                ) : (
+                                  <span className="status-pill secondary">Sin Registro</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </React.Fragment>
+                    ));
+                  })()}
                 </tbody>
               </table>
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* Estadisticas del periodo */}

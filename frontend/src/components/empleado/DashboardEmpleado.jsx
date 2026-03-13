@@ -108,32 +108,38 @@ function DashboardEmpleado({ userData, attendanceSummary, saldoVacaciones, unrea
   // Mientras carga, mostrar el contenido parcial
   return (
     <div className="dashboard-empleado">
-      {/* Bienvenida - siempre visible */}
-      <div className="welcome-section">
-        <div className="welcome-text">
-          <h3>{getGreeting()}, {userData?.nombre?.split(' ')[0] || 'Usuario'}</h3>
-          <p className="text-muted">
-            {new Date().toLocaleDateString('es-MX', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })}
-          </p>
+      {/* Registro de hoy e Información de Bienvenida Integrada */}
+      <div className="today-status-card premium-integrated">
+        <div className="status-header-main">
+          <div className="welcome-section-integrated">
+            <h3>{getGreeting()}, {userData?.nombre?.split(' ')[0] || 'Usuario'}</h3>
+            <p className="welcome-sub-integrated">
+              {new Date().toLocaleDateString('es-MX', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </p>
+          </div>
+          <button className="btn-mini-action" onClick={() => window.location.href = '/'}>
+            <i className="bi bi-qr-code-scan me-1"></i> Ir al Checador
+          </button>
         </div>
-      </div>
-
-      {/* Registro de hoy */}
-      <div className="today-status-card">
-        <h5><i className="bi bi-calendar-check me-2"></i>Estado de hoy</h5>
-        <div className="status-grid">
+        
+        <div className="status-main">
           <div className="status-item">
             <span className="status-label">Entrada</span>
-            <span className={`status-value ${todayRecord?.entrada ? 'recorded' : 'pending'}`}>
-              {loading ? '...' : (todayRecord?.entrada || '--:--')}
-            </span>
-            {todayRecord?.retardo && <span className="badge bg-warning">Retardo</span>}
+            <div className="status-value-group">
+              <span className={`status-value ${todayRecord?.entrada ? 'recorded' : 'pending'}`}>
+                {loading ? '...' : (todayRecord?.entrada || '--:--')}
+              </span>
+              {todayRecord?.retardo && <span className="status-badge retardo">Retardo</span>}
+            </div>
           </div>
+          
+          <div className="status-divider"></div>
+          
           <div className="status-item">
             <span className="status-label">Salida</span>
             <span className={`status-value ${todayRecord?.salida ? 'recorded' : 'pending'}`}>
@@ -141,10 +147,6 @@ function DashboardEmpleado({ userData, attendanceSummary, saldoVacaciones, unrea
             </span>
           </div>
         </div>
-        <button className="btn-quick-action" onClick={() => window.location.href = '/'}>
-          <i className="bi bi-qr-code-scan me-2"></i>
-          Ir al Checador
-        </button>
       </div>
 
       {/* Grid de widgets */}

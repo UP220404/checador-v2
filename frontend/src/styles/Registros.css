@@ -25,14 +25,14 @@
   overflow: hidden;
 }
 
-table {
+.registros-container table {
   border-collapse: separate;
   border-spacing: 0;
   width: 100%;
   margin-bottom: 0;
 }
 
-table th {
+.registros-container table th {
   background-color: #198754 !important;
   color: #fff !important;
   font-weight: 600;
@@ -43,18 +43,18 @@ table th {
   font-size: 0.9rem;
 }
 
-table td {
+.registros-container table td {
   padding: 8px 10px;
   border-bottom: 1px solid #e9ecef;
   vertical-align: middle;
   font-size: 0.875rem;
 }
 
-table tr:last-child td {
+.registros-container table tr:last-child td {
   border-bottom: none;
 }
 
-table tr:hover td {
+.registros-container table tr:hover td {
   background-color: #f8f9fa;
 }
 

@@ -5,6 +5,7 @@ import { auth } from '../config/firebase';
 import { api } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import ParticlesBackground from '../components/ParticlesBackground';
+import logoCielito from '../assets/logo-cielito.png';
 import '../styles/Login.css';
 
 const ROLES = {
@@ -133,15 +134,24 @@ function Login() {
         >
           <div className="login-header">
             <motion.div 
-              className="logo-premium"
-              initial={{ rotate: -15, scale: 0.8 }}
-              animate={{ rotate: 0, scale: 1 }}
-              transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
+              className="logo-container-premium"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3, type: "spring", stiffness: 150 }}
             >
-              <i className="bi bi-shield-check"></i>
+              <img src={logoCielito} alt="Cielito Home Logo" className="login-logo-img" />
+              <div className="brand-divider"></div>
+              <motion.h1 
+                className="brand-name-cursive"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+              >
+                Cielito Home
+              </motion.h1>
             </motion.div>
-            <h2>Bienvenido</h2>
-            <p>Inicia sesión para acceder a Cielito Home</p>
+            <h2 className="welcome-text">Bienvenido</h2>
+            <p>Inicia sesión para acceder al sistema</p>
           </div>
 
           <div className="login-body">
@@ -180,21 +190,6 @@ function Login() {
                 </>
               )}
             </button>
-
-            <div className="authorized-roles">
-              <div className="role-badge">
-                <i className="bi bi-person-workspace"></i>
-                Staff
-              </div>
-              <div className="role-badge">
-                <i className="bi bi-person-gear"></i>
-                Admin Area
-              </div>
-              <div className="role-badge">
-                <i className="bi bi-shield-lock"></i>
-                Admin RH
-              </div>
-            </div>
           </div>
         </motion.div>
       </AnimatePresence>
