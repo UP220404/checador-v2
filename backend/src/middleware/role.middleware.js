@@ -10,7 +10,7 @@ import { COLLECTIONS, HTTP_STATUS, ERROR_MESSAGES, ROLES } from '../config/const
  * Obtiene el rol y departamento del usuario desde Firestore
  * Unifica con ADMIN_EMAILS del .env
  */
-async function getUserRoleData(email) {
+export async function getUserRoleData(email) {
   try {
     const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
     

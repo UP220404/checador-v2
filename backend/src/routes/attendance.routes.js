@@ -8,6 +8,10 @@ import { authMiddleware, adminMiddleware } from '../middleware/auth.middleware.j
 
 const router = express.Router();
 
+// Todas las rutas requieren autenticación y datos de rol
+router.use(authMiddleware);
+router.use(attachRoleData);
+
 /**
  * POST /api/v1/attendance/check-in
  * Registra entrada o salida
