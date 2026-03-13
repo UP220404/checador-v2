@@ -5,14 +5,17 @@ const ParticlesBackground = () => {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: false }); // Optimización: fondo opaco
     let particlesArray = [];
     let animationFrameId;
+    let hue = 140; // Empezamos en un verde esmeralda
+    let lastBurstTime = 0;
+    const BURST_COOLDOWN = 150; // ms entre ráfagas para evitar lag
 
     const mouse = {
       x: null,
       y: null,
-      radius: 150
+      radius: 120
     };
 
     const handleResize = () => {
@@ -27,21 +30,39 @@ const ParticlesBackground = () => {
     };
 
     const handleTouchStart = (event) => {
+      const now = Date.now();
+      if (now - lastBurstTime < BURST_COOLDOWN) return;
+      if (event.target.closest('.login-card')) return; // IGNORAR CLICS EN LA TARJETA
+      
       if (event.touches.length > 0) {
         const touch = event.touches[0];
         mouse.x = touch.clientX;
         mouse.y = touch.clientY;
-        // Efecto de ráfaga al tocar
         createBurst(touch.clientX, touch.clientY);
+        lastBurstTime = now;
       }
     };
 
     const handleTouchMove = (event) => {
+      if (event.target.closest('.login-card')) {
+        mouse.x = null;
+        mouse.y = null;
+        return;
+      }
       if (event.touches.length > 0) {
         const touch = event.touches[0];
         mouse.x = touch.clientX;
         mouse.y = touch.clientY;
       }
+    };
+
+    const handleClick = (event) => {
+       const now = Date.now();
+       if (now - lastBurstTime < BURST_COOLDOWN) return;
+       if (event.target.closest('.login-card')) return; // IGNORAR CLICS EN LA TARJETA
+       
+       createBurst(event.clientX, event.clientY);
+       lastBurstTime = now;
     };
 
     const handleMouseLeave = () => {
@@ -53,6 +74,7 @@ const ParticlesBackground = () => {
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('touchstart', handleTouchStart);
     window.addEventListener('touchmove', handleTouchMove);
+    window.addEventListener('mousedown', handleClick);
     window.addEventListener('mouseleave', handleMouseLeave);
 
     class Particle {
@@ -63,7 +85,6 @@ const ParticlesBackground = () => {
         this.directionY = directionY;
         this.size = size;
         this.color = color;
-        this.baseSize = size;
       }
 
       draw() {
@@ -74,32 +95,19 @@ const ParticlesBackground = () => {
       }
 
       update() {
-        // Movimiento básico
-        if (this.x > canvas.width || this.x < 0) {
-          this.directionX = -this.directionX;
-        }
-        if (this.y > canvas.height || this.y < 0) {
-          this.directionY = -this.directionY;
-        }
+        if (this.x > canvas.width || this.x < 0) this.directionX = -this.directionX;
+        if (this.y > canvas.height || this.y < 0) this.directionY = -this.directionY;
 
-        // Interacción con mouse/touch
         let dx = mouse.x - this.x;
         let dy = mouse.y - this.y;
         let distance = Math.sqrt(dx * dx + dy * dy);
 
         if (distance < mouse.radius) {
-          if (mouse.x < this.x && this.x < canvas.width - this.size * 10) {
-            this.x += 3;
-          }
-          if (mouse.x > this.x && this.x > this.size * 10) {
-            this.x -= 3;
-          }
-          if (mouse.y < this.y && this.y < canvas.height - this.size * 10) {
-            this.y += 3;
-          }
-          if (mouse.y > this.y && this.y > this.size * 10) {
-            this.y -= 3;
-          }
+          const force = (mouse.radius - distance) / mouse.radius;
+          const moveX = (dx / distance) * force * 5;
+          const moveY = (dy / distance) * force * 5;
+          this.x -= moveX;
+          this.y -= moveY;
         }
 
         this.x += this.directionX;
@@ -109,49 +117,51 @@ const ParticlesBackground = () => {
     }
 
     const createBurst = (x, y) => {
-      for (let i = 0; i < 8; i++) {
-        let size = (Math.random() * 3) + 1;
-        let directionX = (Math.random() * 5) - 2.5;
-        let directionY = (Math.random() * 5) - 2.5;
-        let color = 'rgba(13, 110, 56, 0.6)';
+      const particleCount = 12;
+      for (let i = 0; i < particleCount; i++) {
+        let size = (Math.random() * 4) + 1;
+        let directionX = (Math.random() * 6) - 3;
+        let directionY = (Math.random() * 6) - 3;
+        // Color basado en el hue actual pero más vibrante
+        let color = `hsla(${hue}, 80%, 60%, 0.8)`;
         particlesArray.push(new Particle(x, y, directionX, directionY, size, color));
-        
-        // Mantener el límite de partículas
-        if (particlesArray.length > 200) {
-          particlesArray.shift();
-        }
+      }
+      // Limitar total de partículas para que no se trabe el cel
+      if (particlesArray.length > 180) {
+        particlesArray.splice(0, particlesArray.length - 180);
       }
     };
 
     function init() {
       particlesArray = [];
-      let numberOfParticles = (canvas.height * canvas.width) / 9000;
-      // Capar a máximo 150 para rendimiento
-      numberOfParticles = Math.min(numberOfParticles, 150);
+      let numberOfParticles = (canvas.height * canvas.width) / 12000;
+      numberOfParticles = Math.min(numberOfParticles, 120);
 
       for (let i = 0; i < numberOfParticles; i++) {
-        let size = (Math.random() * 3) + 1;
+        let size = (Math.random() * 2) + 1;
         let x = (Math.random() * ((innerWidth - size * 2) - (size * 2)) + size * 2);
         let y = (Math.random() * ((innerHeight - size * 2) - (size * 2)) + size * 2);
-        let directionX = (Math.random() * 1.5) - 0.75;
-        let directionY = (Math.random() * 1.5) - 0.75;
-        let color = 'rgba(255, 255, 255, 0.15)'; // Partículas base sutiles
+        let directionX = (Math.random() * 0.8) - 0.4;
+        let directionY = (Math.random() * 0.8) - 0.4;
+        let color = 'rgba(255, 255, 255, 0.1)';
 
         particlesArray.push(new Particle(x, y, directionX, directionY, size, color));
       }
     }
 
     function connect() {
-      let opacityValue = 1;
+      // Optimizamos: solo conectamos partículas si hay pocas, o limitamos la distancia
+      const maxDistance = 110;
       for (let a = 0; a < particlesArray.length; a++) {
-        for (let b = a; b < particlesArray.length; b++) {
-          let distance = ((particlesArray[a].x - particlesArray[b].x) * (particlesArray[a].x - particlesArray[b].x))
-            + ((particlesArray[a].y - particlesArray[b].y) * (particlesArray[a].y - particlesArray[b].y));
+        for (let b = a + 1; b < particlesArray.length; b++) {
+          let dx = particlesArray[a].x - particlesArray[b].x;
+          let dy = particlesArray[a].y - particlesArray[b].y;
+          let distanceSq = dx * dx + dy * dy;
           
-          if (distance < (canvas.width / 7) * (canvas.height / 7)) {
-            opacityValue = 1 - (distance / 20000);
-            ctx.strokeStyle = `rgba(13, 110, 56, ${opacityValue * 0.2})`;
-            ctx.lineWidth = 1;
+          if (distanceSq < maxDistance * maxDistance) {
+            let opacity = 1 - (Math.sqrt(distanceSq) / maxDistance);
+            ctx.strokeStyle = `hsla(${hue}, 70%, 50%, ${opacity * 0.15})`;
+            ctx.lineWidth = 0.8;
             ctx.beginPath();
             ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
             ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
@@ -163,7 +173,12 @@ const ParticlesBackground = () => {
 
     function animate() {
       animationFrameId = requestAnimationFrame(animate);
-      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      // Fondo oscuro sólido para mejor rendimiento que clearRect con transparencia
+      ctx.fillStyle = '#020a05'; 
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      hue += 0.2; // Cambio suave de color
+      if (hue > 360) hue = 0;
 
       for (let i = 0; i < particlesArray.length; i++) {
         particlesArray[i].update();
@@ -180,6 +195,7 @@ const ParticlesBackground = () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('mousedown', handleClick);
       window.removeEventListener('mouseleave', handleMouseLeave);
     };
   }, []);
@@ -193,8 +209,8 @@ const ParticlesBackground = () => {
         left: 0,
         width: '100%',
         height: '100%',
-        zIndex: 1,
-        pointerEvents: 'none' // Para que el clic pase a través del canvas al contenedor si es necesario
+        zIndex: 0, // Debajo de todo
+        pointerEvents: 'none'
       }}
     />
   );
