@@ -1,7 +1,7 @@
 import DocumentService from '../services/DocumentService.js';
 import UserService from '../services/UserService.js';
 import NotificationService from '../services/NotificationService.js';
-import getCloudinary from '../config/cloudinary.js';
+import getCloudinary from '../config/Cloudinary.js';
 import { HTTP_STATUS, ERROR_MESSAGES, ROLES, TIPOS_NOTIFICACION } from '../config/constants.js';
 
 class DocumentController {

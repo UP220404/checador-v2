@@ -6,6 +6,7 @@ import UserService from '../services/UserService.js';
 import AuditService from '../services/AuditService.js';
 import ContractEvaluationService from '../services/ContractEvaluationService.js';
 import NotificationService from '../services/NotificationService.js';
+import getCloudinary from '../config/Cloudinary.js';
 import { HTTP_STATUS, ERROR_MESSAGES, ROLES } from '../config/constants.js';
 import { isAdmin } from '../config/firebase.js';
 
@@ -477,13 +478,12 @@ class UserController {
 
   /**
    * PUT /api/v1/users/:uid/foto
-   * Actualiza la foto de perfil
+   * Sube foto de perfil a Cloudinary y guarda URL en Firestore
    */
   async updateProfilePhoto(req, res) {
     try {
       const { uid } = req.params;
       const userUid = req.user.uid;
-      const { fotoUrl } = req.body;
 
       // Solo puede actualizar su propia foto
       if (uid !== userUid) {
@@ -493,19 +493,45 @@ class UserController {
         });
       }
 
-      if (!fotoUrl) {
+      if (!req.file) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
-          message: 'Se requiere la URL de la foto'
+          message: 'Se requiere un archivo de imagen'
         });
       }
+      console.log('📸 Upload foto - archivo recibido:', req.file.originalname, req.file.size, 'bytes');
+      console.log('📸 Cloudinary config:', process.env.CLOUDINARY_CLOUD_NAME ? 'OK' : 'MISSING');
+
+      // Subir a Cloudinary usando stream
+      const cld = getCloudinary();
+      const uploadResult = await new Promise((resolve, reject) => {
+        const stream = cld.uploader.upload_stream(
+          {
+            folder: 'checador-v2/perfiles',
+            public_id: `profile_${uid}`,
+            overwrite: true
+          },
+          (error, result) => {
+            if (error) {
+              console.error('📸 Cloudinary upload error:', error);
+              reject(error);
+            } else {
+              console.log('📸 Cloudinary upload OK:', result.secure_url);
+              resolve(result);
+            }
+          }
+        );
+        stream.end(req.file.buffer);
+      });
+
+      const fotoUrl = uploadResult.secure_url;
 
       const result = await UserService.updateProfilePhoto(uid, fotoUrl);
 
       res.json({
         success: true,
         message: 'Foto de perfil actualizada',
-        data: result
+        data: { fotoUrl }
       });
     } catch (error) {
       console.error('Error en updateProfilePhoto:', error);
@@ -519,7 +545,49 @@ class UserController {
 
       res.status(HTTP_STATUS.INTERNAL_ERROR).json({
         success: false,
-        message: ERROR_MESSAGES.GENERAL.INTERNAL_ERROR
+        message: 'Error al subir la foto de perfil'
+      });
+    }
+  }
+
+  /**
+   * DELETE /api/v1/users/:uid/foto
+   * Elimina la foto de perfil de Cloudinary y Firestore
+   */
+  async deleteProfilePhoto(req, res) {
+    try {
+      const { uid } = req.params;
+      const userUid = req.user.uid;
+
+      if (uid !== userUid) {
+        return res.status(HTTP_STATUS.FORBIDDEN).json({
+          success: false,
+          message: 'Solo puedes eliminar tu propia foto'
+        });
+      }
+
+      // Eliminar de Cloudinary
+      try {
+        const cld = getCloudinary();
+        await cld.uploader.destroy(`checador-v2/perfiles/profile_${uid}`, { resource_type: 'image' });
+        console.log('📸 Foto eliminada de Cloudinary');
+      } catch (cloudErr) {
+        console.error('📸 Error eliminando de Cloudinary (no crítico):', cloudErr);
+      }
+
+      // Limpiar URL en Firestore
+      await UserService.updateProfilePhoto(uid, '');
+
+      res.json({
+        success: true,
+        message: 'Foto de perfil eliminada',
+        data: { fotoUrl: '' }
+      });
+    } catch (error) {
+      console.error('Error en deleteProfilePhoto:', error);
+      res.status(HTTP_STATUS.INTERNAL_ERROR).json({
+        success: false,
+        message: 'Error al eliminar la foto de perfil'
       });
     }
   }
