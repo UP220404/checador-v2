@@ -3,10 +3,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at top left, #052c14 0%, #0d1e11 100%);
+  background: radial-gradient(circle at top left, #052c14 0%, #020a05 100%);
   padding: 1.5rem;
   overflow: hidden;
   position: relative;
+  z-index: 0;
 }
 
 /* Decoración de fondo premium */

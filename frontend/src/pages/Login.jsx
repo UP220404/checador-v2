@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { api } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import ParticlesBackground from '../components/ParticlesBackground';
 import '../styles/Login.css';
 
 const ROLES = {
@@ -18,6 +19,7 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const containerRef = useRef(null);
 
   // Parámetros de URL para redirección inteligente (ej. QR)
   const queryParams = new URLSearchParams(location.search);
@@ -34,6 +36,14 @@ function Login() {
     };
     checkSession();
   }, []);
+
+  const handleContainerClick = (e) => {
+    // Solo si se hace clic directamente en el contenedor (fondo), no en la tarjeta
+    if (e.target === containerRef.current) {
+      // El componente ParticlesBackground ya escucha touchstart/click de forma global o vía eventos
+      // Pero para asegurar que sea "vistozo", delegamos la interacción al sensor del canvas.
+    }
+  };
 
   const handleRedirect = async (user) => {
     try {
@@ -97,7 +107,8 @@ function Login() {
   if (checkingAuth) {
     return (
       <div className="login-container">
-        <div className="spinner-border text-success" role="status">
+        <ParticlesBackground />
+        <div className="spinner-border text-success" role="status" style={{ zIndex: 10 }}>
           <span className="visually-hidden">Cargando...</span>
         </div>
       </div>
@@ -105,12 +116,19 @@ function Login() {
   }
 
   return (
-    <div className="login-container">
+    <div 
+      className="login-container" 
+      ref={containerRef}
+      onMouseDown={handleContainerClick}
+    >
+      <ParticlesBackground />
+      
       <AnimatePresence>
         <motion.div 
           className="login-card"
           initial={{ opacity: 0, y: 40, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -20, scale: 0.95 }}
           transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         >
           <div className="login-header">
