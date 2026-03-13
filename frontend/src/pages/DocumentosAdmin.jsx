@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import AdminLayout from '../components/AdminLayout';
 import { api } from '../services/api';
-import { storage } from '../config/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import '../styles/DocumentosAdmin.css';
 
 // Tipos de documentos
@@ -78,6 +76,9 @@ function DocumentosAdmin() {
   const [usandoEjemplos, setUsandoEjemplos] = useState(false);
   const [stats, setStats] = useState(null);
 
+  const [globalCounts, setGlobalCounts] = useState({});
+  const [viewingDoc, setViewingDoc] = useState(null);
+
   // Filtros
   const [filtroTipo, setFiltroTipo] = useState('');
   const [filtroEmpleado, setFiltroEmpleado] = useState('');
@@ -96,34 +97,52 @@ function DocumentosAdmin() {
     loadData();
   }, []);
 
-  const loadData = async () => {
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '-';
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      return date.toLocaleDateString('es-MX', {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+    } catch { return dateStr; }
+  };
+
+  const loadData = async (refreshCurrent = false) => {
     setLoading(true);
     try {
-      // Solo cargar la lista de empleados inicialmente (1 llamada a la API)
-      const usersRes = await api.getUsers();
+      const [usersRes, countsRes] = await Promise.all([
+        api.getUsers(),
+        api.getGlobalDocumentCounts()
+      ]);
+
       const empleadosData = usersRes.data.data || [];
+      const countsData = countsRes.data.data || {};
+
       setEmpleados(empleadosData);
+      setGlobalCounts(countsData);
+      
+      if (!refreshCurrent) {
+        setDocumentos([]);
+        setUsandoEjemplos(false);
+      } else if (selectedEmpleado) {
+        // Si ya hay uno seleccionado, refrescar sus documentos especificamente
+        await loadEmployeeDocuments(selectedEmpleado);
+      }
 
-      // NO cargar documentos de todos los empleados para ahorrar peticiones
-      // Los documentos se cargan solo cuando se selecciona un empleado
-      setDocumentos([]);
-      setUsandoEjemplos(false);
-
-      // Stats iniciales
-      const statsCalc = {
-        total: 0,
-        porTipo: TIPOS_DOCUMENTO.reduce((acc, tipo) => {
-          acc[tipo.value] = 0;
-          return acc;
-        }, {}),
-        empleadosConDocs: 0
-      };
-      setStats(statsCalc);
-
+      const totalDocs = Object.values(countsData).reduce((a, b) => a + b, 0);
+      setStats({
+        total: totalDocs,
+        porTipo: {},
+        empleadosConDocs: Object.keys(countsData).length
+      });
     } catch (err) {
       console.error('Error cargando datos:', err);
-      setDocumentos(EJEMPLO_DOCUMENTOS);
-      setUsandoEjemplos(true);
+      if (!refreshCurrent) {
+        setDocumentos(EJEMPLO_DOCUMENTOS);
+        setUsandoEjemplos(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -171,61 +190,38 @@ function DocumentosAdmin() {
 
     try {
       setUploading(true);
-      const empleado = empleados.find(e => (e.uid || e.id) === formData.empleadoUid);
 
-      if (!empleado) {
-        showMessage('Empleado no encontrado', 'error');
-        return;
-      }
-
-      // Subir archivo a Firebase Storage
-      const timestamp = Date.now();
-      const nombreArchivo = `${timestamp}_${formData.archivo.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-      const storageRef = ref(storage, `documentos/${formData.empleadoUid}/${nombreArchivo}`);
-
-      // Subir el archivo
-      const uploadResult = await uploadBytes(storageRef, formData.archivo);
-      console.log('Archivo subido:', uploadResult);
-
-      // Obtener URL de descarga
-      const downloadUrl = await getDownloadURL(storageRef);
-      console.log('URL de descarga:', downloadUrl);
-
-      // Guardar en la base de datos
+      // Subir archivo directo al backend (Cloudinary)
       await api.uploadDocument({
+        archivo: formData.archivo,
         uid: formData.empleadoUid,
         tipo: formData.tipo,
         nombre: formData.titulo,
         descripcion: formData.descripcion || '',
-        url: downloadUrl,
-        tamano: formData.archivo.size,
-        mimeType: formData.archivo.type || 'application/pdf',
         visible: true
       });
 
       showMessage('Documento subido exitosamente', 'success');
       setShowModal(false);
       resetForm();
-      loadData();
+      // Refrescar datos global y del empleado actual
+      loadData(true);
     } catch (err) {
       console.error('Error subiendo documento:', err);
-      let errorMsg = 'Error al subir el documento';
-
-      if (err.code === 'storage/unauthorized') {
-        errorMsg = 'No tienes permisos para subir archivos. Verifica las reglas de Storage.';
-      } else if (err.code === 'storage/quota-exceeded') {
-        errorMsg = 'Se excedio la cuota de almacenamiento.';
-      } else if (err.message?.includes('CORS') || err.message?.includes('preflight') || err.message?.includes('ERR_FAILED')) {
-        errorMsg = 'Error de CORS. Ejecuta: gsutil cors set cors.json gs://qr-acceso-cielito-home.appspot.com';
-      } else if (err.response?.data?.message) {
-        errorMsg = err.response.data.message;
-      } else if (err.message) {
-        errorMsg = err.message;
-      }
-
+      const errorMsg = err.response?.data?.message || err.message || 'Error al subir el documento';
       showMessage(errorMsg, 'error');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleDeleteBase = async (docId) => {
+    try {
+      await api.deleteDocument(docId);
+      return true;
+    } catch (err) {
+      console.error('Error eliminando documento:', err);
+      return false;
     }
   };
 
@@ -247,13 +243,69 @@ function DocumentosAdmin() {
     });
     if (!result.isConfirmed) return;
 
-    try {
-      await api.deleteDocument(docId);
+    const success = await handleDeleteBase(docId);
+    if (success) {
       showMessage('Documento eliminado', 'success');
-      loadData();
-    } catch (err) {
-      console.error('Error eliminando documento:', err);
+      loadData(true);
+    } else {
       showMessage('Error al eliminar el documento', 'error');
+    }
+  };
+
+  const getViewerUrl = (doc) => {
+    if (!doc || !doc.url) return '';
+    let url = doc.url;
+    
+    // Solo procesar si es de Cloudinary y parece PDF
+    if (url.includes('cloudinary.com') && (url.toLowerCase().includes('.pdf') || doc.mimeType === 'application/pdf')) {
+      const urlWithoutParams = url.split('?')[0];
+      // Si a Cloudinary le falta la extension .pdf (documentos antiguos), se la ponemos
+      if (!urlWithoutParams.toLowerCase().endsWith('.pdf')) {
+        url = url.replace(urlWithoutParams, `${urlWithoutParams}.pdf`);
+      }
+      // Limpiar posibles transformaciones inválidas agregadas en bugs anteriores
+      url = url.replace('fl_attachment:false/', '');
+      // Limpiar archivos con doble extensión pdf.pdf
+      url = url.replace('.pdf.pdf', '.pdf');
+    }
+    return url;
+  };
+
+  const handleDeleteAll = async () => {
+    if (!selectedEmpleado) return;
+    
+    const docsToDelete = documentos.filter(d => !d.esEjemplo);
+    if (docsToDelete.length === 0) {
+      showMessage('No hay documentos reales para eliminar', 'info');
+      return;
+    }
+
+    const result = await Swal.fire({
+      title: `¿Eliminar ${docsToDelete.length} documentos?`,
+      text: `Se borrarán todos los documentos de ${selectedEmpleado.nombre}. Esta acción no se puede deshacer.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Sí, eliminar todo',
+      cancelButtonText: 'Cancelar'
+    });
+    
+    if (!result.isConfirmed) return;
+
+    setLoading(true);
+    let successCount = 0;
+    for (const doc of docsToDelete) {
+      const ok = await handleDeleteBase(doc.id);
+      if (ok) successCount++;
+    }
+    setLoading(false);
+
+    if (successCount > 0) {
+      showMessage(`Se eliminaron ${successCount} documentos correctamente`, 'success');
+      loadData();
+    } else {
+      showMessage('No se pudo eliminar ningún documento', 'error');
     }
   };
 
@@ -478,7 +530,7 @@ function DocumentosAdmin() {
                             </div>
                           </div>
                           <span className={`badge ${isSelected ? 'bg-white text-primary' : 'bg-primary'} rounded-pill`}>
-                            {docsCount}
+                            {isSelected ? documentos.length : (globalCounts[emp.uid || emp.id] || 0)}
                           </span>
                         </button>
                       );
@@ -515,16 +567,26 @@ function DocumentosAdmin() {
                   </div>
                   <div className="col-auto">
                     {selectedEmpleado && (
-                      <button
-                        className="btn btn-sm btn-success"
-                        onClick={() => {
-                          setFormData({ ...formData, empleadoUid: selectedEmpleado.uid || selectedEmpleado.id });
-                          setShowModal(true);
-                        }}
-                      >
-                        <i className="bi bi-plus-circle me-1"></i>
-                        Subir a {selectedEmpleado.nombre?.split(' ')[0]}
-                      </button>
+                      <div className="btn-group">
+                        <button
+                          className="btn btn-sm btn-success"
+                          onClick={() => {
+                            setFormData({ ...formData, empleadoUid: selectedEmpleado.uid || selectedEmpleado.id });
+                            setShowModal(true);
+                          }}
+                        >
+                          <i className="bi bi-plus-circle me-1"></i>
+                          Subir
+                        </button>
+                        <button
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={handleDeleteAll}
+                          title="Eliminar todos los documentos de este empleado"
+                        >
+                          <i className="bi bi-trash-fill"></i>
+                          Limpiar todo
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -566,7 +628,7 @@ function DocumentosAdmin() {
               </div>
 
               {/* Lista de Documentos */}
-              <div className="card-body documents-list p-0">
+              <div className="card-body documents-list p-0 w-100">
                 {filtrarDocumentos().length === 0 ? (
                   <div className="text-center py-5">
                     <i className="bi bi-folder2 display-1 text-muted opacity-25"></i>
@@ -586,63 +648,67 @@ function DocumentosAdmin() {
                     )}
                   </div>
                 ) : (
-                  <div className="table-responsive">
-                    <table className="table table-hover mb-0">
+                  <div className="table-responsive w-100 m-0 p-0">
+                    <table className="table table-hover mb-0" style={{ tableLayout: 'fixed', width: '100%', wordWrap: 'break-word' }}>
                       <thead className="table-light">
                         <tr>
-                          <th style={{ width: '40%' }}>Documento</th>
-                          <th>Empleado</th>
-                          <th>Tipo</th>
-                          <th>Fecha</th>
-                          <th className="text-end">Acciones</th>
+                          <th style={{ width: '30%' }}>Documento</th>
+                          <th style={{ width: '25%' }}>Empleado</th>
+                          <th style={{ width: '15%' }}>Tipo</th>
+                          <th style={{ width: '15%' }}>Fecha</th>
+                          <th className="text-end" style={{ width: '15%' }}>Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {filtrarDocumentos().map((doc) => {
+                        {filtrarDocumentos().map((doc, index) => {
                           const tipoConfig = getTipoConfig(doc.tipo);
                           return (
-                            <tr key={doc.id} className={doc.esEjemplo ? 'table-light' : ''}>
-                              <td>
+                            <tr key={doc.id || index} className="align-middle border-bottom-0">
+                              <td style={{ padding: '0.75rem 1rem' }}>
                                 <div className="d-flex align-items-center">
-                                  <div className={`doc-icon bg-${tipoConfig.color} bg-opacity-10 text-${tipoConfig.color} me-3`}>
-                                    <i className={`bi ${tipoConfig.icon}`}></i>
+                                  <div className={`p-2 rounded-3 bg-${tipoConfig.color} bg-opacity-10 text-${tipoConfig.color} me-3 d-flex align-items-center justify-content-center flex-shrink-0`} style={{ width: '42px', height: '42px' }}>
+                                    <i className={`bi ${tipoConfig.icon} fs-5`}></i>
                                   </div>
                                   <div>
-                                    <div className="fw-medium">{doc.nombre || doc.titulo}</div>
-                                    <small className="text-muted">{doc.descripcion || 'Sin descripcion'}</small>
-                                    {doc.esEjemplo && <span className="badge bg-info ms-2">Demo</span>}
+                                    <div className="fw-bold text-dark mb-0" style={{ fontSize: '0.95rem', wordBreak: 'break-word', whiteSpace: 'normal', display: 'block' }}>{doc.nombre || doc.titulo}</div>
+                                    <div className="text-muted small" style={{ fontSize: '0.8rem', wordBreak: 'break-word', whiteSpace: 'normal', display: 'block' }}>{doc.descripcion || 'Sin descripción'}</div>
                                   </div>
                                 </div>
                               </td>
-                              <td>
+                              <td style={{ padding: '0.75rem 1rem' }}>
                                 <div className="d-flex align-items-center">
-                                  <div className="avatar-circle-sm me-2">
+                                  <div className="bg-light text-primary rounded-circle d-flex align-items-center justify-content-center me-2" style={{ width: '28px', height: '28px', fontSize: '0.75rem', fontWeight: 'bold' }}>
                                     {doc.empleadoNombre?.charAt(0) || '?'}
                                   </div>
-                                  <span>{doc.empleadoNombre}</span>
+                                  <span className="small fw-medium text-secondary">{doc.empleadoNombre?.split(' ')[0]}</span>
                                 </div>
                               </td>
-                              <td>
-                                <span className={`badge bg-${tipoConfig.color}`}>
+                              <td style={{ padding: '0.75rem 1rem' }}>
+                                <span className={`badge rounded-pill bg-${tipoConfig.color} bg-opacity-10 text-${tipoConfig.color} border border-${tipoConfig.color} border-opacity-25 px-3 py-2`} style={{ fontSize: '0.7rem', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
                                   {tipoConfig.label}
                                 </span>
                               </td>
-                              <td>
-                                <small className="text-muted">{doc.fechaSubida}</small>
+                              <td style={{ padding: '0.75rem 1rem' }}>
+                                <div className="d-flex flex-column">
+                                  <span className="text-dark fw-medium" style={{ fontSize: '0.85rem' }}>{formatDate(doc.fechaSubida).split(',')[0]}</span>
+                                  <span className="text-muted" style={{ fontSize: '0.7rem' }}>{formatDate(doc.fechaSubida).split(',')[1]}</span>
+                                </div>
                               </td>
-                              <td className="text-end">
-                                <div className="btn-group btn-group-sm">
+                              <td className="text-end" style={{ padding: '0.75rem 1rem' }}>
+                                <div className="d-flex justify-content-end gap-2">
                                   <button
-                                    className="btn btn-outline-primary"
-                                    title="Descargar"
-                                    disabled={doc.esEjemplo}
+                                    className="btn btn-icon btn-light-primary rounded-3"
+                                    onClick={() => setViewingDoc(doc)}
+                                    title="Ver Documento"
+                                    style={{ width: '36px', height: '36px', padding: '0' }}
                                   >
-                                    <i className="bi bi-download"></i>
+                                    <i className="bi bi-eye"></i>
                                   </button>
                                   <button
-                                    className="btn btn-outline-danger"
-                                    title="Eliminar"
+                                    className="btn btn-icon btn-light-danger rounded-3"
                                     onClick={() => handleDelete(doc.id, doc.esEjemplo)}
+                                    title="Eliminar"
+                                    style={{ width: '36px', height: '36px', padding: '0' }}
                                   >
                                     <i className="bi bi-trash"></i>
                                   </button>
@@ -769,6 +835,51 @@ function DocumentosAdmin() {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Visor de Documentos */}
+        {viewingDoc && (
+          <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 1060 }}>
+            <div className="modal-dialog modal-xl modal-dialog-centered" style={{ height: '90vh' }}>
+              <div className="modal-content h-100 border-0 shadow">
+                <div className="modal-header bg-dark text-white border-0">
+                  <h5 className="modal-title">
+                    <i className={`bi ${getTipoConfig(viewingDoc.tipo).icon} me-2`}></i>
+                    {viewingDoc.nombre || viewingDoc.titulo}
+                  </h5>
+                  <div className="ms-auto d-flex align-items-center">
+                    <a href={getViewerUrl(viewingDoc)} download target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-light me-2">
+                       <i className="bi bi-box-arrow-up-right me-1"></i> Abrir / Descargar
+                    </a>
+                    <button type="button" className="btn-close btn-close-white" onClick={() => setViewingDoc(null)}></button>
+                  </div>
+                </div>
+                  <div className="modal-body p-0 bg-dark position-relative" style={{ height: 'calc(90vh - 60px)', overflow: 'hidden' }}>
+                    <div className="position-absolute top-50 start-50 translate-middle text-center" style={{ zIndex: 0 }}>
+                      <div className="spinner-border text-primary mb-3" role="status"></div>
+                      <div className="text-white-50 small">Cargando visor nativo...</div>
+                    </div>
+                    {viewingDoc.url.toLowerCase().endsWith('.pdf') || viewingDoc.mimeType === 'application/pdf' ? (
+                      <iframe
+                        src={getViewerUrl(viewingDoc)}
+                        title="PDF Viewer"
+                        width="100%"
+                        height="100%"
+                        style={{ border: 'none', position: 'relative', zIndex: 1, backgroundColor: '#333' }}
+                      ></iframe>
+                    ) : (
+                      <div className="d-flex align-items-center justify-content-center h-100 p-3" style={{ position: 'relative', zIndex: 1 }}>
+                        <img 
+                          src={viewingDoc.url} 
+                          alt="Previsualización" 
+                          style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} 
+                        />
+                      </div>
+                    )}
+                  </div>
               </div>
             </div>
           </div>

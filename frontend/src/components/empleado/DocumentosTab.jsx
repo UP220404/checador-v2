@@ -6,6 +6,7 @@ function DocumentosTab({ userData, mostrarMensaje }) {
   const [allDocumentos, setAllDocumentos] = useState([]); // Cache de todos los documentos
   const [loading, setLoading] = useState(true);
   const [filtroTipo, setFiltroTipo] = useState('');
+  const [viewingDoc, setViewingDoc] = useState(null);
   const [anioRecibos, setAnioRecibos] = useState(new Date().getFullYear());
 
   // Control para evitar cargas duplicadas
@@ -111,6 +112,21 @@ function DocumentosTab({ userData, mostrarMensaje }) {
 
   const tiposConDocumentos = Object.keys(documentosAgrupados);
 
+  const getViewerUrl = (doc) => {
+    if (!doc || !doc.url) return '';
+    let url = doc.url;
+    
+    if (url.includes('cloudinary.com') && (url.toLowerCase().includes('.pdf') || doc.mimeType === 'application/pdf')) {
+      const urlWithoutParams = url.split('?')[0];
+      if (!urlWithoutParams.toLowerCase().endsWith('.pdf')) {
+        url = url.replace(urlWithoutParams, `${urlWithoutParams}.pdf`);
+      }
+      url = url.replace('fl_attachment:false/', '');
+      url = url.replace('.pdf.pdf', '.pdf');
+    }
+    return url;
+  };
+
   return (
     <div className="documentos-tab">
       <h4 className="section-title">
@@ -200,10 +216,11 @@ function DocumentosTab({ userData, mostrarMensaje }) {
                     <div className="documento-actions">
                       <button
                         className="btn-download"
-                        onClick={() => handleDescargar(doc)}
-                        title="Descargar"
+                        onClick={() => setViewingDoc(doc)}
+                        style={{ width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        title="Ver Documento"
                       >
-                        <i className="bi bi-download"></i>
+                        <i className="bi bi-eye"></i>
                       </button>
                     </div>
                   </div>
@@ -220,6 +237,51 @@ function DocumentosTab({ userData, mostrarMensaje }) {
         Los documentos son subidos por el departamento de Recursos Humanos.
         Si necesitas algun documento, contacta a RH.
       </div>
+
+      {/* Modal Visor de Documentos */}
+      {viewingDoc && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 1060, position: 'fixed', top: 0, left: 0, width: '100%', height: '100%' }}>
+          <div className="modal-dialog modal-xl modal-dialog-centered" style={{ height: '90vh', maxWidth: '95%' }}>
+            <div className="modal-content h-100 border-0 shadow-lg bg-dark overflow-hidden">
+              <div className="modal-header bg-dark text-white border-bottom border-secondary py-2">
+                <h5 className="modal-title fs-6 d-flex align-items-center">
+                  <i className={`bi ${getTipoIcon(viewingDoc.tipo)} me-2 text-success`}></i>
+                  {viewingDoc.nombre}
+                </h5>
+                <div className="ms-auto d-flex align-items-center">
+                   <a href={getViewerUrl(viewingDoc)} download target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-light border-secondary me-2">
+                     <i className="bi bi-box-arrow-up-right me-1"></i> Abrir / Descargar
+                  </a>
+                  <button type="button" className="btn-close btn-close-white" onClick={() => setViewingDoc(null)}></button>
+                </div>
+              </div>
+              <div className="modal-body p-0 bg-dark position-relative" style={{ overflow: 'hidden' }}>
+                <div className="position-absolute top-50 start-50 translate-middle text-white-50 text-center" style={{ zIndex: 0 }}>
+                  <div className="spinner-border spinner-border-sm mb-2" role="status"></div>
+                  <div style={{ fontSize: '0.8rem' }}>Cargando visor nativo...</div>
+                </div>
+                {viewingDoc.url.toLowerCase().endsWith('.pdf') || viewingDoc.mimeType === 'application/pdf' ? (
+                  <iframe
+                    src={getViewerUrl(viewingDoc)}
+                    title="Visor PDF"
+                    width="100%"
+                    height="100%"
+                    style={{ border: 'none', position: 'relative', zIndex: 1, backgroundColor: '#333' }}
+                  ></iframe>
+                ) : (
+                  <div className="d-flex align-items-center justify-content-center h-100 p-3" style={{ position: 'relative', zIndex: 1 }}>
+                    <img 
+                      src={viewingDoc.url} 
+                      alt="Preview" 
+                      style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} 
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

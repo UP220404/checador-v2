@@ -1,10 +1,7 @@
-/**
- * Controlador de Documentos de Empleados
- */
-
 import DocumentService from '../services/DocumentService.js';
 import UserService from '../services/UserService.js';
 import NotificationService from '../services/NotificationService.js';
+import getCloudinary from '../config/cloudinary.js';
 import { HTTP_STATUS, ERROR_MESSAGES, ROLES, TIPOS_NOTIFICACION } from '../config/constants.js';
 
 class DocumentController {
@@ -118,7 +115,7 @@ class DocumentController {
 
   /**
    * POST /api/v1/documents/upload
-   * Sube un nuevo documento (admin)
+   * Sube un nuevo documento a Cloudinary (admin)
    */
   async uploadDocument(req, res) {
     try {
@@ -127,18 +124,22 @@ class DocumentController {
         tipo,
         nombre,
         descripcion,
-        url,
-        tamano,
-        mimeType,
         visible,
         periodoNomina
       } = req.body;
 
       // Validar campos requeridos
-      if (!uid || !tipo || !nombre || !url) {
+      if (!uid || !tipo || !nombre) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
-          message: 'Faltan campos requeridos: uid, tipo, nombre, url'
+          message: 'Faltan campos requeridos: uid, tipo, nombre'
+        });
+      }
+
+      if (!req.file) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          message: 'Se requiere un archivo (imagen o PDF)'
         });
       }
 
@@ -151,6 +152,28 @@ class DocumentController {
         });
       }
 
+      const cld = getCloudinary();
+      const uploadResult = await new Promise((resolve, reject) => {
+        const stream = cld.uploader.upload_stream(
+          {
+            folder: `checador-v2/documentos/${uid}`,
+            resource_type: 'auto',
+            public_id: `${tipo}_${Date.now()}`,
+            overwrite: false
+          },
+          (error, result) => {
+            if (error) {
+              console.error('📄 Cloudinary doc upload error:', error);
+              reject(error);
+            } else {
+              console.log('📄 Documento subido a Cloudinary:', result.secure_url);
+              resolve(result);
+            }
+          }
+        );
+        stream.end(req.file.buffer);
+      });
+
       const document = await DocumentService.createDocument({
         uid,
         emailUsuario: user.correo,
@@ -158,9 +181,9 @@ class DocumentController {
         tipo,
         nombre,
         descripcion,
-        url,
-        tamano,
-        mimeType,
+        url: uploadResult.secure_url,
+        tamano: req.file.size,
+        mimeType: req.file.mimetype,
         subidoPor: req.user.email,
         visible,
         periodoNomina
@@ -181,7 +204,6 @@ class DocumentController {
         });
       } catch (notifError) {
         console.error('Error creando notificación de documento:', notifError);
-        // No fallar si la notificación no se crea
       }
 
       res.status(HTTP_STATUS.CREATED).json({
@@ -201,7 +223,7 @@ class DocumentController {
 
       res.status(HTTP_STATUS.INTERNAL_ERROR).json({
         success: false,
-        message: ERROR_MESSAGES.GENERAL.INTERNAL_ERROR
+        message: 'Error al subir el documento'
       });
     }
   }
@@ -322,6 +344,26 @@ class DocumentController {
       });
     } catch (error) {
       console.error('Error en getMyDocumentCount:', error);
+      res.status(HTTP_STATUS.INTERNAL_ERROR).json({
+        success: false,
+        message: ERROR_MESSAGES.GENERAL.INTERNAL_ERROR
+      });
+    }
+  }
+
+  /**
+   * GET /api/v1/documents/admin/counts
+   * Obtiene el conteo de documentos de todos los empleados
+   */
+  async getGlobalCounts(req, res) {
+    try {
+      const counts = await DocumentService.getAllDocumentCounts();
+      res.json({
+        success: true,
+        data: counts
+      });
+    } catch (error) {
+      console.error('Error en getGlobalCounts:', error);
       res.status(HTTP_STATUS.INTERNAL_ERROR).json({
         success: false,
         message: ERROR_MESSAGES.GENERAL.INTERNAL_ERROR
