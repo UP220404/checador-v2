@@ -27,6 +27,7 @@ function Nomina() {
   const [nominasCalculadas, setNominasCalculadas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [vistaActual, setVistaActual] = useState('compacta');
+  const [empleadosSeleccionados, setEmpleadosSeleccionados] = useState([]);
 
   // Estados para festivos
   const [showFestivosModal, setShowFestivosModal] = useState(false);
@@ -314,6 +315,8 @@ function Nomina() {
         const resumenData = response.data.data.resumen || {};
 
         setNominasCalculadas(empleados);
+        // Seleccionar todos por defecto al calcular
+        setEmpleadosSeleccionados(empleados.map(e => e.empleado?.uid));
         setResumen({
           totalEmpleados: resumenData.totalEmpleados || empleados.length,
           totalRetardos: resumenData.totalRetardos || 0,
@@ -452,6 +455,107 @@ function Nomina() {
     } catch (error) {
       console.error('[Nómina] Error exportando:', error);
       showNotification('Error al exportar: ' + error.message, 'error');
+    }
+  };
+
+  const toggleSeleccionEmpleado = (uid) => {
+    setEmpleadosSeleccionados(prev => 
+      prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]
+    );
+  };
+
+  const toggleSeleccionarTodos = () => {
+    if (empleadosSeleccionados.length === nominasCalculadas.length) {
+      setEmpleadosSeleccionados([]);
+    } else {
+      setEmpleadosSeleccionados(nominasCalculadas.map(nomina => nomina.empleado?.uid));
+    }
+  };
+
+  const exportarMercadoPago = async () => {
+    if (empleadosSeleccionados.length === 0) {
+      showNotification('Selecciona al menos un empleado para exportar', 'warning');
+      return;
+    }
+
+    // Filtrar solo los empleados seleccionados
+    const nominasExportar = nominasCalculadas.filter(nomina => 
+      empleadosSeleccionados.includes(nomina.empleado?.uid)
+    );
+
+    // Verificar si hay empleados sin cuenta bancaria o CLABE
+    const empleadosSinCuenta = nominasExportar.filter(nomina => 
+      !nomina.empleado?.cuentaBancaria || nomina.empleado?.cuentaBancaria.trim() === ''
+    );
+
+    if (empleadosSinCuenta.length > 0) {
+      const nombresPlural = empleadosSinCuenta.length > 1 ? 'los empleados' : 'el empleado';
+      const result = await Swal.fire({
+        title: 'Faltan Datos Bancarios',
+        html: `Atención: <b>${empleadosSinCuenta.length}</b> de ${nombresPlural} seleccionados no tiene CLABE/Cuenta configurada.<br><br>
+               <span style="font-size: 0.9em; color: #dc2626;">Mercado Pago rechazará estas filas.</span><br><br>
+               ¿Deseas exportar de todos modos y omitir a estos empleados del archivo?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, omitir y exportar',
+        cancelButtonText: 'Cancelar'
+      });
+
+      if (!result.isConfirmed) return;
+    }
+
+    // Filtrar a los que SÍ tienen cuenta para generar el CSV seguro
+    const nominasSeguras = nominasExportar.filter(nomina => 
+      nomina.empleado?.cuentaBancaria && nomina.empleado?.cuentaBancaria.trim() !== ''
+    );
+
+    if (nominasSeguras.length === 0) {
+      showNotification('No hay ningún empleado con cuenta configurada para exportar.', 'error');
+      return;
+    }
+
+    try {
+      const quincenaTexto = quincenaSeleccionada === 'primera' ? '1Q' : '2Q';
+      const mesTexto = mesSeleccionado.split('-')[1]; 
+      const conceptoDefault = `Nomina ${quincenaTexto} M${mesTexto}`;
+
+      // Layout Oficial Mercado Pago Empresas (Múltiples Transferencias API / GUI)
+      // Clave/CVU/CBU/Alias , Monto , Motivo , Referencia (opcional)
+      const headers = ['CBU/CVU/CLABE/Alias', 'Monto', 'Concepto', 'Referencia'];
+
+      const rows = nominasSeguras.map(nomina => {
+        const empleadoInfo = nomina.empleado || {};
+        const cuentaClabe = empleadoInfo.cuentaBancaria.replace(/\s/g, ''); // Sin espacios
+        const monto = parseFloat(nomina.pagoFinal || 0).toFixed(2); // Dos decimales exactos
+        
+        return [
+          cuentaClabe,
+          monto,
+          conceptoDefault, // Concepto de pago
+          empleadoInfo.nombre || '' // Referencia ponemos el nombre para identificar en reporte MP
+        ];
+      });
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+      ].join('\n');
+
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `MercadoPago_Nomina_${mesSeleccionado}_${quincenaSeleccionada}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      showNotification(`Se exportó Layout MP para ${nominasSeguras.length} empleados`, 'success');
+    } catch (error) {
+      console.error('[Nómina] Error generando Layout MP:', error);
+      showNotification('Error al generar el archivo para Mercado Pago', 'error');
     }
   };
 
@@ -933,7 +1037,18 @@ function Nomina() {
 
         {/* Botón para cambiar vista */}
         {nominasCalculadas.length > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
+            <div>
+              <button
+                onClick={toggleSeleccionarTodos}
+                className={`btn ${empleadosSeleccionados.length === nominasCalculadas.length ? 'btn-primary' : 'btn-outline-primary'}`}
+                style={{ borderRadius: '8px' }}
+              >
+                <i className={`bi ${empleadosSeleccionados.length === nominasCalculadas.length ? 'bi-check-all' : 'bi-app'} me-2`}></i>
+                {empleadosSeleccionados.length === nominasCalculadas.length ? 'Deseleccionar Todos' : 'Seleccionar Todos'}
+                <span className="badge bg-light text-dark ms-2">{empleadosSeleccionados.length}</span>
+              </button>
+            </div>
             <button
               onClick={() => setVistaTabla(!vistaTabla)}
               className="btn btn-outline-success"
@@ -981,9 +1096,18 @@ function Nomina() {
               };
 
               return (
-                <div key={uid} className="employee-card-compact">
+                <div key={uid} className={`employee-card-compact ${empleadosSeleccionados.includes(uid) ? 'selected-card' : ''}`} style={empleadosSeleccionados.includes(uid) ? {border: '2px solid #0d6efd', backgroundColor: '#f0f7ff'} : {}}>
                   {/* Header compact */}
-                  <div className="compact-header">
+                  <div className="compact-header" style={{ display: 'flex', alignItems: 'center' }}>
+                    <div style={{ marginRight: '10px' }}>
+                      <input 
+                        type="checkbox" 
+                        className="form-check-input" 
+                        style={{ width: '1.2rem', height: '1.2rem', cursor: 'pointer' }}
+                        checked={empleadosSeleccionados.includes(uid)}
+                        onChange={() => toggleSeleccionEmpleado(uid)}
+                      />
+                    </div>
                     <div className="compact-name">
                       <strong>{nombre}</strong>
                       <span className="badge bg-secondary ms-1" style={{ fontSize: '0.7rem' }}>
@@ -1075,6 +1199,14 @@ function Nomina() {
             <table className="table table-striped table-hover">
               <thead className="table-success">
                 <tr>
+                  <th style={{ width: '40px' }}>
+                     <input 
+                        type="checkbox" 
+                        className="form-check-input"
+                        checked={empleadosSeleccionados.length === nominasCalculadas.length && nominasCalculadas.length > 0}
+                        onChange={toggleSeleccionarTodos}
+                      />
+                  </th>
                   <th>Empleado</th>
                   <th>Tipo</th>
                   <th>Días</th>
@@ -1100,7 +1232,15 @@ function Nomina() {
                   };
 
                   return (
-                    <tr key={uid}>
+                    <tr key={uid} className={empleadosSeleccionados.includes(uid) ? 'table-primary' : ''}>
+                      <td>
+                        <input 
+                          type="checkbox" 
+                          className="form-check-input"
+                          checked={empleadosSeleccionados.includes(uid)}
+                          onChange={() => toggleSeleccionEmpleado(uid)}
+                        />
+                      </td>
                       <td className="fw-bold">{nombre}</td>
                       <td>
                         <span className="badge bg-secondary" style={{ fontSize: '0.75rem' }}>
@@ -1139,7 +1279,7 @@ function Nomina() {
               </tbody>
               <tfoot className="table-light">
                 <tr>
-                  <td colSpan="11" className="text-end fw-bold">TOTAL GENERAL:</td>
+                  <td colSpan="12" className="text-end fw-bold">TOTAL GENERAL:</td>
                   <td className="fw-bold text-success fs-5">${resumen.totalPagar.toLocaleString('es-MX')}</td>
                 </tr>
               </tfoot>
@@ -1153,6 +1293,10 @@ function Nomina() {
             <button className="btn btn-success" onClick={guardarNomina}>
               <i className="bi bi-floppy me-2"></i>
               Guardar Nómina
+            </button>
+            <button className="btn btn-primary" onClick={exportarMercadoPago} style={{ background: '#009ee3', borderColor: '#009ee3' }} disabled={empleadosSeleccionados.length === 0}>
+              <i className="bi bi-bank me-2"></i>
+              Exportar a Mercado Pago
             </button>
             <button className="btn btn-success" onClick={exportarExcel} style={{ background: '#2563eb' }}>
               <i className="bi bi-file-earmark-spreadsheet me-2"></i>
