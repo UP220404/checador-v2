@@ -8,6 +8,7 @@ import '../styles/Nomina.css';
 
 function Nomina() {
   const [accesoValidado, setAccesoValidado] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(false);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showSalaryManager, setShowSalaryManager] = useState(false);
@@ -85,29 +86,39 @@ function Nomina() {
 
   const validarAcceso = async () => {
     try {
-      const response = await api.validatePayrollPassword(password);
-      if (response.data.success) {
-        setAccesoValidado(true);
-        setAccessError(false);
-        showNotification('Acceso autorizado correctamente', 'success');
-      } else {
+      if (!password) {
         setAccessError(true);
-        setPassword('');
         setTimeout(() => setAccessError(false), 500);
-        showNotification('Contraseña incorrecta', 'error');
+        showNotification('Ingresa una contraseña', 'warning');
+        return;
+      }
+      
+      const response = await api.validatePayrollPassword(password);
+      if (response.data && response.data.success) {
+        setIsUnlocked(true); // Activa la animación del candado verde y apertura
+        setAccessError(false);
+        showNotification('Nómina Desbloqueada', 'success');
+        
+        // Espera a que termine la animación antes de montar la UI real de nómina
+        setTimeout(() => {
+          setAccesoValidado(true);
+        }, 600);
+      } else {
+        throw new Error('Contraseña incorrecta');
       }
     } catch (error) {
       console.error('Error validando contraseña:', error);
       setAccessError(true);
-      setTimeout(() => setAccessError(false), 500);
+      setPassword('');
+      setTimeout(() => setAccessError(false), 500); // Duración exacta de la animación Shake CSS
 
       const status = error.response?.status;
       if (status === 403) {
-        showNotification('No tienes permisos de administrador (admin_rh) para acceder a este modulo.', 'error');
+        showNotification('No tienes permisos de administrador para acceder a este modulo.', 'error');
       } else if (status === 401) {
-        showNotification('Sesion expirada. Inicia sesion nuevamente.', 'error');
+        showNotification('Sesión expirada. Inicia sesión nuevamente.', 'error');
       } else {
-        showNotification('Error al validar. Verifica tu conexion.', 'error');
+        showNotification('Contraseña incorrecta o el servidor no responde.', 'error');
       }
     }
   };
@@ -590,71 +601,61 @@ function Nomina() {
 
 
 
-  // Modal de validación de acceso
+  // Bóveda de validación de acceso (Vault UI)
   if (!accesoValidado) {
     return (
       <div className="nomina-page">
-        <div className="modal-overlay">
-          <div className="modal-dialog-centered">
-            <div className={`security-modal ${accessError ? 'acceso-denegado' : ''}`}>
-              {/* Icono de seguridad grande */}
-              <div className="security-icon-container">
-                <div className="security-icon-wrapper">
-                  <i className="bi bi-shield-lock-fill"></i>
-                </div>
+        <div className="vault-overlay">
+          <div className={`vault-card ${accessError ? 'shake' : ''} ${isUnlocked ? 'unlocked' : ''}`}>
+            
+            {/* Cabecera / Candado */}
+            <div className="vault-icon-container">
+              <div className="vault-glow"></div>
+              <i className={`bi ${isUnlocked ? 'bi-unlock-fill' : 'bi-lock-fill'} vault-icon`}></i>
+              <h2 className="vault-title">{isUnlocked ? 'Bóveda Abierta' : 'Acceso Restringido'}</h2>
+              <p className="vault-subtitle">Nómina • Cielito Home</p>
+            </div>
+
+            {/* Formulario */}
+            <div className="vault-form">
+              <div className="vault-input-group">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  className="vault-input"
+                  placeholder="CONTRASEÑA"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && validarAcceso()}
+                  maxLength={20}
+                  autoComplete="off"
+                  autoFocus
+                  disabled={isUnlocked}
+                />
+                <button
+                  type="button"
+                  className="vault-eye-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={isUnlocked}
+                >
+                  <i className={`bi bi-eye${showPassword ? '-slash' : ''}`}></i>
+                </button>
               </div>
 
-              {/* Contenido */}
-              <div className="security-content">
-                <h2 className="security-title">Acceso Restringido</h2>
-                <p className="security-subtitle">Sistema de Nómina - Cielito Home</p>
-
-                <div className="security-warning">
-                  <i className="bi bi-exclamation-triangle-fill"></i>
-                  <span>Esta área contiene información financiera confidencial</span>
-                </div>
-
-                <div className="security-form-group">
-                  <label className="security-label">Contraseña de Autorización</label>
-                  <div className="security-input-wrapper">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      id="passwordNomina"
-                      className="security-input"
-                      placeholder="Ingresa tu contraseña"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && validarAcceso()}
-                      maxLength={20}
-                      autoComplete="off"
-                      autoFocus
-                    />
-                    <button
-                      type="button"
-                      className="security-input-icon"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      <i className={`bi bi-eye${showPassword ? '-slash' : ''}`}></i>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="security-buttons">
-                  <button className="security-btn security-btn-primary" onClick={validarAcceso}>
-                    <i className="bi bi-unlock-fill me-2"></i>
-                    Validar Acceso
-                  </button>
-                  <a href="/admin/dashboard" className="security-btn security-btn-secondary">
-                    <i className="bi bi-arrow-left me-2"></i>
-                    Regresar al Dashboard
-                  </a>
-                </div>
-
-                <div className="security-footer">
-                  <i className="bi bi-info-circle"></i>
-                  <span>Solo personal autorizado de RH y Dirección</span>
-                </div>
-              </div>
+              <button 
+                className="vault-btn-submit" 
+                onClick={validarAcceso}
+                disabled={isUnlocked}
+              >
+                {isUnlocked ? (
+                  <><i className="bi bi-shield-check"></i> Autorizado</>
+                ) : (
+                  <><i className="bi bi-fingerprint"></i> Desbloquear</>
+                )}
+              </button>
+              
+              <a href="/admin/dashboard" className="vault-btn-back">
+                <i className="bi bi-arrow-left"></i> Volver al Menú Principal
+              </a>
             </div>
           </div>
         </div>
