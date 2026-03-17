@@ -506,6 +506,16 @@ class UserService {
         ultimaActualizacion: null
       };
 
+      // Auto-actualizar a la nueva ley de 12 días si se quedó atascado en 6
+      if (saldo.diasDisponibles === 6) {
+        saldo.diasDisponibles = 12;
+        // Guardarlo en DB para no tener que hacerlo la próxima vez
+        await this.db.collection(this.usersCollection).doc(uid).update({
+          'saldoVacaciones.diasDisponibles': 12,
+          fechaActualizacion: new Date()
+        });
+      }
+
       // Calcular días restantes
       saldo.diasRestantes = saldo.diasDisponibles - saldo.diasUsados - saldo.diasPendientes;
 
@@ -598,9 +608,14 @@ class UserService {
       });
 
       const userData = userDoc.data();
-      const diasDisponibles = userData.saldoVacaciones?.diasDisponibles || 12;
+      let diasDisponibles = userData.saldoVacaciones?.diasDisponibles || 12;
+
+      if (diasDisponibles === 6) {
+        diasDisponibles = 12;
+      }
 
       await userRef.update({
+        'saldoVacaciones.diasDisponibles': diasDisponibles,
         'saldoVacaciones.diasUsados': diasUsados,
         'saldoVacaciones.diasPendientes': diasPendientes,
         'saldoVacaciones.ultimaActualizacion': new Date(),
