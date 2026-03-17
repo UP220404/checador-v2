@@ -174,6 +174,25 @@ function Nomina() {
       return;
     }
 
+    // Validación de Cuenta Bancaria / CLABE / Tarjeta
+    let cuentaFormateada = datosEdicion.cuentaBancaria || '';
+    if (cuentaFormateada) {
+      // 1. Quitar los espacios en blanco
+      cuentaFormateada = cuentaFormateada.replace(/\s/g, ''); 
+      
+      // 2. Validar que contenga solo números
+      if (!/^\d+$/.test(cuentaFormateada)) {
+        showNotification('La cuenta bancaria solo puede contener números, sin letras.', 'error');
+        return;
+      }
+      
+      // 3. Validar longitudes oficiales (México: 10 Cuenta, 16 Tarjeta, 18 CLABE/CVU)
+      if (![10, 16, 18].includes(cuentaFormateada.length)) {
+        showNotification(`Longitud inválida en cuenta bancaria. Tiene ${cuentaFormateada.length} dígitos, pero debe ser de 10 (Cuenta), 16 (Tarjeta) o 18 (CLABE/CVU).`, 'error');
+        return;
+      }
+    }
+
     try {
       // Calcular pago por día
       const pagoPorDia = datosEdicion.tipoNomina === 'semanal'
@@ -189,7 +208,7 @@ function Nomina() {
         tieneIMSS: datosEdicion.tieneIMSS,
         tieneCajaAhorro: datosEdicion.tieneCajaAhorro,
         montoCajaAhorro: datosEdicion.tieneCajaAhorro ? parseFloat(datosEdicion.montoCajaAhorro || 0) : 0,
-        cuentaBancaria: datosEdicion.cuentaBancaria || '',
+        cuentaBancaria: cuentaFormateada,
         nombreBanco: datosEdicion.nombreBanco || '',
         pagoPorDia,
         pagoPorHora
@@ -902,13 +921,18 @@ function Nomina() {
                     <div>
                       <label className="form-label" style={{ fontSize: '12px' }}>Cuenta Bancaria</label>
                       {editandoEmpleado ? (
-                        <input
-                          type="text"
-                          className="form-control"
-                          value={datosEdicion.cuentaBancaria || ''}
-                          onChange={(e) => setDatosEdicion({ ...datosEdicion, cuentaBancaria: e.target.value })}
-                          placeholder="Número de cuenta"
-                        />
+                        <div>
+                          <input
+                            type="text"
+                            className="form-control"
+                            value={datosEdicion.cuentaBancaria || ''}
+                            onChange={(e) => setDatosEdicion({ ...datosEdicion, cuentaBancaria: e.target.value })}
+                            placeholder="Número de cuenta"
+                          />
+                          <small className="form-text text-muted" style={{ fontSize: '10px' }}>
+                            Introduce 10 (Cuenta), 16 (Tarjeta) o 18 (CLABE) dígitos sin letras.
+                          </small>
+                        </div>
                       ) : (
                         <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem' }}>
                           {datosEmpleado.cuentaBancaria || 'No especificada'}
