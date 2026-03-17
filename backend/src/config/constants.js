@@ -36,9 +36,15 @@ export const CONFIG = {
   QR_CODE_PREFIX: 'OFICINA2025',
 
   // Nómina
-  DESCUENTO_POR_RETARDO: 50, // Pesos
-  RETARDOS_PARA_DESCUENTO: 3, // Número de retardos que generan descuento
+  DESCUENTO_POR_RETARDO: 50, // Pesos (descuento directo)
+  RETARDOS_PARA_DESCUENTO: 4, // Al 4to retardo se descuenta un día completo
   DESCUENTO_IMSS: 300, // Pesos
+
+  // Aguinaldo: equivale a 1 mes de sueldo (2 quincenas)
+  AGUINALDO_MESES: 2, // Multiplicador sobre salario quincenal
+
+  // Vacaciones: 12 días al año (1 por mes trabajado)
+  DIAS_VACACIONES_ANUALES: 12,
 
   // Tipos de usuario
   TIPOS_USUARIO: {

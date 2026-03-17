@@ -500,7 +500,7 @@ class UserService {
 
       const userData = userDoc.data();
       const saldo = userData.saldoVacaciones || {
-        diasDisponibles: 6,
+        diasDisponibles: 12,
         diasUsados: 0,
         diasPendientes: 0,
         ultimaActualizacion: null
@@ -598,7 +598,7 @@ class UserService {
       });
 
       const userData = userDoc.data();
-      const diasDisponibles = userData.saldoVacaciones?.diasDisponibles || 6;
+      const diasDisponibles = userData.saldoVacaciones?.diasDisponibles || 12;
 
       await userRef.update({
         'saldoVacaciones.diasUsados': diasUsados,

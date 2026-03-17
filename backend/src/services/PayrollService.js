@@ -547,8 +547,8 @@ class PayrollService {
           } else if (diasDescuentoPorRetardos > 0) {
             status = `Descuento: ${diasDescuentoPorRetardos} día${diasDescuentoPorRetardos > 1 ? 's' : ''}`;
             statusClass = 'status-penalty';
-          } else if (retardos >= 3) {
-            status = 'En límite de retardos';
+          } else if (retardos === 3) {
+            status = '⚠️ Próximo retardo genera descuento (3/4)';
             statusClass = 'status-warning';
           } else {
             status = 'Sin penalizaciones';
