@@ -211,6 +211,7 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
     { path: '/admin/analisis', icon: 'bi-graph-up-arrow', label: 'Analisis' },
     { path: '/admin/seguridad', icon: 'bi-shield-exclamation', label: 'Seguridad' },
     { path: '/admin/reportes', icon: 'bi-file-earmark-bar-graph', label: 'Reportes' },
+    { path: '/admin/qr', icon: 'bi-qr-code-scan', label: 'Pantalla QR / Agenda' },
     { path: '/admin/documentos', icon: 'bi-folder', label: 'Documentos' },
     { path: '/admin/auditoria', icon: 'bi-journal-text', label: 'Auditoria' },
   ];

@@ -635,7 +635,7 @@ function QRGenerator() {
             /* ── QR ── */
             <>
               <div className="logo-section">
-                <h1 className="title">Cielito Home <span style={{ fontSize: '12px', opacity: 0.4 }}>v2.1.3</span></h1>
+                <h1 className="title">Cielito Home <span style={{ fontSize: '12px', opacity: 0.4 }}>v2.1.5</span></h1>
                 <p className="subtitle">Código QR de Acceso Inteligente</p>
               </div>
 
