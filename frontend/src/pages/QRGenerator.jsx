@@ -421,11 +421,10 @@ function QRGenerator() {
       if (csv.trimStart().startsWith('<')) return null;
       const filas = parsearCSV(csv);
 
-      // Encontrar fila de encabezado
-      // Buscamos una fila que tenga "hora" Y ("meeting" o "cliente") para evitar falsos positivos con el título
       const headerIdx = filas.findIndex(f => 
-        f.some(c => c.toLowerCase().includes('hora')) && 
-        f.some(c => c.toLowerCase().includes('meeting') || c.toLowerCase().includes('cliente'))
+        (f.some(c => c.toLowerCase().includes('hora')) && 
+         f.some(c => c.toLowerCase().includes('meeting') || c.toLowerCase().includes('cliente') || c.toLowerCase().includes('asunto') || c.toLowerCase().includes('nombre'))) ||
+        (f.some(c => c.toLowerCase().includes('fecha')) && f.some(c => c.toLowerCase().includes('hora')))
       );
       if (headerIdx === -1) return null;
 
@@ -636,7 +635,7 @@ function QRGenerator() {
             /* ── QR ── */
             <>
               <div className="logo-section">
-                <h1 className="title">Cielito Home</h1>
+                <h1 className="title">Cielito Home <span style={{ fontSize: '12px', opacity: 0.4 }}>v2.1.3</span></h1>
                 <p className="subtitle">Código QR de Acceso Inteligente</p>
               </div>
 
