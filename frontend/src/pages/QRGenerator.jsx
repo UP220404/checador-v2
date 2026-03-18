@@ -326,58 +326,6 @@ function QRGenerator() {
   // ── GOOGLE SHEETS ──────────────────────────────────────────────────────────
   const SPREADSHEET_ID = '1tGgyRdl76vTFtaBVGqmYXyYb14bh8iy3EwhUruVyHdg';
 
-  const construirNombreHoja = (fecha = new Date()) => {
-    const dias  = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    return `${dias[fecha.getDay()]} ${String(fecha.getDate()).padStart(2, '0')} ${meses[fecha.getMonth()]}`;
-  };
-
-  const parsearCSV = (texto) => {
-    const filas = [];
-    let i = 0;
-    const N = texto.length;
-
-    while (i < N) {
-      const fila = [];
-
-      // Parsear todos los campos de esta fila
-      while (i < N) {
-        let campo = '';
-
-        if (texto[i] === '"') {
-          // Campo entre comillas: puede contener comas y saltos de línea
-          i++;
-          while (i < N) {
-            if (texto[i] === '"' && texto[i + 1] === '"') {
-              campo += '"'; i += 2;   // "" → una comilla literal
-            } else if (texto[i] === '"') {
-              i++; break;             // comilla de cierre
-            } else {
-              campo += texto[i++];
-            }
-          }
-        } else {
-          // Campo sin comillas: termina en coma o salto de línea
-          while (i < N && texto[i] !== ',' && texto[i] !== '\n' && texto[i] !== '\r') {
-            campo += texto[i++];
-          }
-        }
-
-        fila.push(campo.trim());
-
-        if (i >= N || texto[i] === '\n' || texto[i] === '\r') break; // fin de fila
-        if (texto[i] === ',') i++;  // separador → siguiente campo
-      }
-
-      // Avanzar sobre \r\n o \n
-      if (i < N && texto[i] === '\r') i++;
-      if (i < N && texto[i] === '\n') i++;
-
-      if (fila.some(c => c)) filas.push(fila);
-    }
-
-    return filas;
-  };
 
   const parseHora = (horaStr) => {
     if (!horaStr) return -1;
@@ -410,7 +358,42 @@ function QRGenerator() {
     target.scrollIntoView({ block: 'start', behavior: 'instant' });
   };
 
-  const quitarAcentos = (str) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const construirNombreHoja = (fullMonth = false) => {
+    const fecha = new Date();
+    const dias  = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const mesesAbr = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const mesesFull = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    const diaNom = dias[fecha.getDay()];
+    const diaNum = String(fecha.getDate()).padStart(2, '0');
+    const mesNom = fullMonth ? mesesFull[fecha.getMonth()] : mesesAbr[fecha.getMonth()];
+    return `${diaNom} ${diaNum} ${mesNom}`;
+  };
+
+  const parsearCSV = (texto) => {
+    if (!texto) return [];
+    const lineas = [];
+    let lineaActual = [];
+    let campoActual = '';
+    let enComillas = false;
+    for (let i = 0; i < texto.length; i++) {
+        const c = texto[i];
+        if (c === '"') {
+            if (enComillas && texto[i+1] === '"') { campoActual += '"'; i++; }
+            else { enComillas = !enComillas; }
+        } else if (c === ',' && !enComillas) {
+            lineaActual.push(campoActual.trim()); campoActual = '';
+        } else if ((c === '\n' || c === '\r') && !enComillas) {
+            lineaActual.push(campoActual.trim());
+            if (lineaActual.length > 0) lineas.push(lineaActual);
+            lineaActual = []; campoActual = '';
+            if (c === '\r' && texto[i+1] === '\n') i++;
+        } else {
+            campoActual += c;
+        }
+    }
+    if (campoActual || lineaActual.length > 0) { lineaActual.push(campoActual.trim()); lineas.push(lineaActual); }
+    return lineas;
+  };
 
   const fetchHoja = async (nombre) => {
     const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(nombre)}`;
@@ -418,45 +401,32 @@ function QRGenerator() {
       const resp = await fetch(url);
       if (!resp.ok) return null;
       const csv = await resp.text();
-      if (csv.trimStart().startsWith('<')) return null;
+      if (!csv || csv.trimStart().startsWith('<')) return null;
       const filas = parsearCSV(csv);
-
-      const headerIdx = filas.findIndex(f => 
-        (f.some(c => c.toLowerCase().includes('hora')) && 
-         f.some(c => c.toLowerCase().includes('meeting') || c.toLowerCase().includes('cliente') || c.toLowerCase().includes('asunto') || c.toLowerCase().includes('nombre'))) ||
-        (f.some(c => c.toLowerCase().includes('fecha')) && f.some(c => c.toLowerCase().includes('hora')))
-      );
-      if (headerIdx === -1) return null;
-
-      // Detectar columnas por nombre — independiente del orden en la hoja
-      const header = filas[headerIdx].map(c => c.toLowerCase().trim());
-      const iHora     = header.findIndex(c => c.includes('hora'));
-      const iCliente  = header.findIndex(c => c.includes('cliente'));
-      const iMeeting  = header.findIndex(c => c.includes('meeting') || (c.includes('nombre') && !c.includes('fecha')) || c.includes('asunto') || c.includes('titulo'));
-      const iAsignada = header.findIndex(c => c.includes('asignad') || c.includes('responsable'));
-      const iLink     = header.findIndex(c => c.includes('link') || c.includes('comentar') || c.includes('url'));
-
-      // Remap cada fila a posiciones fijas que el resto del código ya espera:
-      // [0]=ignorado  [1]=hora  [2]=cliente  [3]=meeting  [4]=asignada  [5]=link
-      const get = (f, idx, fallback) => (idx >= 0 ? (f[idx] || '') : (f[fallback] || ''));
-
-      const datos = filas
-        .slice(headerIdx + 1)
-        .filter(f => f.some(c => c))
-        .map(f => [
-          '',
-          get(f, iHora,     1),
-          get(f, iCliente,  2),
-          get(f, iMeeting,  3),
-          get(f, iAsignada, 4),
-          get(f, iLink,     5),
-        ]);
-
-      return datos.length > 0 ? datos : null;
-    } catch (e) {
-      console.error('[Agenda] Error:', e.message);
-      return null;
-    }
+      const hIdx = filas.findIndex(f => f.some(c => c.toLowerCase().includes('hora')));
+      if (hIdx === -1) return null;
+      const header = filas[hIdx].map(c => c.toLowerCase().trim());
+      const iHora    = header.findIndex(c => c.includes('hora'));
+      const iCliente = header.findIndex(c => c.includes('cliente'));
+      const iMeeting = header.findIndex(c => c.includes('meeting') || (c.includes('nombre') && !c.includes('fecha')) || c.includes('asunto') || c.includes('titulo'));
+      const iLink    = header.findIndex(c => c.includes('link') || c.includes('comentar') || c.includes('url'));
+      return filas.slice(hIdx + 1).filter(f => f[iHora] && (f[iMeeting] || f[iCliente])).map(f => {
+        const hStr = f[iHora] || '';
+        const match = hStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+        let startMin = -1;
+        if (match) {
+          let h = parseInt(match[1]);
+          const m = parseInt(match[2]);
+          if (match[3].toUpperCase() === 'PM' && h < 12) h += 12;
+          if (match[3].toUpperCase() === 'AM' && h === 12) h = 0;
+          startMin = h * 60 + m;
+        }
+        return {
+          fila: ['', hStr, f[iCliente] || '', f[iMeeting] || f[iCliente] || '(Sin título)', '', f[iLink] || ''],
+          startMin
+        };
+      });
+    } catch (e) { return null; }
   };
 
   const cargarAgenda = async (silencioso = false) => {
