@@ -325,6 +325,7 @@ function QRGenerator() {
 
   // ── GOOGLE SHEETS ──────────────────────────────────────────────────────────
   const SPREADSHEET_ID = '1tGgyRdl76vTFtaBVGqmYXyYb14bh8iy3EwhUruVyHdg';
+  const quitarAcentos = (str) => str ? str.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
 
 
   const parseHora = (horaStr) => {
@@ -605,7 +606,7 @@ function QRGenerator() {
             /* ── QR ── */
             <>
               <div className="logo-section">
-                <h1 className="title">Cielito Home <span style={{ fontSize: '12px', opacity: 0.4 }}>v2.1.5</span></h1>
+                <h1 className="title">Cielito Home <span style={{ fontSize: '12px', opacity: 0.4 }}>v2.1.7</span></h1>
                 <p className="subtitle">Código QR de Acceso Inteligente</p>
               </div>
 
