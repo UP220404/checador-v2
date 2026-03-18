@@ -252,7 +252,8 @@ export const HTTP_STATUS = {
 export const ROLES = {
   EMPLEADO: 'empleado',
   ADMIN_AREA: 'admin_area',
-  ADMIN_RH: 'admin_rh'
+  ADMIN_RH: 'admin_rh',
+  SISTEMAS: 'sistemas'
 };
 
 // Departamentos

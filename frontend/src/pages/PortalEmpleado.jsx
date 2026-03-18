@@ -495,6 +495,28 @@ function PortalEmpleado() {
                 </button>
               )}
 
+              {/* Botón de Pantalla QR / Agenda (Solo para Sistemas o Admin RH) */}
+              {(userRole === 'sistemas' || userRole === 'admin_rh') && (
+                <button 
+                  className="btn-icon qr-shortcut shadow-sm"
+                  onClick={() => navigate('/qr')}
+                  title="Pantalla QR / Agenda"
+                  style={{ 
+                    background: 'rgba(255, 255, 255, 0.15)',
+                    color: '#fff',
+                    borderRadius: '10px',
+                    width: '38px',
+                    height: '38px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid rgba(255, 255, 255, 0.2)'
+                  }}
+                >
+                  <i className="bi bi-qr-code-scan"></i>
+                </button>
+              )}
+
               {/* Campana con dropdown */}
               <div className="notif-dropdown-wrapper" ref={notifDropdownRef}>
                 <button className={`btn-icon ${showNotifDropdown ? 'active' : ''}`} onClick={handleBellClick} title="Notificaciones">

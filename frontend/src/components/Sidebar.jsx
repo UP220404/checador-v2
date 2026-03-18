@@ -211,7 +211,7 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
     { path: '/admin/analisis', icon: 'bi-graph-up-arrow', label: 'Analisis' },
     { path: '/admin/seguridad', icon: 'bi-shield-exclamation', label: 'Seguridad' },
     { path: '/admin/reportes', icon: 'bi-file-earmark-bar-graph', label: 'Reportes' },
-    { path: '/admin/qr', icon: 'bi-qr-code-scan', label: 'Pantalla QR / Agenda' },
+    { path: '/qr', icon: 'bi-qr-code-scan', label: 'Pantalla QR / Agenda', restricted: [ROLES.SISTEMAS, ROLES.ADMIN_RH] },
     { path: '/admin/documentos', icon: 'bi-folder', label: 'Documentos' },
     { path: '/admin/auditoria', icon: 'bi-journal-text', label: 'Auditoria' },
   ];
@@ -378,16 +378,19 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
         </div>
       )}
 
-      {menuItems.map((item) => (
-        <Link
-          key={item.path}
-          to={item.path}
-          className={location.pathname === item.path ? 'active' : ''}
-        >
-          <i className={`bi ${item.icon}`}></i>
-          {item.label}
-        </Link>
-      ))}
+      {menuItems.map((item) => {
+        if (item.restricted && !item.restricted.includes(userRole)) return null;
+        return (
+          <Link
+            key={item.path}
+            to={item.path}
+            className={location.pathname === item.path ? 'active' : ''}
+          >
+            <i className={`bi ${item.icon}`}></i>
+            {item.label}
+          </Link>
+        );
+      })}
 
       {userRole === ROLES.ADMIN_RH && (
         <>

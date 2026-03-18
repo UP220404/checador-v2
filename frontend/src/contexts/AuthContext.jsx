@@ -15,7 +15,8 @@ const AuthContext = createContext(null);
 const ROLES = {
   EMPLEADO: 'empleado',
   ADMIN_AREA: 'admin_area',
-  ADMIN_RH: 'admin_rh'
+  ADMIN_RH: 'admin_rh',
+  SISTEMAS: 'sistemas'
 };
 
 const REFRESH_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutos entre refetches

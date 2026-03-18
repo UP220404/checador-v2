@@ -67,7 +67,7 @@ function App() {
           <Route path="/admin/seguridad"   element={<PrivateRoute requiredRoles={['admin_rh', 'admin_area']}><Seguridad /></PrivateRoute>} />
           <Route path="/admin/reportes"    element={<PrivateRoute requiredRoles={['admin_rh', 'admin_area']}><Reportes /></PrivateRoute>} />
           <Route path="/admin/nomina"      element={<PrivateRoute requiredRoles={['admin_rh', 'admin_area']}><Nomina /></PrivateRoute>} />
-          <Route path="/admin/qr"          element={<PrivateRoute requiredRoles={['admin_rh']}><QRGenerator /></PrivateRoute>} />
+          <Route path="/qr"                element={<PrivateRoute requiredRoles={['sistemas', 'admin_rh']}><QRGenerator /></PrivateRoute>} />
           <Route path="/admin/evaluaciones"         element={<PrivateRoute requiredRoles={['admin_rh', 'admin_area']}><Evaluaciones /></PrivateRoute>} />
           <Route path="/admin/capacitacion"         element={<PrivateRoute requiredRoles={['admin_rh', 'admin_area']}><Capacitacion /></PrivateRoute>} />
           <Route path="/admin/evaluaciones-contrato" element={<PrivateRoute requiredRoles={['admin_rh', 'admin_area']}><EvaluacionesContrato /></PrivateRoute>} />
