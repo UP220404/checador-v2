@@ -104,7 +104,9 @@ export const COLLECTIONS = {
   CAPACITACIONES: 'capacitaciones',
   AUDITORIA: 'auditoria',
   // Evaluaciones de contrato
-  EVALUACIONES_CONTRATO: 'evaluaciones_contrato'
+  EVALUACIONES_CONTRATO: 'evaluaciones_contrato',
+  // Colección legacy para scanner antiguo
+  EMPLEADOS: 'empleados'
 };
 
 // Tipos de contrato

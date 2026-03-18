@@ -10,6 +10,7 @@ import crypto from 'crypto';
 class UserService {
   constructor() {
     this.usersCollection = COLLECTIONS.USUARIOS;
+    this.legacyCollection = COLLECTIONS.EMPLEADOS;
   }
 
   get db() {
@@ -153,6 +154,11 @@ class UserService {
 
       await this.db.collection(this.usersCollection).doc(uid).set(userDoc);
 
+      // 🔄 Sync legacy collection
+      await this._syncToLegacyEmployees(uid, userDoc).catch(err => 
+        console.error('⚠️ Error en sync legacy (create):', err)
+      );
+
       return {
         uid,
         ...userDoc
@@ -189,6 +195,12 @@ class UserService {
         fechaActualizacion: new Date()
       });
 
+      // 🔄 Sync legacy collection
+      const fullUpdatedData = (await userRef.get()).data();
+      await this._syncToLegacyEmployees(uid, fullUpdatedData).catch(err => 
+        console.error('⚠️ Error en sync legacy (update):', err)
+      );
+
       const updatedDoc = await userRef.get();
       return {
         uid: updatedDoc.id,
@@ -217,6 +229,11 @@ class UserService {
         activo: false,
         fechaEliminacion: new Date()
       });
+
+      // 🔄 Sync legacy collection (desactivar también)
+      await this.db.collection(this.legacyCollection).doc(uid).update({
+        activo: false
+      }).catch(() => {});
 
       return { success: true, message: 'Usuario desactivado' };
     } catch (error) {
@@ -734,6 +751,33 @@ class UserService {
     } catch (error) {
       console.error('Error actualizando rol de usuario:', error);
       throw error;
+    }
+  }
+
+  /**
+   * 🔄 Sincroniza datos con la colección legacy 'empleados'
+   * Mantiene compatibilidad con el scanner antiguo que busca en esta colección específica.
+   */
+  async _syncToLegacyEmployees(uid, data) {
+    try {
+      const legacyDoc = {
+        nombre: data.nombre,
+        correo: data.correo,
+        tipo: data.tipo,
+        activo: data.activo !== false,
+        departamento: data.departamento || '',
+        puesto: data.puesto || '',
+        fechaSincronizacion: new Date()
+      };
+
+      // Si tiene datos de nómina en el objeto, incluirlos
+      if (data.salarioBase) legacyDoc.salarioBase = data.salarioBase;
+      if (data.salarioQuincenal) legacyDoc.salarioQuincenal = data.salarioQuincenal;
+
+      await this.db.collection(this.legacyCollection).doc(uid).set(legacyDoc, { merge: true });
+      console.log(`📡 Sync Legacy OK: ${data.correo} -> empleados/${uid}`);
+    } catch (error) {
+      console.error('❌ Error sincronizando con colección legacy:', error);
     }
   }
 }

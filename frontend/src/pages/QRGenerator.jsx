@@ -422,7 +422,11 @@ function QRGenerator() {
       const filas = parsearCSV(csv);
 
       // Encontrar fila de encabezado
-      const headerIdx = filas.findIndex(f => f.some(c => c.toLowerCase().includes('hora')));
+      // Buscamos una fila que tenga "hora" Y ("meeting" o "cliente") para evitar falsos positivos con el título
+      const headerIdx = filas.findIndex(f => 
+        f.some(c => c.toLowerCase().includes('hora')) && 
+        f.some(c => c.toLowerCase().includes('meeting') || c.toLowerCase().includes('cliente'))
+      );
       if (headerIdx === -1) return null;
 
       // Detectar columnas por nombre — independiente del orden en la hoja
