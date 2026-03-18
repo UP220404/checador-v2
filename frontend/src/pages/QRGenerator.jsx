@@ -433,9 +433,9 @@ function QRGenerator() {
       const header = filas[headerIdx].map(c => c.toLowerCase().trim());
       const iHora     = header.findIndex(c => c.includes('hora'));
       const iCliente  = header.findIndex(c => c.includes('cliente'));
-      const iMeeting  = header.findIndex(c => c.includes('meeting') || (c.includes('nombre') && !c.includes('fecha')));
-      const iAsignada = header.findIndex(c => c.includes('asignad'));
-      const iLink     = header.findIndex(c => c.includes('link') || c.includes('comentar'));
+      const iMeeting  = header.findIndex(c => c.includes('meeting') || (c.includes('nombre') && !c.includes('fecha')) || c.includes('asunto') || c.includes('titulo'));
+      const iAsignada = header.findIndex(c => c.includes('asignad') || c.includes('responsable'));
+      const iLink     = header.findIndex(c => c.includes('link') || c.includes('comentar') || c.includes('url'));
 
       // Remap cada fila a posiciones fijas que el resto del código ya espera:
       // [0]=ignorado  [1]=hora  [2]=cliente  [3]=meeting  [4]=asignada  [5]=link
@@ -512,7 +512,20 @@ function QRGenerator() {
           const [anioStr, mes, dia] = emp.fechaIngreso.split('-');
           const { dias, texto, anioFecha } = calcularDiasRestantes(mes, dia, hoy);
           const anios = anioFecha - parseInt(anioStr);
-          if (dias <= 15) resultado.push({ tipo: 'aniversario', nombre: emp.nombre, descripcion: `${anios} año${anios !== 1 ? 's' : ''} en Cielito Home · ${texto}`, dias });
+          
+          let descripcionAniversario = '';
+          if (anios === 0) {
+            descripcionAniversario = `Nuevo Ingreso · ${texto}`;
+          } else {
+            descripcionAniversario = `${anios} año${anios !== 1 ? 's' : ''} en Cielito Home · ${texto}`;
+          }
+
+          if (dias <= 15) resultado.push({ 
+            tipo: 'aniversario', 
+            nombre: emp.nombre, 
+            descripcion: descripcionAniversario, 
+            dias 
+          });
         }
       }
       resultado.sort((a, b) => a.dias - b.dias);
