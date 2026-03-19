@@ -410,6 +410,7 @@ function QRGenerator() {
       const iHora    = header.findIndex(c => c.includes('hora'));
       const iCliente = header.findIndex(c => c.includes('cliente'));
       const iMeeting = header.findIndex(c => c.includes('meeting') || (c.includes('nombre') && !c.includes('fecha')) || c.includes('asunto') || c.includes('titulo'));
+      const iAsignada = header.findIndex(c => c.includes('asignad') || c.includes('responsable'));
       const iLink    = header.findIndex(c => c.includes('link') || c.includes('comentar') || c.includes('url'));
       return filas.slice(hIdx + 1).filter(f => f[iHora] && (f[iMeeting] || f[iCliente])).map(f => {
         const hStr = f[iHora] || '';
@@ -423,7 +424,7 @@ function QRGenerator() {
           startMin = h * 60 + m;
         }
         return {
-          fila: ['', hStr, f[iCliente] || '', f[iMeeting] || f[iCliente] || '(Sin título)', '', f[iLink] || ''],
+          fila: ['', hStr, f[iCliente] || '', f[iMeeting] || f[iCliente] || '(Sin título)', f[iAsignada] || '', f[iLink] || ''],
           startMin
         };
       });
@@ -606,7 +607,7 @@ function QRGenerator() {
             /* ── QR ── */
             <>
               <div className="logo-section">
-                <h1 className="title">Cielito Home <span style={{ fontSize: '12px', opacity: 0.4 }}>v2.1.8</span></h1>
+                <h1 className="title">Cielito Home <span style={{ fontSize: '12px', opacity: 0.4 }}>v2.1.9</span></h1>
                 <p className="subtitle">Código QR de Acceso Inteligente</p>
               </div>
 
