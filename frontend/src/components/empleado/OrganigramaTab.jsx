@@ -75,7 +75,7 @@ function OrganigramaTab({ userData }) {
       u.role === 'admin_area' && !ceo.includes(u) && !direccion.includes(u)
     );
     const empleados = filtrados.filter(u =>
-      (u.role === 'empleado' || !u.role) &&
+      (u.role === 'empleado' || u.role === 'sistemas' || !u.role) &&
       !ceo.includes(u) && !direccion.includes(u)
     );
     const porDepto = {};

@@ -625,10 +625,31 @@ class UserService {
       });
 
       const userData = userDoc.data();
-      let diasDisponibles = userData.saldoVacaciones?.diasDisponibles || 12;
 
-      if (diasDisponibles === 6) {
-        diasDisponibles = 12;
+      // Calcular días disponibles según antigüedad
+      // Los empleados en período de prueba (< 4 meses) no acumulan vacaciones
+      let diasDisponibles = userData.saldoVacaciones?.diasDisponibles || 0;
+      if (!userData.saldoVacaciones?.diasDisponibles) {
+        // No tiene saldo configurado — calcular según antigüedad
+        const fechaIngreso = userData.fechaIngreso 
+          ? new Date(userData.fechaIngreso) 
+          : null;
+        if (fechaIngreso) {
+          const hoy = new Date();
+          const mesesAntiguedad = (hoy.getFullYear() - fechaIngreso.getFullYear()) * 12 
+            + (hoy.getMonth() - fechaIngreso.getMonth());
+          if (mesesAntiguedad < 4) {
+            // Período de prueba: 0 días
+            diasDisponibles = 0;
+          } else if (mesesAntiguedad < 12) {
+            // Primer año, pasado período de prueba: acumula proporcionalmente (base 12)
+            diasDisponibles = Math.floor((mesesAntiguedad / 12) * 12);
+          } else {
+            diasDisponibles = 12;
+          }
+        } else {
+          diasDisponibles = 12;
+        }
       }
 
       await userRef.update({
@@ -716,7 +737,7 @@ class UserService {
       }
 
       // Validar rol
-      const rolesValidos = ['empleado', 'admin_area', 'admin_rh'];
+      const rolesValidos = ['empleado', 'admin_area', 'admin_rh', 'sistemas'];
       if (!rolesValidos.includes(roleData.role)) {
         throw new Error(`Rol inválido. Roles válidos: ${rolesValidos.join(', ')}`);
       }
