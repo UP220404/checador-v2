@@ -606,7 +606,7 @@ function QRGenerator() {
             /* ── QR ── */
             <>
               <div className="logo-section">
-                <h1 className="title">Cielito Home <span style={{ fontSize: '12px', opacity: 0.4 }}>v2.1.7</span></h1>
+                <h1 className="title">Cielito Home <span style={{ fontSize: '12px', opacity: 0.4 }}>v2.1.8</span></h1>
                 <p className="subtitle">Código QR de Acceso Inteligente</p>
               </div>
 
@@ -670,15 +670,33 @@ function QRGenerator() {
             ) : (
               <div className="agenda-lista" ref={agendaListaRef}>
                 {(() => {
-                  const conTiempos = agenda.map((fila, i) => {
-                    const startMin = parseHora(fila[1]);
-                    const finRango = parseHoraFin(fila[1]);
-                    const nextMin  = i + 1 < agenda.length ? parseHora(agenda[i + 1][1]) : -1;
-                    const endMin   = finRango !== -1 ? finRango
-                      : (nextMin !== -1 && nextMin > startMin) ? nextMin
-                      : (startMin !== -1 ? startMin + 60 : -1);
+                  const conTiempos = agenda.map((item, i) => {
+                    const fila     = item.fila;
+                    const startMin = item.startMin;
+                    const nextItem = agenda[i + 1];
+                    const nextMin  = nextItem ? nextItem.startMin : -1;
+                    
+                    // Calcular endMin si no está definido (asumir 1h si no hay siguiente)
+                    let endMin = -1;
+                    const hStr = fila[1] || '';
+                    const finMatch = hStr.split(/\s*-\s*|\s*a\s*/i)[1];
+                    if (finMatch) {
+                      const match = finMatch.match(/(\d+):(\d+)\s*(AM|PM)/i);
+                      if (match) {
+                        let h = parseInt(match[1]);
+                        const m = parseInt(match[2]);
+                        if (match[3].toUpperCase() === 'PM' && h < 12) h += 12;
+                        if (match[3].toUpperCase() === 'AM' && h === 12) h = 0;
+                        endMin = h * 60 + m;
+                      }
+                    }
+                    if (endMin === -1) {
+                      endMin = (nextMin !== -1 && nextMin > startMin) ? nextMin : (startMin !== -1 ? startMin + 60 : -1);
+                    }
+
                     return { fila, i, startMin, endMin };
                   });
+
                   const enCurso  = conTiempos.filter(({ startMin, endMin }) => startMin !== -1 && startMin <= minutosAhora && (endMin === -1 || endMin > minutosAhora));
                   const proximas = conTiempos.filter(({ startMin })          => startMin === -1 || startMin > minutosAhora);
                   const pasadas  = conTiempos.filter(({ startMin, endMin }) => startMin !== -1 && endMin !== -1 && endMin <= minutosAhora);
