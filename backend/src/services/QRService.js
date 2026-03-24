@@ -123,8 +123,10 @@ class QRService {
           });
         }
       } else if (modoToken === 'estatico') {
-        // Modo estático: múltiples usos permitidos
+        // Modo estático: múltiples usos — marcar como usado para que el frontend
+        // detecte el escaneo vía onSnapshot y regenere el QR inmediatamente.
         await tokenRef.update({
+          usado: true,
           ultimoAcceso: ahora,
           ultimoUsuario: userEmail || 'desconocido',
           ultimoIntentoStatus: 'exito_estatico',

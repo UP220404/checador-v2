@@ -234,7 +234,7 @@ function QRGenerator() {
           new QRious({
             element:    qrCanvasRef.current,
             value:      urlCompleta,
-            size:       340,
+            size:       480,
             foreground: '#155d27',
             background: '#ffffff'
           });
@@ -306,7 +306,7 @@ function QRGenerator() {
           const urlCompleta = `${window.location.origin}?qr=OFICINA2025&token=${data.token}&t=${Date.now()}`;
 
           if (qrCanvasRef.current) {
-            new QRious({ element: qrCanvasRef.current, value: urlCompleta, size: 340, foreground: '#155d27', background: '#ffffff' });
+            new QRious({ element: qrCanvasRef.current, value: urlCompleta, size: 480, foreground: '#155d27', background: '#ffffff' });
             setShowQR(true);
             setStatus('activo');
             setCountdown('Esperando escaneo');

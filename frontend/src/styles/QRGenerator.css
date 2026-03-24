@@ -128,11 +128,11 @@
 .status-danger  { background: #dc3545; }
 .status-night   { background: #6c757d; }
 
-/* Canvas: escala al ancho Y alto del contenedor manteniendo cuadrado */
+/* Canvas: llena el contenedor sin márgenes en blanco */
 .qr-canvas {
   display: block;
-  max-width: min(93%, 340px);
-  max-height: 90%;
+  max-width: 98%;
+  max-height: 95%;
   width: auto;
   height: auto;
   aspect-ratio: 1 / 1;
@@ -288,7 +288,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.6rem;
   padding-right: 3px;
 }
 
@@ -307,12 +307,12 @@
 .agenda-item {
   display: flex;
   align-items: flex-start;
-  gap: 0.6rem;
-  padding: 0.65rem 0.8rem;
-  border-radius: 10px;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
   background: #fafafa;
   border: 1px solid #eee;
-  border-left: 4px solid var(--verde);
+  border-left: 5px solid var(--verde);
   transition: background 0.15s, opacity 0.3s;
   flex-shrink: 0;
 }
@@ -320,10 +320,10 @@
 .agenda-item:hover { background: #f0f5f1; }
 
 .agenda-hora {
-  font-size: 0.9rem;
+  font-size: 1.05rem;
   font-weight: 800;
   color: var(--verde);
-  min-width: 50px;
+  min-width: 60px;
   flex-shrink: 0;
   padding-top: 1px;
 }
@@ -337,7 +337,7 @@
 }
 
 .agenda-meeting {
-  font-size: 0.98rem;
+  font-size: 1.12rem;
   font-weight: 700;
   color: #1a1a1a;
   white-space: nowrap;
@@ -352,13 +352,13 @@
 }
 
 .agenda-cliente {
-  font-size: 0.8rem;
+  font-size: 0.92rem;
   font-weight: 600;
   color: var(--dorado);
 }
 
 .agenda-asignada {
-  font-size: 0.8rem;
+  font-size: 0.92rem;
   color: #777;
 }
 
