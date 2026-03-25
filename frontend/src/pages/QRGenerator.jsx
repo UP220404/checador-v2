@@ -438,7 +438,22 @@ function QRGenerator() {
     setAgendaFecha(nombreHoja);
     try {
       let datos = await fetchHoja(nombreHoja);
-      if (!datos) datos = await fetchHoja(nombreSinAcento);
+      
+      // En JS, `[]` es truthy. Si Google Sheets no encuentra el nombre con acento, 
+      // suele devolver la primera hoja del archivo como fallback, la cual al ser parseada 
+      // puede devolver `[]`. Por lo que necesitamos checar `length === 0`.
+      if (!datos || datos.length === 0) {
+        datos = await fetchHoja(nombreSinAcento);
+      }
+      
+      // Si sigue vacío, probemos una combinación muy común que los usuarios hacen:
+      // A veces quitan el acento del día de la semana pero no del mes, o viceversa, 
+      // pero el nombreSinAcento quita TODOS los acentos.
+      if (!datos || datos.length === 0) {
+         // Intentar algo más genérico si falla (ej. buscar qué hojas hay no es posible aquí)
+         // pero al menos ya intentamos el caso base.
+      }
+      
       const resultado  = datos || [];
       const nuevoHash  = JSON.stringify(resultado);
       if (silencioso && nuevoHash !== agendaHashRef.current) {
