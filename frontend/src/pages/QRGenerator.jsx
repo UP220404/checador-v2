@@ -40,6 +40,10 @@ function QRGenerator() {
   const [fotoActual, setFotoActual]         = useState(0);
   const [marketingImages, setMarketingImages] = useState([]);
   const [horaActual, setHoraActual]         = useState(() => new Date());
+  
+  // Customization state
+  const [viewOverride, setViewOverride]     = useState(() => localStorage.getItem('qr_view_override') || 'auto');
+  const [showSettings, setShowSettings]     = useState(false);
 
   const qrCanvasRef       = useRef(null);
   const modoTickRef       = useRef(null);   // Tick de modo cada minuto
@@ -591,14 +595,14 @@ function QRGenerator() {
   // ─── JSX principal ────────────────────────────────────────────────────────
   return (
     <div className="qr-page-wrapper">
-      <div className="main-container">
+      <div className={`main-container view-${viewOverride}`}>
 
         {/* ── PANEL IZQUIERDO: QR o Carrusel ── */}
-        <div className="qr-section">
-
-          {modo.tipo === 'carrusel' ? (
-            /* ── CARRUSEL ── */
-            <div className="carrusel-wrapper">
+        {(viewOverride === 'auto' || viewOverride === 'qr' || viewOverride === 'carrusel' || viewOverride === 'combined') && (
+          <div className={`qr-section ${ (viewOverride === 'qr' || viewOverride === 'carrusel') ? 'full-width' : ''}`}>
+            { (modo.tipo === 'carrusel' || viewOverride === 'carrusel') && viewOverride !== 'qr' && viewOverride !== 'agenda' ? (
+              /* ── CARRUSEL ── */
+              <div className="carrusel-wrapper">
               {(() => {
                 const listado = marketingImages.length > 0 ? marketingImages : FOTOS_CARRUSEL.map(url => ({ url }));
                 if (listado.length > 0) {
@@ -636,13 +640,13 @@ function QRGenerator() {
                   );
                 }
               })()}
-              <div className="carrusel-time">
-                <span>{horaDisplay}</span>
+                <div className="carrusel-time">
+                  <span>{horaDisplay}</span>
+                </div>
               </div>
-            </div>
-          ) : (
-            /* ── QR ── */
-            <>
+            ) : (
+              /* ── QR ── */
+              <>
               <div className="logo-section">
                 <h1 className="title">Cielito Home <span style={{ fontSize: '12px', opacity: 0.4 }}>v2.1.9</span></h1>
                 <p className="subtitle">Código QR de Acceso Inteligente</p>
@@ -683,10 +687,12 @@ function QRGenerator() {
               </button>
             </>
           )}
-        </div>
+          </div>
+        )}
 
         {/* ── PANEL DERECHO: Agenda + Fechas ── */}
-        <div className="info-section">
+        {(viewOverride === 'auto' || viewOverride === 'agenda' || viewOverride === 'combined') && (
+          <div className={`info-section ${viewOverride === 'agenda' ? 'full-width' : ''}`}>
 
           {/* Agenda del día */}
           <div className="agenda-panel">
@@ -823,9 +829,62 @@ function QRGenerator() {
               </div>
             )}
           </div>
-
         </div>
-      </div>
+      )}
+    </div>
+
+      {/* ── BOTÓN DE AJUSTES (TUERQUITA) ── */}
+      <button 
+        className={`floating-settings-btn ${showSettings ? 'active' : ''}`}
+        onClick={() => setShowSettings(!showSettings)}
+        title="Personalizar Vista"
+      >
+        <i className="bi bi-gear-fill"></i>
+      </button>
+
+      {/* ── PANEL DE AJUSTES ── */}
+      {showSettings && (
+        <div className="settings-panel-overlay" onClick={() => setShowSettings(false)}>
+          <div className="settings-panel" onClick={e => e.stopPropagation()}>
+            <div className="settings-panel-header">
+              <h5><i className="bi bi-display me-2"></i>Personalizar Pantalla</h5>
+              <button className="btn-close-settings" onClick={() => setShowSettings(false)}>
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+            
+            <div className="settings-options">
+              <p className="settings-label">Modo de Visualización:</p>
+              
+              {[
+                { id: 'auto', label: 'Automático (Horario)', icon: 'bi-clock-history' },
+                { id: 'combined', label: 'Mixto (QR + Agenda)', icon: 'bi-layout-split' },
+                { id: 'agenda', label: 'Solo Agenda', icon: 'bi-calendar-week' },
+                { id: 'qr', label: 'Solo QR / Acceso', icon: 'bi-qr-code' },
+                { id: 'carrusel', label: 'Solo Fotos / Marketing', icon: 'bi-images' }
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  className={`settings-opt-btn ${viewOverride === opt.id ? 'active' : ''}`}
+                  onClick={() => {
+                    setViewOverride(opt.id);
+                    localStorage.setItem('qr_view_override', opt.id);
+                    setShowSettings(false);
+                  }}
+                >
+                  <i className={`bi ${opt.icon}`}></i>
+                  <span>{opt.label}</span>
+                  {viewOverride === opt.id && <i className="bi bi-check-lg ms-auto text-success"></i>}
+                </button>
+              ))}
+            </div>
+
+            <div className="settings-footer">
+              <p><i className="bi bi-info-circle me-1"></i> La configuración se guarda localmente en esta TV.</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
