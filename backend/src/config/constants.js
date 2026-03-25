@@ -264,7 +264,8 @@ export const DEPARTAMENTOS = [
   'Operaciones',
   'Tecnologia',
   'Atencion Medica',
-  'Almacen'
+  'Almacen',
+  'Marketing'
 ];
 
 export default {

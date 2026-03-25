@@ -314,6 +314,30 @@ export const api = {
   completeContractEvaluation: (id, data) => apiClient.post(`/contract-evaluations/${id}/complete`, data),
   checkPendingContractEvaluations: () => apiClient.post('/contract-evaluations/check-pending'),
   initializeUserContract: (uid, data) => apiClient.post(`/users/${uid}/initialize-contract`, data),
+
+  // Marketing Carousel
+  getCarouselImages: () => apiClient.get('/marketing/carousel'),
+  uploadCarouselImage: (data) => {
+    const formData = new FormData();
+    formData.append('foto', data.foto);
+    formData.append('tipo', data.tipo);
+    if (data.fechaExpiracion) formData.append('fechaExpiracion', data.fechaExpiracion);
+    if (data.titulo) formData.append('titulo', data.titulo);
+    return apiClient.post('/marketing/carousel', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  updateCarouselImage: (id, formData) => {
+    const data = new FormData();
+    data.append('titulo', formData.titulo);
+    data.append('tipo', formData.tipo);
+    if (formData.fechaExpiracion) data.append('fechaExpiracion', formData.fechaExpiracion);
+    if (formData.foto) data.append('foto', formData.foto);
+    return apiClient.patch(`/marketing/carousel/${id}`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  deleteCarouselImage: (id) => apiClient.delete(`/marketing/carousel/${id}`),
 };
 
 export default apiClient;

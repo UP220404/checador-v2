@@ -20,6 +20,7 @@ import evaluationsRoutes from './routes/evaluations.routes.js';
 import trainingRoutes from './routes/training.routes.js';
 import auditRoutes from './routes/audit.routes.js';
 import contractEvaluationsRoutes from './routes/contractEvaluations.routes.js';
+import marketingRoutes from './routes/marketing.routes.js';
 
 const app = express();
 
@@ -137,6 +138,7 @@ app.use('/api/v1/evaluations', evaluationsRoutes);
 app.use('/api/v1/training', trainingRoutes);
 app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1/contract-evaluations', contractEvaluationsRoutes);
+app.use('/api/v1/marketing', marketingRoutes);
 
 // ===== MANEJO DE ERRORES =====
 

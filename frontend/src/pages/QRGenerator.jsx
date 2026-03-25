@@ -38,6 +38,7 @@ function QRGenerator() {
     const n = new Date(); return n.getHours() * 60 + n.getMinutes();
   });
   const [fotoActual, setFotoActual]         = useState(0);
+  const [marketingImages, setMarketingImages] = useState([]);
   const [horaActual, setHoraActual]         = useState(() => new Date());
 
   const qrCanvasRef       = useRef(null);
@@ -96,10 +97,12 @@ function QRGenerator() {
 
   // Carousel — arranca/para según el modo
   useEffect(() => {
-    if (modoActual === 'carrusel' && FOTOS_CARRUSEL.length > 0) {
+    const listado = marketingImages.length > 0 ? marketingImages : FOTOS_CARRUSEL;
+    
+    if (modoActual === 'carrusel' && listado.length > 0) {
       if (!carouselRef.current) {
         carouselRef.current = setInterval(() => {
-          setFotoActual(f => (f + 1) % FOTOS_CARRUSEL.length);
+          setFotoActual(f => (f + 1) % listado.length);
         }, INTERVALO_CARRUSEL_MS);
       }
     } else {
@@ -108,7 +111,7 @@ function QRGenerator() {
     return () => {
       if (carouselRef.current) { clearInterval(carouselRef.current); carouselRef.current = null; }
     };
-  }, [modoActual]);
+  }, [modoActual, marketingImages]);
 
   // ─── Helpers de modo ──────────────────────────────────────────────────────
   const getTipoModo = () => {
@@ -523,15 +526,28 @@ function QRGenerator() {
     }
   };
 
+  const cargarMarketingImages = async () => {
+    try {
+      const resp = await api.getCarouselImages();
+      if (resp.data?.success) {
+        setMarketingImages(resp.data.data);
+        // Resetear indice si cambiaron las imagenes para evitar desborde
+        setFotoActual(0);
+      }
+    } catch (error) {
+      console.error('Error cargando imágenes de marketing:', error);
+    }
+  };
+
   // ─── Inicializar ──────────────────────────────────────────────────────────
   const inicializar = async () => {
     dormidoRef.current = false;
     const tipo = getTipoModo();
     setModoActual(tipo);
 
-    // En carrusel o modo activo: cargar agenda y fechas
+    // En carrusel o modo activo: cargar agenda, fechas e imágenes de marketing
     if (tipo !== 'inactivo') {
-      await Promise.all([cargarFechasImportantes(), cargarAgenda()]);
+      await Promise.all([cargarFechasImportantes(), cargarAgenda(), cargarMarketingImages()]);
       agendaPollRef.current = setInterval(() => cargarAgenda(true), 2 * 60 * 1000);
     }
 
@@ -583,37 +599,43 @@ function QRGenerator() {
           {modo.tipo === 'carrusel' ? (
             /* ── CARRUSEL ── */
             <div className="carrusel-wrapper">
-              {FOTOS_CARRUSEL.length > 0 ? (
-                <>
-                  <img
-                    key={fotoActual}
-                    src={FOTOS_CARRUSEL[fotoActual]}
-                    alt={`Cielito Home ${fotoActual + 1}`}
-                    className="carrusel-foto"
-                  />
-                  <div className="carrusel-overlay">
-                    <div className="carrusel-brand">Cielito Home</div>
-                  </div>
-                  <div className="carrusel-dots">
-                    {FOTOS_CARRUSEL.map((_, i) => (
-                      <button
-                        key={i}
-                        className={`carrusel-dot${i === fotoActual ? ' activo' : ''}`}
-                        onClick={() => setFotoActual(i)}
-                        aria-label={`Foto ${i + 1}`}
+              {(() => {
+                const listado = marketingImages.length > 0 ? marketingImages : FOTOS_CARRUSEL.map(url => ({ url }));
+                if (listado.length > 0) {
+                  const img = listado[fotoActual];
+                  return (
+                    <>
+                      <img
+                        key={fotoActual}
+                        src={img.url}
+                        alt={img.titulo || `Cielito Home ${fotoActual + 1}`}
+                        className="carrusel-foto"
                       />
-                    ))}
-                  </div>
-                </>
-              ) : (
-                /* Sin fotos configuradas */
-                <div className="carrusel-empty">
-                  <i className="bi bi-images"></i>
-                  <p>Agrega fotos en</p>
-                  <code>public/fotos/</code>
-                  <p style={{ fontSize: '0.7rem', marginTop: '0.3rem' }}>y regístralas en FOTOS_CARRUSEL al inicio de QRGenerator.jsx</p>
-                </div>
-              )}
+                      <div className="carrusel-overlay">
+                        <div className="carrusel-brand">{img.titulo || 'Cielito Home'}</div>
+                      </div>
+                      <div className="carrusel-dots">
+                        {listado.map((_, i) => (
+                          <button
+                            key={i}
+                            className={`carrusel-dot${i === fotoActual ? ' activo' : ''}`}
+                            onClick={() => setFotoActual(i)}
+                            aria-label={`Foto ${i + 1}`}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  );
+                } else {
+                  return (
+                    /* Sin fotos configuradas */
+                    <div className="carrusel-empty">
+                      <i className="bi bi-images"></i>
+                      <p>Sube fotos desde el panel de Marketing</p>
+                    </div>
+                  );
+                }
+              })()}
               <div className="carrusel-time">
                 <span>{horaDisplay}</span>
               </div>

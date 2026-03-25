@@ -112,6 +112,53 @@ export function adminAreaOrRHMiddleware(req, res, next) {
 }
 
 /**
+ * Middleware específico para Marketing
+ * Permite acceso si el departamento es Marketing O si tiene rol admin_rh o sistemas
+ */
+export async function marketingMiddleware(req, res, next) {
+  try {
+    if (!req.user) {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        success: false,
+        message: ERROR_MESSAGES.AUTH.NOT_AUTHORIZED
+      });
+    }
+
+    const roleData = await getUserRoleData(req.user.email);
+    if (!roleData) {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    // Guardar datos en req.user
+    req.user.role = roleData.role;
+    req.user.departamento = roleData.departamento;
+
+    const hasAccess = 
+      roleData.departamento === 'Marketing' || 
+      roleData.role === ROLES.ADMIN_RH || 
+      roleData.role === ROLES.SISTEMAS;
+
+    if (!hasAccess) {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({
+        success: false,
+        message: 'No tienes permisos de Marketing para acceder a este recurso'
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Error en marketingMiddleware:', error);
+    res.status(HTTP_STATUS.INTERNAL_ERROR).json({
+      success: false,
+      message: ERROR_MESSAGES.GENERAL.INTERNAL_ERROR
+    });
+  }
+}
+
+/**
  * Middleware para cualquier usuario autenticado
  * Agrega datos de rol al request
  */
@@ -185,6 +232,7 @@ export default {
   roleMiddleware,
   adminRHMiddleware,
   adminAreaOrRHMiddleware,
+  marketingMiddleware,
   attachRoleData,
   canAccessDepartment,
   filterByDepartment

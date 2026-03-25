@@ -9,7 +9,8 @@ import '../styles/Sidebar.css';
 const ROLES = {
   EMPLEADO: 'empleado',
   ADMIN_AREA: 'admin_area',
-  ADMIN_RH: 'admin_rh'
+  ADMIN_RH: 'admin_rh',
+  SISTEMAS: 'sistemas'
 };
 
 function Sidebar({ isMobileOpen, onMobileClose }) {
@@ -219,6 +220,12 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
   let menuItems = [...menuBase];
   if (userRole === ROLES.ADMIN_RH) {
     menuItems = [...menuItems, ...menuAdminRH];
+  }
+
+  // Agregar Marketing si el departamento es Marketing o es admin/sistemas
+  const hasMarketingAccess = userDepartamento === 'Marketing' || userRole === ROLES.ADMIN_RH || userRole === ROLES.SISTEMAS;
+  if (hasMarketingAccess && !menuItems.find(i => i.path === '/admin/marketing')) {
+    menuItems.push({ path: '/admin/marketing', icon: 'bi-megaphone', label: 'Marketing' });
   }
 
   const getRoleLabel = () => {

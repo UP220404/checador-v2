@@ -7,8 +7,8 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth, ROLES } from '../contexts/AuthContext';
 
-function PrivateRoute({ children, requiredRoles = [ROLES.ADMIN_RH, ROLES.ADMIN_AREA] }) {
-  const { user, userRole, loading } = useAuth();
+function PrivateRoute({ children, requiredRoles = [ROLES.ADMIN_RH, ROLES.ADMIN_AREA], requiredDepartment = null }) {
+  const { user, userRole, userDepartamento, loading } = useAuth();
 
   // Mientras el AuthContext verifica la sesión con el backend, mostrar spinner
   if (loading) {
@@ -35,8 +35,11 @@ function PrivateRoute({ children, requiredRoles = [ROLES.ADMIN_RH, ROLES.ADMIN_A
     return <Navigate to="/login" replace />;
   }
 
-  // Rol insuficiente → portal de empleado
-  if (!requiredRoles.includes(userRole)) {
+  // Rol o Departamento insuficiente → portal de empleado
+  const hasRole = requiredRoles.includes(userRole);
+  const hasDept = requiredDepartment && userDepartamento === requiredDepartment;
+
+  if (!hasRole && !hasDept) {
     return <Navigate to="/empleado/portal" replace />;
   }
 
