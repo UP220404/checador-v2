@@ -845,55 +845,86 @@
 /* ═══════════════════════════════════════════════════════════
    MODOS DE VISTA ESPECIALES (Full Width)
    ═══════════════════════════════════════════════════════════ */
-.main-container.view-qr,
-.main-container.view-carrusel {
+.main-container.view-qr-agenda,
+.main-container.view-fotos-agenda,
+.main-container.view-auto {
+  grid-template-columns: 1fr 1.6fr;
+}
+
+.main-container.view-fotos-solo {
   grid-template-columns: 1fr;
 }
 
-.main-container.view-agenda {
-  grid-template-columns: 0 1fr; /* Oculta la columna del QR */
+.main-container.view-agenda-solo {
+  grid-template-columns: 1fr;
   gap: 0;
 }
 
-.qr-section.full-width,
-.info-section.full-width {
-  grid-column: 1 / -1;
-  width: 100%;
-}
-
 /* ═══════════════════════════════════════════════════════════
-   BOTÓN AJUSTES (GEAR)
+   CONTROLES DE NAVEGACIÓN (Top Left)
    ═══════════════════════════════════════════════════════════ */
-.floating-settings-btn {
-  position: fixed;
-  bottom: 1.5rem;
-  right: 1.5rem;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
-  font-size: 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 1000;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+.top-nav-controls {
+  position: fixed !important;
+  top: 1.2rem !important;
+  left: 1.2rem !important;
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 0.8rem !important;
+  z-index: 9999 !important;
 }
 
-.floating-settings-btn:hover {
-  transform: rotate(45deg) scale(1.1);
-  background: rgba(255, 255, 255, 0.25);
+.nav-home-btn,
+.settings-gear-btn-fixed {
+  width: 46px !important;
+  height: 46px !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1.5px solid rgba(0, 0, 0, 0.08) !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2) !important;
+  outline: none !important;
 }
 
-.floating-settings-btn.active {
-  background: var(--dorado);
-  color: #000;
+.nav-home-btn i,
+.settings-gear-btn-fixed i {
+  font-size: 1.3rem !important;
+  display: block !important;
+  line-height: 1 !important;
+}
+
+.nav-home-btn {
+  color: #444 !important;
+  text-decoration: none !important;
+}
+
+.settings-gear-btn-fixed {
+  color: var(--verde) !important;
+}
+
+.nav-home-btn:hover {
+  background: #fff !important;
+  color: var(--verde) !important;
+  transform: scale(1.1);
+}
+
+.settings-gear-btn-fixed:hover {
+  background: #fff !important;
+  color: var(--dorado) !important;
+  transform: rotate(90deg) scale(1.1);
+}
+
+.settings-gear-btn-fixed.active {
+  background: var(--verde);
+  color: #fff;
+  border-color: transparent;
 }
 
 /* ═══════════════════════════════════════════════════════════
