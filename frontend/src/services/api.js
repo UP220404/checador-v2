@@ -77,6 +77,8 @@ export const api = {
   createUser: (data) => apiClient.post('/users', data),
   updateUser: (id, data) => apiClient.put(`/users/${id}`, data),
   deleteUser: (id) => apiClient.delete(`/users/${id}`),
+  deactivateUser: (id, data) => apiClient.patch(`/users/${id}/deactivate`, data),
+  reactivateUser: (id) => apiClient.put(`/users/${id}`, { activo: true, motivoBaja: null, fechaBaja: null, observacionesBaja: null, fechaRetencionHasta: null }),
 
   // Attendance
   getTodayAttendance: () => apiClient.get('/attendance/today'),
@@ -196,6 +198,7 @@ export const api = {
 
   // Documents
   getMyDocuments: (params) => apiClient.get('/documents/my', { params }),
+  getAllDocumentsAdmin: () => apiClient.get('/documents/admin/all'),
   getGlobalDocumentCounts: () => apiClient.get('/documents/admin/counts'),
   getMyPayrollReceipts: (params) => apiClient.get('/documents/my/payroll', { params }),
   getMyDocumentCount: () => apiClient.get('/documents/my/count'),
@@ -257,6 +260,8 @@ export const api = {
   getPayrollReport: (id) => apiClient.get(`/reports/payroll/${id}`),
   exportAttendanceExcel: (params) =>
     apiClient.get('/reports/export/attendance-excel', { params, responseType: 'blob' }),
+  exportAttendancePDF: (params) =>
+    apiClient.get('/reports/export/attendance-pdf', { params, responseType: 'blob' }),
   exportPayrollExcel: (id) =>
     apiClient.get(`/reports/export/payroll-excel/${id}`, { responseType: 'blob' }),
   exportAbsencesPDF: (params) =>
@@ -323,6 +328,7 @@ export const api = {
     formData.append('tipo', data.tipo);
     if (data.fechaExpiracion) formData.append('fechaExpiracion', data.fechaExpiracion);
     if (data.titulo) formData.append('titulo', data.titulo);
+    if (data.duracion) formData.append('duracion', data.duracion);
     return apiClient.post('/marketing/carousel', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
@@ -331,6 +337,7 @@ export const api = {
     const data = new FormData();
     data.append('titulo', formData.titulo);
     data.append('tipo', formData.tipo);
+    if (formData.duracion) data.append('duracion', formData.duracion);
     if (formData.fechaExpiracion) data.append('fechaExpiracion', formData.fechaExpiracion);
     if (formData.foto) data.append('foto', formData.foto);
     return apiClient.patch(`/marketing/carousel/${id}`, data, {

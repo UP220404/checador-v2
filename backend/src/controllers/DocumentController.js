@@ -370,6 +370,27 @@ class DocumentController {
       });
     }
   }
+
+  /**
+   * GET /api/v1/documents/admin/all
+   * Obtiene todos los documentos de todos los empleados (admin)
+   */
+  async getAllDocuments(req, res) {
+    try {
+      const documents = await DocumentService.getAllDocuments();
+      res.json({
+        success: true,
+        count: documents.length,
+        data: documents
+      });
+    } catch (error) {
+      console.error('Error en getAllDocuments:', error);
+      res.status(HTTP_STATUS.INTERNAL_ERROR).json({
+        success: false,
+        message: ERROR_MESSAGES.GENERAL.INTERNAL_ERROR
+      });
+    }
+  }
 }
 
 export default new DocumentController();

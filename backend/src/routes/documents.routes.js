@@ -42,6 +42,9 @@ router.get('/user/:uid', adminAreaOrRHMiddleware, DocumentController.getUserDocu
 // GET /api/v1/documents/admin/counts - Conteos globales (admin)
 router.get('/admin/counts', adminMiddleware, DocumentController.getGlobalCounts);
 
+// GET /api/v1/documents/admin/all - Todos los documentos (admin)
+router.get('/admin/all', adminMiddleware, (req, res) => DocumentController.getAllDocuments(req, res));
+
 // POST /api/v1/documents/upload - Subir documento (con archivo)
 router.post('/upload', adminMiddleware, uploadDocument, DocumentController.uploadDocument);
 

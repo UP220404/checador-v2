@@ -112,22 +112,33 @@ function DocumentosAdmin() {
   const loadData = async (refreshCurrent = false) => {
     setLoading(true);
     try {
-      const [usersRes, countsRes] = await Promise.all([
+      const [usersRes, countsRes, allDocsRes] = await Promise.all([
         api.getUsers(),
-        api.getGlobalDocumentCounts()
+        api.getGlobalDocumentCounts(),
+        api.getAllDocumentsAdmin()
       ]);
 
-      const empleadosData = usersRes.data.data || [];
+      const todosEmpleados = usersRes.data.data || [];
       const countsData = countsRes.data.data || {};
+      const allDocs = allDocsRes.data.data || [];
+
+      // Bug fix 1: Solo mostrar empleados ACTIVOS
+      const empleadosData = todosEmpleados.filter(e => e.activo !== false);
 
       setEmpleados(empleadosData);
       setGlobalCounts(countsData);
       
       if (!refreshCurrent) {
-        setDocumentos([]);
+        // Bug fix 2: Cargar todos los documentos al inicio, con nombre del empleado
+        const docsConNombre = allDocs.map(doc => ({
+          ...doc,
+          titulo: doc.nombre || doc.titulo,
+          empleadoNombre: doc.nombreUsuario || todosEmpleados.find(e => e.uid === doc.uid)?.nombre || 'Empleado',
+          empleadoEmail: doc.emailUsuario
+        }));
+        setDocumentos(docsConNombre);
         setUsandoEjemplos(false);
       } else if (selectedEmpleado) {
-        // Si ya hay uno seleccionado, refrescar sus documentos especificamente
         await loadEmployeeDocuments(selectedEmpleado);
       }
 
@@ -357,6 +368,23 @@ function DocumentosAdmin() {
     });
   };
 
+  const handleVerTodos = async () => {
+    setFiltroEmpleado('');
+    setSelectedEmpleado(null);
+    try {
+      const allDocsRes = await api.getAllDocumentsAdmin();
+      const allDocs = (allDocsRes.data.data || []).map(doc => ({
+        ...doc,
+        titulo: doc.nombre || doc.titulo,
+        empleadoNombre: doc.nombreUsuario || empleados.find(e => e.uid === doc.uid)?.nombre || 'Empleado',
+        empleadoEmail: doc.emailUsuario
+      }));
+      setDocumentos(allDocs);
+    } catch (e) {
+      console.error('Error recargando documentos:', e);
+    }
+  };
+
   if (loading) {
     return (
       <AdminLayout>
@@ -509,7 +537,6 @@ function DocumentosAdmin() {
                   ) : (
                     empleados.map((emp) => {
                       const empEmail = emp.email || emp.correo;
-                      const docsCount = documentos.filter(d => d.empleadoEmail === empEmail).length;
                       const isSelected = filtroEmpleado === empEmail;
 
                       return (
@@ -542,7 +569,7 @@ function DocumentosAdmin() {
                 <div className="card-footer bg-transparent">
                   <button
                     className="btn btn-sm btn-outline-secondary w-100"
-                    onClick={() => { setFiltroEmpleado(''); setSelectedEmpleado(null); }}
+                    onClick={handleVerTodos}
                   >
                     <i className="bi bi-x-circle me-2"></i>
                     Ver todos los documentos
@@ -635,7 +662,7 @@ function DocumentosAdmin() {
                     <p className="text-muted mt-3">
                       {selectedEmpleado
                         ? `${selectedEmpleado.nombre} no tiene documentos`
-                        : 'Selecciona un empleado de la lista para ver sus documentos'}
+                        : 'No hay documentos en el sistema aún'}
                     </p>
                     {selectedEmpleado && (
                       <button

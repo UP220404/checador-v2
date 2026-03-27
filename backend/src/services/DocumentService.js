@@ -296,6 +296,27 @@ class DocumentService {
       throw error;
     }
   }
+
+  /**
+   * Obtiene todos los documentos de todos los usuarios (admin - vista global)
+   */
+  async getAllDocuments() {
+    try {
+      const querySnapshot = await this.db
+        .collection(this.documentsCollection)
+        .where('visible', '==', true)
+        .get();
+
+      const docs = querySnapshot.docs
+        .map(doc => this._serialize({ id: doc.id, ...doc.data() }))
+        .sort((a, b) => new Date(b.fechaSubida || 0) - new Date(a.fechaSubida || 0));
+
+      return docs;
+    } catch (error) {
+      console.error('Error en getAllDocuments:', error);
+      throw error;
+    }
+  }
 }
 
 export default new DocumentService();
