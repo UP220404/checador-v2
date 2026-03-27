@@ -626,7 +626,8 @@ function QRGenerator() {
   // ─── JSX principal ────────────────────────────────────────────────────────
   return (
     <div className="qr-page-wrapper">
-      <div className="top-nav-controls">
+      {/* Controles de navegación fijos (Fuera del grid principal) */}
+      <div id="fixed-nav-controls" className="top-nav-controls">
         <button 
           className="nav-home-btn"
           onClick={() => navigate('/')}

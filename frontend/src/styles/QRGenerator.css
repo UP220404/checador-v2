@@ -863,7 +863,8 @@
 /* ═══════════════════════════════════════════════════════════
    CONTROLES DE NAVEGACIÓN (Top Left)
    ═══════════════════════════════════════════════════════════ */
-.top-nav-controls {
+.top-nav-controls,
+#fixed-nav-controls {
   position: fixed !important;
   top: 1.2rem !important;
   left: 1.2rem !important;
