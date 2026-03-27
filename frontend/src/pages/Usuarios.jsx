@@ -4,6 +4,8 @@ import DepartmentBanner, { useRoleData, ROLES } from '../components/DepartmentBa
 import { toast } from 'sonner';
 import { api } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import '../styles/Usuarios.css';
 
 function Usuarios() {
@@ -19,8 +21,16 @@ function Usuarios() {
   const [filtroRol, setFiltroRol] = useState('');
   const [filtroDepartamento, setFiltroDepartamento] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
+  const [activeTab, setActiveTab] = useState('activos'); // 'activos' o 'ex-empleados'
+  const [showBajaModal, setShowBajaModal] = useState(false);
+  const [bajaMotivo, setBajaMotivo] = useState('Renuncia Voluntaria');
+  const [bajaComentario, setBajaComentario] = useState('');
+  const [bajaFecha, setBajaFecha] = useState(new Date().toISOString().split('T')[0]);
+  const [usuarioParaBaja, setUsuarioParaBaja] = useState(null);
 
-  // Toast
+  const [showExpedienteModal, setShowExpedienteModal] = useState(false);
+  const [expedienteUsuario, setExpedienteUsuario] = useState(null);
+  const [loadingExpediente, setLoadingExpediente] = useState(false);
   const showToast = (message, type = 'success') => {
     if (type === 'error') toast.error(message);
     else if (type === 'warning') toast.warning(message);
@@ -94,12 +104,16 @@ function Usuarios() {
     return matchBusqueda && matchRol && matchDepto && matchEstado;
   });
 
+  const usuariosActivos = usuariosFiltrados.filter(u => u.activo !== false);
+  const exEmpleados = usuariosFiltrados.filter(u => u.activo === false);
+  const usuariosDisplay = activeTab === 'activos' ? usuariosActivos : exEmpleados;
+
   // Estadísticas
   const stats = {
     total: usuarios.length,
     activos: usuarios.filter(u => u.activo !== false).length,
-    admins: usuarios.filter(u => u.role === ROLES.ADMIN_RH || u.role === ROLES.ADMIN_AREA).length,
-    sinDepartamento: usuarios.filter(u => !u.departamento).length
+    exEmpleados: usuarios.filter(u => u.activo === false).length,
+    admins: usuarios.filter(u => u.role === ROLES.ADMIN_RH || u.role === ROLES.ADMIN_AREA).length
   };
 
   const handleFormChange = (campo, valor) => {
@@ -242,6 +256,72 @@ function Usuarios() {
     }
   };
 
+  const abrirExpediente = async (usuario) => {
+    setExpedienteUsuario(usuario);
+    setShowExpedienteModal(true);
+    setLoadingExpediente(true);
+    try {
+      // Obtener datos detallados del usuario para asegurar información real completa
+      const resp = await api.getUserById(usuario.id);
+      const userData = resp.data?.data || resp.data || usuario;
+      
+      // Combinar con fallbacks para nombres de campos comunes
+      let fullData = { 
+        ...usuario, 
+        ...userData,
+        // Normalizar campos que podrían tener nombres distintos en el backend
+        departamento: userData.departamento || userData.area || usuario.departamento || usuario.area || '',
+        puesto: userData.puesto || userData.cargo || usuario.puesto || usuario.cargo || '',
+        fechaIngreso: userData.fechaIngreso || userData.ingreso || usuario.fechaIngreso || usuario.ingreso || '',
+        correo: userData.correo || userData.email || usuario.correo || usuario.email || ''
+      };
+
+      // Si es admin, intentar traer también la configuración de nómina para el expediente
+      if (isAdminRH) {
+        try {
+          const payrollResp = await api.getPayrollConfig(usuario.id);
+          const payrollData = payrollResp.data?.data || payrollResp.data || {};
+          fullData = { ...fullData, ...payrollData };
+        } catch (e) {
+          console.warn('No se pudo cargar config de nómina para el expediente:', e);
+        }
+      }
+      
+      setExpedienteUsuario(fullData);
+      await new Promise(resolve => setTimeout(resolve, 500));
+    } catch (error) {
+      console.error('Error al cargar expediente:', error);
+    } finally {
+      setLoadingExpediente(false);
+    }
+  };
+
+  const generarPDFExpediente = async () => {
+    const input = document.getElementById('expediente-content');
+    if (!input) return;
+
+    try {
+      const canvas = await html2canvas(input, {
+        scale: 3,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Expediente_${expedienteUsuario.nombre.replace(/\s+/g, '_')}.pdf`);
+      showToast('PDF generado correctamente', 'success');
+    } catch (error) {
+      console.error('Error generando PDF:', error);
+      showToast('Error al generar el PDF', 'error');
+    }
+  };
+
   const eliminarUsuario = async (id, nombre) => {
     if (!confirm(`¿Eliminar al usuario "${nombre}"? Esta accion no se puede deshacer.`)) return;
 
@@ -255,14 +335,44 @@ function Usuarios() {
     }
   };
 
-  const toggleEstado = async (id, estadoActual, nombre) => {
+  const toggleEstado = async (id, estadoActual, nombre, emailActual) => {
+    if (estadoActual) {
+      // Si está activo y se va a desactivar, abrir modal de baja
+      setUsuarioParaBaja({ id, nombre, email: emailActual });
+      setBajaFecha(new Date().toISOString().split('T')[0]);
+      setShowBajaModal(true);
+      return;
+    }
+
     try {
-      await api.updateUser(id, { activo: !estadoActual });
-      showToast(`${nombre} ${!estadoActual ? 'activado' : 'desactivado'}`, 'success');
+      await api.updateUser(id, { activo: true });
+      showToast(`${nombre} reactivado correctamente`, 'success');
       refetchUsers(); // Forzar recarga
     } catch (error) {
-      console.error('Error cambiando estado:', error);
-      showToast('Error al cambiar el estado', 'error');
+      console.error('Error reactivando usuario:', error);
+      showToast('Error al reactivar el usuario', 'error');
+    }
+  };
+
+  const confirmarBaja = async () => {
+    try {
+      const timestamp = Date.now();
+      const payload = { 
+        activo: false,
+        email: `baja_${timestamp}_${usuarioParaBaja.email}`,
+        motivoBaja: bajaMotivo,
+        comentarioBaja: bajaComentario,
+        fechaBaja: bajaFecha || new Date().toISOString().split('T')[0]
+      };
+
+      await api.updateUser(usuarioParaBaja.id, payload);
+      showToast(`${usuarioParaBaja.nombre} dado de baja (Correo liberado)`, 'success');
+      setShowBajaModal(false);
+      setUsuarioParaBaja(null);
+      refetchUsers();
+    } catch (error) {
+      console.error('Error en proceso de baja:', error);
+      showToast('Error al procesar la baja', 'error');
     }
   };
 
@@ -366,18 +476,41 @@ function Usuarios() {
             </div>
           </div>
           <div className="col-6 col-md-3">
-            <div className="card stat-card border-0 shadow-sm h-100">
+            <div className="card stat-card border-0 shadow-sm h-100" style={{ cursor: 'pointer' }} onClick={() => setActiveTab('ex-empleados')}>
               <div className="card-body">
                 <div className="d-flex align-items-center">
-                  <div className="stat-icon bg-warning bg-opacity-10 text-warning me-3">
-                    <i className="bi bi-exclamation-triangle"></i>
+                  <div className="stat-icon bg-danger bg-opacity-10 text-danger me-3">
+                    <i className="bi bi-person-x"></i>
                   </div>
                   <div>
-                    <h3 className="mb-0">{stats.sinDepartamento}</h3>
-                    <small className="text-muted">Sin Depto</small>
+                    <h3 className="mb-0">{stats.exEmpleados}</h3>
+                    <small className="text-muted">Ex-empleados</small>
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs Estilizados */}
+        <div className="card border-0 shadow-sm mb-4 overflow-hidden">
+          <div className="card-body p-0">
+            <div className="nav nav-tabs nav-fill border-0">
+              <button 
+                className={`nav-link border-0 py-3 d-flex align-items-center justify-content-center gap-2 ${activeTab === 'activos' ? 'active bg-white text-success border-bottom border-success border-3 fw-bold' : 'bg-light text-muted fw-semibold'}`}
+                onClick={() => setActiveTab('activos')}
+                style={activeTab === 'activos' ? { borderBottomWidth: '4px !important' } : {}}
+              >
+                <i className="bi bi-person-check-fill fs-5"></i>
+                Empleados Activos
+              </button>
+              <button 
+                className={`nav-link border-0 py-3 d-flex align-items-center justify-content-center gap-2 ${activeTab === 'ex-empleados' ? 'active bg-white text-danger border-bottom border-danger border-3 fw-bold' : 'bg-light text-muted fw-semibold'}`}
+                onClick={() => setActiveTab('ex-empleados')}
+              >
+                <i className="bi bi-person-x-fill fs-5"></i>
+                Ex-empleados (Bajas)
+              </button>
             </div>
           </div>
         </div>
@@ -427,18 +560,7 @@ function Usuarios() {
                   ))}
                 </select>
               </div>
-              <div className="col-6 col-lg-2">
-                <label className="form-label small text-muted">Estado</label>
-                <select
-                  className="form-select"
-                  value={filtroEstado}
-                  onChange={(e) => setFiltroEstado(e.target.value)}
-                >
-                  <option value="">Todos</option>
-                  <option value="activo">Activos</option>
-                  <option value="inactivo">Inactivos</option>
-                </select>
-              </div>
+
               <div className="col-6 col-lg-2">
                 <div className="d-flex gap-2">
                   <button
@@ -472,8 +594,8 @@ function Usuarios() {
 
         {/* Resultados */}
         <div className="d-flex justify-content-between align-items-center mb-3">
-          <span className="text-muted">
-            Mostrando {usuariosFiltrados.length} de {usuarios.length} usuarios
+          <span className="text-muted fw-semibold">
+            {activeTab === 'activos' ? `Empleados Activos: ${usuariosActivos.length}` : `Ex-empleados (Bajas): ${exEmpleados.length}`}
           </span>
         </div>
 
@@ -498,7 +620,7 @@ function Usuarios() {
         ) : vistaCards ? (
           /* Vista Cards - Tarjetas Corporativas */
           <div className="row g-4">
-            {usuariosFiltrados.map((usuario) => {
+            {usuariosDisplay.map((usuario) => {
               const roleClass = usuario.role === ROLES.ADMIN_RH ? 'admin-rh' : usuario.role === ROLES.ADMIN_AREA ? 'admin-area' : '';
 
               return (
@@ -583,34 +705,55 @@ function Usuarios() {
                         <i className={`bi ${usuario.activo !== false ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`}></i>
                         {usuario.activo !== false ? 'Activo' : 'Inactivo'}
                       </div>
+                      
+                      {usuario.activo === false && usuario.motivoBaja && (
+                        <div className="mt-2 small text-danger fw-bold">
+                          <i className="bi bi-info-circle-fill me-1"></i>
+                          {usuario.motivoBaja}
+                        </div>
+                      )}
                     </div>
 
                     {/* Footer con acciones */}
                     <div className="employee-card-footer">
-                      <button
-                        className="btn btn-outline-primary"
-                        onClick={() => abrirModalEditar(usuario)}
-                        title={isAdminRH ? 'Editar' : 'Ver detalles'}
-                      >
-                        <i className={`bi ${isAdminRH ? 'bi-pencil' : 'bi-eye'} me-1`}></i>
-                        {isAdminRH ? 'Editar' : 'Ver'}
-                      </button>
-                      {isAdminRH && (
+                      {usuario.activo === false ? (
                         <>
                           <button
-                            className={`btn ${usuario.activo !== false ? 'btn-outline-warning' : 'btn-outline-success'}`}
-                            onClick={() => toggleEstado(usuario.id, usuario.activo !== false, usuario.nombre)}
-                            title={usuario.activo !== false ? 'Desactivar' : 'Activar'}
+                            className="btn btn-primary flex-grow-1 d-flex align-items-center justify-content-center gap-2"
+                            onClick={() => abrirExpediente(usuario)}
                           >
-                            <i className={`bi ${usuario.activo !== false ? 'bi-pause-fill' : 'bi-play-fill'}`}></i>
+                            <i className="bi bi-file-earmark-pdf"></i>
+                            Expediente
                           </button>
+                          {isAdminRH && (
+                            <button
+                              className="btn btn-outline-success"
+                              onClick={() => toggleEstado(usuario.id, false, usuario.nombre, usuario.correo || usuario.email)}
+                              title="Reactivar"
+                            >
+                              <i className="bi bi-person-plus-fill"></i>
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <>
                           <button
-                            className="btn btn-outline-danger"
-                            onClick={() => eliminarUsuario(usuario.id, usuario.nombre)}
-                            title="Eliminar"
+                            className="btn btn-outline-primary"
+                            onClick={() => abrirModalEditar(usuario)}
+                            title={isAdminRH ? 'Editar' : 'Ver detalles'}
                           >
-                            <i className="bi bi-trash"></i>
+                            <i className={`bi ${isAdminRH ? 'bi-pencil' : 'bi-eye'} me-1`}></i>
+                            {isAdminRH ? 'Editar' : 'Ver'}
                           </button>
+                          {isAdminRH && (
+                            <button
+                              className={`btn ${usuario.activo !== false ? 'btn-outline-warning' : 'btn-outline-success'}`}
+                              onClick={() => toggleEstado(usuario.id, usuario.activo !== false, usuario.nombre, usuario.correo || usuario.email)}
+                              title={usuario.activo !== false ? 'Desactivar/Baja' : 'Reactivar'}
+                            >
+                              <i className={`bi ${usuario.activo !== false ? 'bi-person-dash-fill' : 'bi-person-plus-fill'}`}></i>
+                            </button>
+                          )}
                         </>
                       )}
                     </div>
@@ -638,7 +781,7 @@ function Usuarios() {
                     </tr>
                   </thead>
                   <tbody>
-                    {usuariosFiltrados.map((usuario) => (
+                    {usuariosDisplay.map((usuario) => (
                       <tr key={usuario.id} className={usuario.activo === false ? 'table-secondary' : ''}>
                         <td>
                           <div className={`avatar-circle-sm bg-${getRoleColor(usuario.role)} bg-opacity-10 text-${getRoleColor(usuario.role)}`}>
@@ -677,17 +820,10 @@ function Usuarios() {
                               <>
                                 <button
                                   className={`btn btn-sm ${usuario.activo !== false ? 'btn-outline-warning' : 'btn-outline-success'}`}
-                                  onClick={() => toggleEstado(usuario.id, usuario.activo !== false, usuario.nombre)}
-                                  title={usuario.activo !== false ? 'Desactivar' : 'Activar'}
+                                  onClick={() => toggleEstado(usuario.id, usuario.activo !== false, usuario.nombre, usuario.correo || usuario.email)}
+                                  title={usuario.activo !== false ? 'Dar de Baja' : 'Reactivar'}
                                 >
-                                  <i className={`bi ${usuario.activo !== false ? 'bi-pause' : 'bi-play'}`}></i>
-                                </button>
-                                <button
-                                  className="btn btn-sm btn-outline-danger"
-                                  onClick={() => eliminarUsuario(usuario.id, usuario.nombre)}
-                                  title="Eliminar"
-                                >
-                                  <i className="bi bi-trash"></i>
+                                  <i className={`bi ${usuario.activo !== false ? 'bi-person-dash' : 'bi-person-plus'}`}></i>
                                 </button>
                               </>
                             )}
@@ -1089,6 +1225,25 @@ function Usuarios() {
                     </>
                   )}
 
+        {/* Boton Expediente solo en edicion */}
+                  {modoEdicion && (
+                    <div className="mt-4 pt-4 border-top">
+                      <div className="d-flex align-items-center justify-content-between bg-light p-3 rounded-3">
+                        <div>
+                          <h6 className="mb-0 fw-bold text-dark">Expediente Digital</h6>
+                          <small className="text-muted">Generar reporte detallado en PDF</small>
+                        </div>
+                        <button 
+                          className="btn btn-primary d-flex align-items-center gap-2 px-4 shadow-sm"
+                          onClick={() => abrirExpediente(usuarioSeleccionado)}
+                        >
+                          <i className="bi bi-file-earmark-pdf fs-5"></i>
+                          Ver Expediente
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {isAdminRH && (
                     <div className="alert alert-light mt-4 mb-0">
                       <i className="bi bi-info-circle me-2 text-primary"></i>
@@ -1106,6 +1261,320 @@ function Usuarios() {
                       <i className="bi bi-check-circle me-2"></i>
                       {modoEdicion ? 'Actualizar' : 'Crear'} Usuario
                     </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Motivo de Baja */}
+        {showBajaModal && (
+          <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1060 }}>
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content border-0 shadow-lg">
+                <div className="modal-header bg-danger text-white">
+                  <h5 className="modal-title">
+                    <i className="bi bi-person-x-fill me-2"></i>
+                    Confirmar Baja de Empleado
+                  </h5>
+                  <button className="btn-close btn-close-white" onClick={() => setShowBajaModal(false)}></button>
+                </div>
+                <div className="modal-body py-4">
+                  <div className="text-center mb-4">
+                    <div className="display-6 text-danger mb-2">
+                      <i className="bi bi-exclamation-triangle-fill"></i>
+                    </div>
+                    <h5 className="fw-bold">¿Dar de baja a {usuarioParaBaja?.nombre}?</h5>
+                    <p className="text-muted">El correo actual será liberado para futuros usos.</p>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label fw-bold">Motivo de la Baja</label>
+                    <select 
+                      className="form-select"
+                      value={bajaMotivo}
+                      onChange={(e) => setBajaMotivo(e.target.value)}
+                    >
+                      <option value="Renuncia Voluntaria">Renuncia Voluntaria</option>
+                      <option value="Despido con Causa">Despido con Causa</option>
+                      <option value="Despido sin Causa">Despido sin Causa</option>
+                      <option value="Fin de Contrato">Fin de Contrato</option>
+                      <option value="Otros">Otros</option>
+                    </select>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label fw-bold">Fecha Efectiva de Baja</label>
+                    <input 
+                      type="date"
+                      className="form-control"
+                      value={bajaFecha}
+                      onChange={(e) => setBajaFecha(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="mb-0">
+                    <label className="form-label fw-bold">Comentarios Adicionales</label>
+                    <textarea 
+                      className="form-control"
+                      rows="3"
+                      placeholder="Observaciones sobre la baja..."
+                      value={bajaComentario}
+                      onChange={(e) => setBajaComentario(e.target.value)}
+                    ></textarea>
+                  </div>
+                </div>
+                <div className="modal-footer bg-light">
+                  <button className="btn btn-outline-secondary" onClick={() => setShowBajaModal(false)}>Cancelar</button>
+                  <button className="btn btn-danger px-4" onClick={confirmarBaja}>
+                    Confirmar Baja Definitiva
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Expediente PDF */}
+        {showExpedienteModal && (
+          <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1070 }}>
+            <div className="modal-dialog modal-xl modal-dialog-scrollable">
+              <div className="modal-content border-0">
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  padding: '12px 20px', 
+                  background: '#212529', 
+                  color: 'white',
+                  gap: '12px'
+                }}>
+                  <i className="bi bi-file-pdf-fill text-danger fs-4"></i>
+                  <span className="fw-semibold fs-5 flex-grow-1">Vista Previa de Expediente</span>
+                  <button 
+                    className="btn btn-success d-flex align-items-center gap-2" 
+                    onClick={generarPDFExpediente}
+                    style={{ height: '36px', whiteSpace: 'nowrap' }}
+                  >
+                    <i className="bi bi-download"></i> 
+                    <span className="fw-semibold">Descargar PDF</span>
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setShowExpedienteModal(false);
+                      setExpedienteUsuario(null);
+                    }}
+                    style={{ 
+                      background: 'none', 
+                      border: 'none', 
+                      color: 'white', 
+                      fontSize: '1.2rem', 
+                      cursor: 'pointer',
+                      lineHeight: '1',
+                      padding: '4px 8px',
+                      opacity: 0.8
+                    }}
+                    title="Cerrar"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="modal-body p-0 bg-secondary bg-opacity-10">
+                  {loadingExpediente ? (
+                    <div className="text-center py-5">
+                      <div className="spinner-border text-primary" role="status"></div>
+                      <p className="mt-2 text-muted">Generando vista previa...</p>
+                    </div>
+                  ) : (
+                    <div className="d-flex justify-content-center p-4">
+                      <div 
+                        id="expediente-content" 
+                        className="bg-white shadow-lg p-5" 
+                        style={{ width: '210mm', minHeight: '297mm', position: 'relative' }}
+                      >
+                        {/* Header PDF */}
+                        <div className="d-flex justify-content-between align-items-center mb-5 border-bottom pb-4">
+                          <div>
+                            <h2 className="text-success fw-bold mb-0">CIELITO HOME</h2>
+                            <p className="text-muted small mb-0">SISTEMA INTEGRAL DE RECURSOS HUMANOS</p>
+                          </div>
+                          <div className="text-end text-muted">
+                            <h5 className="mb-0 fw-bold text-dark">EXPEDIENTE DE EMPLEADO</h5>
+                            <small>Fecha de Emisión: {new Date().toLocaleDateString()}</small>
+                          </div>
+                        </div>
+
+                        {/* Foto y Datos Principales */}
+                        <div className="row mb-5">
+                          <div className="col-4">
+                            <div className="bg-light d-flex align-items-center justify-content-center border" style={{ height: '180px', borderRadius: '12px' }}>
+                              <i className="bi bi-person text-muted display-1"></i>
+                            </div>
+                          </div>
+                          <div className="col-8">
+                            <h3 className="fw-bold text-dark mb-1">{expedienteUsuario?.nombre}</h3>
+                            <h5 className="text-success mb-3">{(expedienteUsuario?.puesto || 'Empleado').trim() || 'Empleado'}</h5>
+                            
+                            <div className="row g-3">
+                              <div className="col-6">
+                                <small className="text-muted d-block fw-bold text-uppercase">Departamento</small>
+                                <span className="text-dark fw-semibold">{expedienteUsuario?.departamento?.trim() || '-'}</span>
+                              </div>
+                              <div className="col-6">
+                                <small className="text-muted d-block fw-bold text-uppercase">Fecha de Ingreso</small>
+                                <span className="text-dark fw-semibold">{expedienteUsuario?.fechaIngreso?.trim() || '-'}</span>
+                              </div>
+                              <div className="col-6">
+                                <small className="text-muted d-block fw-bold text-uppercase">ID de Empleado</small>
+                                <span className="text-dark fw-semibold">#{expedienteUsuario?.id?.substring(0,8) || '-'}</span>
+                              </div>
+                              <div className="col-6">
+                                <small className="text-muted d-block fw-bold text-uppercase">Estatus</small>
+                                <div>
+                                  <span className={expedienteUsuario?.activo ? 'text-success fw-bold' : 'text-danger fw-bold'}>
+                                    {expedienteUsuario?.activo ? 'ACTIVO' : 'BAJA'}
+                                  </span>
+                                  {!expedienteUsuario?.activo && expedienteUsuario?.fechaBaja && (
+                                    <small className="text-danger d-block mt-1">
+                                      Fecha de Baja: {expedienteUsuario.fechaBaja}
+                                    </small>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Bloques de Información */}
+                        <div className="row mb-4">
+                          <div className="col-12">
+                            <h6 className="bg-light p-2 fw-bold border-start border-success border-4 mb-3">INFORMACIÓN DE CONTACTO</h6>
+                            <div className="row g-4 ps-2">
+                              <div className="col-4">
+                                <small className="text-muted d-block">Correo Electrónico</small>
+                                <strong className="text-dark text-break">{(expedienteUsuario?.correo || expedienteUsuario?.email || '').trim() || '-'}</strong>
+                              </div>
+                              <div className="col-4">
+                                <small className="text-muted d-block">Teléfono Celular</small>
+                                <strong className="text-dark">{expedienteUsuario?.telefono?.trim() || '-'}</strong>
+                              </div>
+                              <div className="col-4">
+                                <small className="text-muted d-block">Dirección Residencia</small>
+                                <strong className="text-dark">{expedienteUsuario?.direccion?.trim() || '-'}</strong>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="row mb-4">
+                          <div className="col-12">
+                            <h6 className="bg-light p-2 fw-bold border-start border-success border-4 mb-3">INFORMACIÓN PERSONAL</h6>
+                            <div className="row g-4 ps-2">
+                              <div className="col-4">
+                                <small className="text-muted d-block">Fecha Nacimiento</small>
+                                <strong className="text-dark">{expedienteUsuario?.fechaNacimiento?.trim() || '-'}</strong>
+                              </div>
+                              <div className="col-4">
+                                <small className="text-muted d-block">Contacto Emergencia</small>
+                                <strong className="text-dark">{expedienteUsuario?.contactoEmergencia?.trim() || '-'}</strong>
+                              </div>
+                              <div className="col-4">
+                                <small className="text-muted d-block">Teléfono Emergencia</small>
+                                <strong className="text-dark">{expedienteUsuario?.contactoEmergenciaTelefono?.trim() || '-'}</strong>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Nueva Sección: Información Laboral */}
+                        <div className="row mb-4">
+                          <div className="col-12">
+                            <h6 className="bg-light p-2 fw-bold border-start border-success border-4 mb-3">INFORMACIÓN LABORAL</h6>
+                            <div className="row g-4 ps-2">
+                              <div className="col-4">
+                                <small className="text-muted d-block">Rol en Sistema</small>
+                                <strong className="text-dark text-uppercase">{expedienteUsuario?.role?.trim() || 'EMPLEADO'}</strong>
+                              </div>
+                              <div className="col-4">
+                                <small className="text-muted d-block">Salario Base</small>
+                                <strong className="text-dark">
+                                  {expedienteUsuario?.salarioBase ? `$${Number(expedienteUsuario.salarioBase).toLocaleString()} MXN` : '-'}
+                                </strong>
+                              </div>
+                              <div className="col-4">
+                                <small className="text-muted d-block">Seguro Social (IMSS)</small>
+                                <strong className="text-dark">{expedienteUsuario?.tieneIMSS ? 'SÍ' : 'NO'}</strong>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Nueva Sección: Nómina y Banco */}
+                        <div className="row mb-4">
+                          <div className="col-12">
+                            <h6 className="bg-light p-2 fw-bold border-start border-success border-4 mb-3">INFORMACIÓN DE NÓMINA Y BANCARIA</h6>
+                            <div className="row g-4 ps-2 pb-2">
+                              <div className="col-4">
+                                <small className="text-muted d-block">Tipo de Nómina</small>
+                                <strong className="text-dark text-capitalize">{expedienteUsuario?.tipoNomina?.trim() || 'Desconocido'}</strong>
+                              </div>
+                              <div className="col-4">
+                                <small className="text-muted d-block">Horas por Período</small>
+                                <strong className="text-dark">{expedienteUsuario?.horasQuincenal || '-'} hrs</strong>
+                              </div>
+                              <div className="col-4">
+                                <small className="text-muted d-block">Caja de Ahorro</small>
+                                <strong className="text-dark">
+                                  {expedienteUsuario?.tieneCajaAhorro 
+                                    ? `SÍ ($${Number(expedienteUsuario?.montoCajaAhorro || 0).toLocaleString()} MXN)` 
+                                    : 'NO'}
+                                </strong>
+                              </div>
+                            </div>
+                            <div className="row g-4 ps-2 mt-0">
+                              <div className="col-4">
+                                <small className="text-muted d-block">Nombre del Banco</small>
+                                <strong className="text-dark text-uppercase">{expedienteUsuario?.nombreBanco?.trim() || '-'}</strong>
+                              </div>
+                              <div className="col-8">
+                                <small className="text-muted d-block">Cuenta Bancaria / CLABE</small>
+                                <strong className="text-dark">{expedienteUsuario?.cuentaBancaria?.trim() || '-'}</strong>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Firmas al Final */}
+                        <div className="mt-auto pt-5">
+                          <div className="row text-center mt-5">
+                            <div className="col-6">
+                              <div className="border-top mx-4 mt-5 pt-2">
+                                <small className="text-muted text-uppercase fw-bold">Firma del Empleado</small>
+                              </div>
+                            </div>
+                            <div className="col-6">
+                              <div className="border-top mx-4 mt-5 pt-2">
+                                <small className="text-muted text-uppercase fw-bold">Validación Recursos Humanos</small>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="text-center mt-5 pt-4 border-top">
+                            <small className="text-muted d-block" style={{ fontSize: '0.75rem' }}>
+                              * Este documento y la información contenida en el sistema permanecerá en resguardo por un periodo de <strong>2 años</strong> a partir de la fecha de baja para fines de aclaraciones legales o referencias laborales.
+                            </small>
+                            <small className="text-muted d-block" style={{ fontSize: '0.75rem' }}>
+                              Generado por Cielito Home SIRH - Emisión: {new Date().toLocaleString()}
+                            </small>
+                          </div>
+                        </div>
+
+                        {/* Footer Logo Background */}
+                        <div style={{ position: 'absolute', bottom: '20px', right: '30px', opacity: 0.1, fontSize: '3rem', fontWeight: 'bold' }}>
+                          CIELITO HOME
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>

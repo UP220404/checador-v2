@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import AdminLayout from '../components/AdminLayout';
 import { api } from '../services/api';
+import Cropper from 'react-easy-crop';
 import '../styles/MarketingCarousel.css';
 
 function MarketingCarousel() {
@@ -16,9 +17,16 @@ function MarketingCarousel() {
     titulo: '',
     tipo: 'indefinido',
     fechaExpiracion: '',
+    duracion: 10,
+    duracion: 10,
     foto: null
   });
   const [previewUrl, setPreviewUrl] = useState(null);
+
+  // States for react-easy-crop image framing (non-destructive)
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedArea, setCroppedArea] = useState(null);
 
   useEffect(() => {
     loadImages();
@@ -86,11 +94,20 @@ function MarketingCarousel() {
         timerProgressBar: true
       });
 
+      // Calcular la posición CSS basada en el encuadre elegido
+      let objectPosition = '50% 50%';
+      if (croppedArea) {
+        const cx = (croppedArea.x + croppedArea.width / 2).toFixed(1);
+        const cy = (croppedArea.y + croppedArea.height / 2).toFixed(1);
+        objectPosition = `${cx}% ${cy}%`;
+      }
+      const dataParaSubir = { ...formData, objectPosition };
+
       let resp;
       if (editingId) {
-        resp = await api.updateCarouselImage(editingId, formData);
+        resp = await api.updateCarouselImage(editingId, dataParaSubir);
       } else {
-        resp = await api.uploadCarouselImage(formData);
+        resp = await api.uploadCarouselImage(dataParaSubir);
       }
 
       if (resp.data?.success) {
@@ -117,9 +134,13 @@ function MarketingCarousel() {
       titulo: img.titulo || '',
       tipo: img.tipo || 'indefinido',
       fechaExpiracion: img.fechaExpiracion ? img.fechaExpiracion.split('T')[0] : '',
-      foto: null // La foto es opcional al editar
+      duracion: img.duracion || 10,
+      foto: null 
     });
     setPreviewUrl(img.url);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedArea(null);
     setShowModal(true);
   };
 
@@ -158,10 +179,14 @@ function MarketingCarousel() {
       titulo: '',
       tipo: 'indefinido',
       fechaExpiracion: '',
+      duracion: 10,
       foto: null
     });
     setPreviewUrl(null);
     setEditingId(null);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setCroppedArea(null);
   };
 
   const isExpired = (dateStr) => {
@@ -245,7 +270,11 @@ function MarketingCarousel() {
               return (
                 <div key={img.id} className="marketing-card" style={{ animationDelay: `${idx * 0.1}s` }}>
                   <div className="marketing-card-img-wrapper">
-                    <img src={img.url} alt={img.titulo} className="marketing-card-img" />
+                    {img.resource_type === 'video' ? (
+                      <video src={img.url} className="marketing-card-img" />
+                    ) : (
+                      <img src={img.url} alt={img.titulo} className="marketing-card-img" />
+                    )}
                     <div className="marketing-card-overlay">
                       <div className="d-flex gap-2">
                         <button className="btn btn-primary rounded-pill px-4" onClick={() => handleEdit(img)}>
@@ -270,6 +299,9 @@ function MarketingCarousel() {
                     </div>
                     <div className="small text-muted">
                       <i className="bi bi-calendar3 me-1"></i> {img.tipo === 'indefinido' ? 'Visibilidad Indefinida' : `Expira el ${img.fechaExpiracion}`}
+                    </div>
+                    <div className="small text-primary fw-bold mt-1">
+                      <i className="bi bi-stopwatch me-1"></i> Mantiene {img.duracion || 10} seg. en pantalla
                     </div>
                   </div>
                 </div>
@@ -304,7 +336,7 @@ function MarketingCarousel() {
                         </div>
 
                         <div className="mb-4">
-                          <label className="form-label fw-bold small text-uppercase tracking-wider">Duración</label>
+                          <label className="form-label fw-bold small text-uppercase tracking-wider">Visibilidad</label>
                           <div className="form-toggle-group">
                             <button 
                               type="button" 
@@ -321,6 +353,25 @@ function MarketingCarousel() {
                               Temporal
                             </button>
                           </div>
+                        </div>
+
+                        <div className="mb-4">
+                          <label className="form-label fw-bold small text-uppercase tracking-wider">Tiempo en Pantalla (segundos)</label>
+                          <div className="d-flex align-items-center gap-3">
+                            <input 
+                              type="range" 
+                              className="form-range flex-grow-1" 
+                              min="3" 
+                              max="60" 
+                              step="1"
+                              value={formData.duracion}
+                              onChange={(e) => setFormData({ ...formData, duracion: parseInt(e.target.value) })}
+                            />
+                            <span className="badge bg-primary fs-6 px-3 py-2 rounded-pill" style={{ minWidth: '60px' }}>
+                              {formData.duracion}s
+                            </span>
+                          </div>
+                          <small className="text-muted d-block mt-1">Recomendado: 10 a 15 segundos para imágenes.</small>
                         </div>
 
                         {formData.tipo === 'fecha_especifica' && (
@@ -352,7 +403,7 @@ function MarketingCarousel() {
                             id="file-upload"
                             type="file" 
                             className="d-none" 
-                            accept="image/*"
+                            accept="image/*,video/*"
                             onChange={handleFileChange}
                           />
                         </div>
@@ -362,16 +413,32 @@ function MarketingCarousel() {
                          <h6 className="fw-bold small text-uppercase tracking-wider mb-3">Vista Previa Real (TV Office)</h6>
                          <div className="tv-mockup-wrapper">
                             <div className="tv-mockup-screen">
-                               <div className="tv-mockup-left">
+                               <div className="tv-mockup-left" style={{ position: 'relative', overflow: 'hidden' }}>
                                   {previewUrl ? (
-                                    <img src={previewUrl} alt="Preview" className="tv-mockup-img" />
+                                    (formData.foto?.type?.startsWith('video/') || (editingId && images.find(i => i.id === editingId)?.resource_type === 'video' && !formData.foto)) ? (
+                                      <video src={previewUrl} className="tv-mockup-img" autoPlay muted loop />
+                                    ) : (
+                                      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+                                        <Cropper
+                                          image={previewUrl}
+                                          crop={crop}
+                                          zoom={zoom}
+                                          aspect={11 / 9}
+                                          onCropChange={setCrop}
+                                          onZoomChange={setZoom}
+                                          onCropComplete={(croppedArea) => setCroppedArea(croppedArea)}
+                                          showGrid={false}
+                                          style={{ containerStyle: { borderRadius: '8px' } }}
+                                        />
+                                      </div>
+                                    )
                                   ) : (
                                     <div className="text-white-50 text-center small">
                                        <i className="bi bi-image fs-2 d-block mb-1"></i>
-                                       Imagen
+                                       Imagen / Video
                                     </div>
                                   )}
-                                  <div className="tv-overlay-info">
+                                  <div className="tv-overlay-info" style={{ position: 'absolute', bottom: 8, left: 8, zIndex: 10 }}>
                                      <div className="badge bg-dark bg-opacity-50 border-0 rounded-pill small" style={{ fontSize: '0.6rem' }}>{nowTime}</div>
                                   </div>
                                </div>
@@ -387,13 +454,30 @@ function MarketingCarousel() {
                             </div>
                          </div>
 
-                         <div className="alert alert-warning border-0 rounded-4 p-3 d-flex align-items-center gap-3">
-                            <i className="bi bi-exclamation-triangle-fill fs-4 text-warning"></i>
-                            <div className="small">
-                              <strong>¡Atención al tamaño!</strong> Debido a que la agenda ocupa la parte derecha de la TV, tu imagen se recortará para ajustarse al panel izquierdo. 
-                              Usa imágenes con el <strong>sujeto centrado</strong> para mejores resultados.
+                          {previewUrl && !(formData.foto?.type?.startsWith('video/') || (editingId && images.find(i => i.id === editingId)?.resource_type === 'video' && !formData.foto)) && (
+                            <div className="mt-3">
+                              <label className="form-label fw-bold small text-uppercase tracking-wider">Ajuste de Zoom</label>
+                              <div className="d-flex align-items-center gap-3">
+                                <i className="bi bi-zoom-out text-muted"></i>
+                                <input
+                                  type="range"
+                                  className="form-range flex-grow-1"
+                                  min="1" max="3" step="0.05"
+                                  value={zoom}
+                                  onChange={(e) => setZoom(Number(e.target.value))}
+                                />
+                                <i className="bi bi-zoom-in text-muted"></i>
+                              </div>
+                              <small className="text-muted">Arrastra la imagen en el panel de arriba para encuadrarla perfectamente.</small>
                             </div>
-                         </div>
+                          )}
+
+                          <div className="alert alert-info border-0 rounded-4 p-3 d-flex align-items-center gap-3 mt-3">
+                             <i className="bi bi-crop fs-4 text-info"></i>
+                             <div className="small">
+                               <strong>Recorte en vivo:</strong> Lo que ves en el panel izquierdo es exactamente lo que se publicara. Arrastra y usa el zoom para el encuadre perfecto.
+                             </div>
+                          </div>
                       </div>
                     </div>
                   </div>

@@ -68,10 +68,12 @@ class MarketingController {
       }
 
       // El body viene como FormData
-      let { tipo, fechaExpiracion, titulo } = req.body;
+      let { tipo, fechaExpiracion, titulo, duracion, objectPosition } = req.body;
       
       // Sanitizar valores predeterminados
       tipo = tipo || 'indefinido';
+      const duracionNum = parseInt(duracion) || 10;
+      const resourceType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
       
       if (tipo === 'fecha_especifica' && !fechaExpiracion) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
@@ -88,6 +90,7 @@ class MarketingController {
         const stream = cld.uploader.upload_stream(
           {
             folder: 'checador-v2/marketing',
+            resource_type: resourceType
           },
           (error, result) => {
             if (error) {
@@ -109,8 +112,11 @@ class MarketingController {
         url: uploadResult.secure_url,
         public_id: uploadResult.public_id,
         tipo,
+        duracion: duracionNum,
+        resource_type: resourceType,
         fechaExpiracion: tipo === 'fecha_especifica' ? fechaExpiracion : null,
         titulo: titulo || '',
+        objectPosition: objectPosition || '50% 50%',
         subidoPor: req.user.uid,
         subidoPorNombre: req.user.email || 'Admin', // o traer el perfil
         createdAt: new Date().toISOString()
@@ -140,7 +146,7 @@ class MarketingController {
   async updateCarouselImage(req, res) {
     try {
       const { id } = req.params;
-      let { tipo, fechaExpiracion, titulo } = req.body;
+      let { tipo, fechaExpiracion, titulo, duracion, objectPosition } = req.body;
       const db = getFirestore();
       const docRef = db.collection('marketing_carousel').doc(id);
       const doc = await docRef.get();
@@ -156,7 +162,9 @@ class MarketingController {
       const updateData = {
         titulo: titulo !== undefined ? titulo : currentData.titulo,
         tipo: tipo !== undefined ? tipo : currentData.tipo,
+        duracion: duracion !== undefined ? parseInt(duracion) : currentData.duracion,
         fechaExpiracion: tipo === 'fecha_especifica' ? fechaExpiracion : (tipo === 'indefinido' ? null : currentData.fechaExpiracion),
+        objectPosition: objectPosition !== undefined ? objectPosition : (currentData.objectPosition || '50% 50%'),
         updatedAt: new Date().toISOString()
       };
 
@@ -166,9 +174,13 @@ class MarketingController {
         const cld = getCloudinary();
         
         // 1. Subir la nueva
+        const resourceType = req.file.mimetype.startsWith('video/') ? 'video' : 'image';
         const uploadResult = await new Promise((resolve, reject) => {
           const stream = cld.uploader.upload_stream(
-            { folder: 'checador-v2/marketing' },
+            { 
+              folder: 'checador-v2/marketing',
+              resource_type: resourceType
+            },
             (error, result) => {
               if (error) reject(error);
               else resolve(result);
@@ -180,7 +192,7 @@ class MarketingController {
         // 2. Borrar la vieja si existe public_id
         if (currentData.public_id) {
           try {
-            await cld.uploader.destroy(currentData.public_id);
+            await cld.uploader.destroy(currentData.public_id, { resource_type: currentData.resource_type || 'image' });
           } catch (err) {
             console.error('Error al borrar imagen vieja en Cloudinary:', err);
           }
@@ -188,6 +200,7 @@ class MarketingController {
 
         updateData.url = uploadResult.secure_url;
         updateData.public_id = uploadResult.public_id;
+        updateData.resource_type = resourceType;
       }
 
       await docRef.update(updateData);
@@ -232,8 +245,8 @@ class MarketingController {
       if (data.public_id) {
         try {
           const cld = getCloudinary();
-          await cld.uploader.destroy(data.public_id, { resource_type: 'image' });
-          console.log(`📸 Imagen de marketing eliminada de Cloudinary: ${data.public_id}`);
+          await cld.uploader.destroy(data.public_id, { resource_type: data.resource_type || 'image' });
+          console.log(`📸 Contenido de marketing eliminado de Cloudinary: ${data.public_id}`);
         } catch (cloudErr) {
           console.error('Error eliminando de Cloudinary:', cloudErr);
           // Continuamos aunque falle cloudinary para limpiar la DB

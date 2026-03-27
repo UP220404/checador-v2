@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { db } from '../config/firebase';
-import { doc, setDoc, getDoc, updateDoc, increment, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc, increment, onSnapshot, collection } from 'firebase/firestore';
 import QRious from 'qrious';
 import { api } from '../services/api';
 import '../styles/QRGenerator.css';
@@ -22,6 +23,7 @@ const HORA_TARDE      = 13;  // 1 PM  — vuelve el QR estático
 const HORA_DORMIR     = 17;  // 5 PM  — el sistema se duerme
 
 function QRGenerator() {
+  const navigate = useNavigate();
   const [tokenActual, setTokenActual]       = useState(null);
   const [modoActual, setModoActual]         = useState('detectando');
   const [countdown, setCountdown]           = useState('--');
@@ -53,6 +55,7 @@ function QRGenerator() {
   const agendaListaRef    = useRef(null);
   const unsubscribeRef    = useRef(null);   // Listener Firestore (detección de escaneo)
   const carouselRef       = useRef(null);   // Interval de carrusel
+  const carouselSnapshotRef = useRef(null); // Listener Firestore (carrusel de marketing)
   const dormidoRef        = useRef(false);  // ¿El sistema está dormido?
   const tokenActivoRef    = useRef(null);   // Token actualmente desplegado
 
@@ -88,6 +91,15 @@ function QRGenerator() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Detect mode changes to re-trigger QR when returning from carousel
+  useEffect(() => {
+    if ((modoActual === 'dinamico' || modoActual === 'estatico') && !dormidoRef.current) {
+      if (status === 'carrusel' || status === 'iniciando' || !tokenActual) {
+        verificarToken();
+      }
+    }
+  }, [modoActual]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Scroll a junta actual cuando carga la agenda
   useEffect(() => {
     if (!agenda.length || !agendaListaRef.current) return;
@@ -99,23 +111,59 @@ function QRGenerator() {
     scrollToCurrentTime();
   }, [minutosAhora]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Carousel — arranca/para según el modo
+  // Carousel — arranca/para según el modo con tiempos dinámicos
   useEffect(() => {
-    const listado = marketingImages.length > 0 ? marketingImages : FOTOS_CARRUSEL;
+    const listado = marketingImages.length > 0 ? marketingImages : FOTOS_CARRUSEL.map(url => ({ url, duracion: 10 }));
     
     if (modoActual === 'carrusel' && listado.length > 0) {
+      const advanceSlide = () => {
+        setFotoActual(f => {
+          const nextIdx = (f + 1) % listado.length;
+          const currentSlide = listado[nextIdx];
+          const delay = (currentSlide.duracion || 10) * 1000;
+          
+          if (carouselRef.current) clearTimeout(carouselRef.current);
+          carouselRef.current = setTimeout(advanceSlide, delay);
+          
+          return nextIdx;
+        });
+      };
+
+      // Iniciar el primer timer
       if (!carouselRef.current) {
-        carouselRef.current = setInterval(() => {
-          setFotoActual(f => (f + 1) % listado.length);
-        }, INTERVALO_CARRUSEL_MS);
+        const initialDelay = (listado[fotoActual]?.duracion || 10) * 1000;
+        carouselRef.current = setTimeout(advanceSlide, initialDelay);
       }
     } else {
-      if (carouselRef.current) { clearInterval(carouselRef.current); carouselRef.current = null; }
+      if (carouselRef.current) { clearTimeout(carouselRef.current); carouselRef.current = null; }
     }
     return () => {
-      if (carouselRef.current) { clearInterval(carouselRef.current); carouselRef.current = null; }
+      if (carouselRef.current) { clearTimeout(carouselRef.current); carouselRef.current = null; }
     };
   }, [modoActual, marketingImages]);
+
+  // QR Generation robust effect: redibuja si el token o el layout cambian
+  useEffect(() => {
+    if (tokenActual && qrCanvasRef.current) {
+      const urlCompleta = `${window.location.origin}?qr=OFICINA2025&token=${tokenActual}&t=${Date.now()}`;
+      
+      new QRious({
+        element:    qrCanvasRef.current,
+        value:      urlCompleta,
+        size:       480,
+        foreground: '#155d27',
+        background: '#ffffff'
+      });
+
+      // Si estábamos esperando o detectando, activamos el QR
+      if (status === 'generando' || status === 'detectando' || status === 'iniciando' || !showQR) {
+        setShowQR(true);
+        setStatus('activo');
+        setCountdown('Esperando escaneo');
+        escucharTokenEscaneado(tokenActual);
+      }
+    }
+  }, [status, tokenActual, viewOverride]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Helpers de modo ──────────────────────────────────────────────────────
   const getTipoModo = () => {
@@ -171,6 +219,10 @@ function QRGenerator() {
     if (agendaPollRef.current)     clearInterval(agendaPollRef.current);
     if (carouselRef.current)       clearInterval(carouselRef.current);
     if (unsubscribeRef.current)    unsubscribeRef.current();
+    if (carouselSnapshotRef.current) {
+      carouselSnapshotRef.current();
+      carouselSnapshotRef.current = null;
+    }
   };
 
   // ─── Firestore listener: detecta escaneo y auto-regenera ──────────────────
@@ -234,26 +286,6 @@ function QRGenerator() {
         ultimoAcceso:    null
       });
 
-      const urlCompleta = `${window.location.origin}?qr=OFICINA2025&token=${nuevoToken}&t=${Date.now()}`;
-
-      setTimeout(() => {
-        if (qrCanvasRef.current) {
-          new QRious({
-            element:    qrCanvasRef.current,
-            value:      urlCompleta,
-            size:       480,
-            foreground: '#155d27',
-            background: '#ffffff'
-          });
-          setShowQR(true);
-          setStatus('activo');
-          setCountdown('Esperando escaneo');
-
-          // Siempre escuchar: el QR se renueva al ser escaneado en cualquier modo activo
-          escucharTokenEscaneado(nuevoToken);
-        }
-      }, 500);
-
       if (forzarPorUsuario) await actualizarEstadisticas();
 
     } catch (error) {
@@ -310,15 +342,7 @@ function QRGenerator() {
         } else {
           tokenActivoRef.current = data.token;
           setTokenActual(data.token);
-          const urlCompleta = `${window.location.origin}?qr=OFICINA2025&token=${data.token}&t=${Date.now()}`;
-
-          if (qrCanvasRef.current) {
-            new QRious({ element: qrCanvasRef.current, value: urlCompleta, size: 480, foreground: '#155d27', background: '#ffffff' });
-            setShowQR(true);
-            setStatus('activo');
-            setCountdown('Esperando escaneo');
-            escucharTokenEscaneado(data.token);
-          }
+          setStatus('generando'); // El useEffect se encarga de pintar el QR
         }
       } else {
         await generarQR(true);
@@ -553,6 +577,13 @@ function QRGenerator() {
     if (tipo !== 'inactivo') {
       await Promise.all([cargarFechasImportantes(), cargarAgenda(), cargarMarketingImages()]);
       agendaPollRef.current = setInterval(() => cargarAgenda(true), 2 * 60 * 1000);
+
+      // Real-time listener para que el TV se actualice al instante sin recargar
+      if (!carouselSnapshotRef.current) {
+        carouselSnapshotRef.current = onSnapshot(collection(db, 'marketing_carousel'), () => {
+          cargarMarketingImages();
+        });
+      }
     }
 
     // En carrusel: no generar QR, solo mostrar carrusel
@@ -595,12 +626,30 @@ function QRGenerator() {
   // ─── JSX principal ────────────────────────────────────────────────────────
   return (
     <div className="qr-page-wrapper">
+      <div className="top-nav-controls">
+        <button 
+          className="nav-home-btn"
+          onClick={() => navigate('/')}
+          title="Regresar al inicio"
+        >
+          <i className="bi bi-house-door-fill"></i>
+        </button>
+
+        <button 
+          className={`settings-gear-btn-fixed ${showSettings ? 'active' : ''}`}
+          onClick={() => setShowSettings(!showSettings)}
+          title="Configuración de pantalla"
+        >
+          <i className="bi bi-gear-fill"></i>
+        </button>
+      </div>
+
       <div className={`main-container view-${viewOverride}`}>
 
         {/* ── PANEL IZQUIERDO: QR o Carrusel ── */}
-        {(viewOverride === 'auto' || viewOverride === 'qr' || viewOverride === 'carrusel' || viewOverride === 'combined') && (
-          <div className={`qr-section ${ (viewOverride === 'qr' || viewOverride === 'carrusel') ? 'full-width' : ''}`}>
-            { (modo.tipo === 'carrusel' || viewOverride === 'carrusel') && viewOverride !== 'qr' && viewOverride !== 'agenda' ? (
+        {(viewOverride === 'auto' || viewOverride === 'qr-agenda' || viewOverride === 'fotos-solo' || viewOverride === 'fotos-agenda') && (
+          <div className={`qr-section ${ (viewOverride === 'fotos-solo') ? 'full-width' : ''}`}>
+            { (modo.tipo === 'carrusel' || viewOverride === 'fotos-solo' || viewOverride === 'fotos-agenda') && viewOverride !== 'qr-agenda' ? (
               /* ── CARRUSEL ── */
               <div className="carrusel-wrapper">
               {(() => {
@@ -609,12 +658,25 @@ function QRGenerator() {
                   const img = listado[fotoActual];
                   return (
                     <>
-                      <img
-                        key={fotoActual}
-                        src={img.url}
-                        alt={img.titulo || `Cielito Home ${fotoActual + 1}`}
-                        className="carrusel-foto"
-                      />
+                      {img.resource_type === 'video' ? (
+                        <video
+                          key={fotoActual}
+                          src={img.url}
+                          className="carrusel-foto"
+                          autoPlay
+                          muted
+                          loop
+                          playsInline
+                        />
+                      ) : (
+                        <img
+                          key={fotoActual}
+                          src={img.url}
+                          alt={img.titulo || `Cielito Home ${fotoActual + 1}`}
+                          className="carrusel-foto"
+                          style={{ objectPosition: img.objectPosition || '50% 50%' }}
+                        />
+                      )}
                       <div className="carrusel-overlay">
                         <div className="carrusel-brand">{img.titulo || 'Cielito Home'}</div>
                       </div>
@@ -691,8 +753,8 @@ function QRGenerator() {
         )}
 
         {/* ── PANEL DERECHO: Agenda + Fechas ── */}
-        {(viewOverride === 'auto' || viewOverride === 'agenda' || viewOverride === 'combined') && (
-          <div className={`info-section ${viewOverride === 'agenda' ? 'full-width' : ''}`}>
+        {(viewOverride === 'auto' || viewOverride === 'agenda-solo' || viewOverride === 'qr-agenda' || viewOverride === 'fotos-agenda') && (
+          <div className={`info-section ${viewOverride === 'agenda-solo' ? 'full-width' : ''}`}>
 
           {/* Agenda del día */}
           <div className="agenda-panel">
@@ -833,14 +895,7 @@ function QRGenerator() {
       )}
     </div>
 
-      {/* ── BOTÓN DE AJUSTES (TUERQUITA) ── */}
-      <button 
-        className={`floating-settings-btn ${showSettings ? 'active' : ''}`}
-        onClick={() => setShowSettings(!showSettings)}
-        title="Personalizar Vista"
-      >
-        <i className="bi bi-gear-fill"></i>
-      </button>
+      {/* ── BOTÓN DE AJUSTES (TUERQUITA) SE MOVIÓ AL TÍTULO ── */}
 
       {/* ── PANEL DE AJUSTES ── */}
       {showSettings && (
@@ -857,11 +912,11 @@ function QRGenerator() {
               <p className="settings-label">Modo de Visualización:</p>
               
               {[
-                { id: 'auto', label: 'Automático (Horario)', icon: 'bi-clock-history' },
-                { id: 'combined', label: 'Mixto (QR + Agenda)', icon: 'bi-layout-split' },
-                { id: 'agenda', label: 'Solo Agenda', icon: 'bi-calendar-week' },
-                { id: 'qr', label: 'Solo QR / Acceso', icon: 'bi-qr-code' },
-                { id: 'carrusel', label: 'Solo Fotos / Marketing', icon: 'bi-images' }
+                { id: 'auto', label: 'Modo por Defecto (Auto)', icon: 'bi-clock-history' },
+                { id: 'qr-agenda', label: 'QR + Agenda', icon: 'bi-layout-split' },
+                { id: 'fotos-agenda', label: 'Fotos + Agenda', icon: 'bi-grid-1x2' },
+                { id: 'agenda-solo', label: 'Solo Agenda', icon: 'bi-calendar-week' },
+                { id: 'fotos-solo', label: 'Solo Fotos / Marketing', icon: 'bi-images' }
               ].map(opt => (
                 <button
                   key={opt.id}
