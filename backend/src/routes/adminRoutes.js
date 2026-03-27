@@ -5,11 +5,22 @@ import { getTodayString, evaluarPuntualidad } from '../utils/dateUtils.js';
 
 const router = express.Router();
 
+// Middleware de seguridad: Solo permitir en DESARROLLO
+const localOnly = (req, res, next) => {
+  if (process.env.NODE_ENV === 'development') {
+    return next();
+  }
+  return res.status(403).json({ 
+    success: false, 
+    message: '⛔ Acceso denegado: Esta herramienta solo está disponible en el entorno local de administración.' 
+  });
+};
+
 /**
  * GET /api/v1/admin/users-simple
  * Retorna lista simplificada de usuarios para el dropdown del backdoor
  */
-router.get('/users-simple', async (req, res) => {
+router.get('/users-simple', localOnly, async (req, res) => {
   try {
     const db = getFirestore();
     const snapshot = await db.collection(COLLECTIONS.USUARIOS).get();
@@ -38,7 +49,7 @@ router.get('/users-simple', async (req, res) => {
  * POST /api/v1/admin/manual-attendance
  * Inyecta un registro de asistencia manualmente
  */
-router.post('/manual-attendance', async (req, res) => {
+router.post('/manual-attendance', localOnly, async (req, res) => {
   try {
     const { uid, email, nombre, tipo, fecha, horaEntrada, horaSalida } = req.body;
     const db = getFirestore();

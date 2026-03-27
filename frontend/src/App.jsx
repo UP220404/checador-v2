@@ -79,7 +79,11 @@ function App() {
           <Route path="/admin/documentos"    element={<PrivateRoute requiredRoles={['admin_rh']}><DocumentosAdmin /></PrivateRoute>} />
           <Route path="/admin/organigrama"   element={<PrivateRoute requiredRoles={['admin_rh']}><Organigrama /></PrivateRoute>} />
           <Route path="/admin/marketing"     element={<PrivateRoute requiredRoles={['admin_rh', 'sistemas']} requiredDepartment="Marketing"><MarketingCarousel /></PrivateRoute>} />
-          <Route path="/backdoor"            element={<AdminBackdoor />} />
+          
+          {/* Backdoor: Solo disponible en desarrollo local */}
+          {import.meta.env.DEV && (
+            <Route path="/backdoor" element={<AdminBackdoor />} />
+          )}
         </Routes>
       </Router>
     </AuthProvider>
