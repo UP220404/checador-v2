@@ -676,14 +676,14 @@ function DocumentosAdmin() {
                   </div>
                 ) : (
                   <div className="table-responsive w-100 m-0 p-0">
-                    <table className="table table-hover mb-0" style={{ tableLayout: 'fixed', width: '100%', wordWrap: 'break-word' }}>
+                    <table className="table table-hover mb-0" style={{ tableLayout: 'fixed', width: '100%' }}>
                       <thead className="table-light">
                         <tr>
-                          <th style={{ width: '30%' }}>Documento</th>
-                          <th style={{ width: '25%' }}>Empleado</th>
-                          <th style={{ width: '15%' }}>Tipo</th>
-                          <th style={{ width: '15%' }}>Fecha</th>
-                          <th className="text-end" style={{ width: '15%' }}>Acciones</th>
+                          <th style={{ width: '35%', padding: '0.75rem 1rem' }}>Documento</th>
+                          <th style={{ width: '22%', padding: '0.75rem 0.75rem' }}>Empleado</th>
+                          <th style={{ width: '18%', padding: '0.75rem 0.5rem' }}>Tipo</th>
+                          <th style={{ width: '13%', padding: '0.75rem 0.5rem', whiteSpace: 'nowrap' }}>Fecha</th>
+                          <th className="text-end" style={{ width: '12%', padding: '0.75rem 0.75rem', whiteSpace: 'nowrap' }}>Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -691,53 +691,56 @@ function DocumentosAdmin() {
                           const tipoConfig = getTipoConfig(doc.tipo);
                           return (
                             <tr key={doc.id || index} className="align-middle border-bottom-0">
-                              <td style={{ padding: '0.75rem 1rem' }}>
+                              <td style={{ padding: '0.65rem 1rem' }}>
                                 <div className="d-flex align-items-center">
-                                  <div className={`p-2 rounded-3 bg-${tipoConfig.color} bg-opacity-10 text-${tipoConfig.color} me-3 d-flex align-items-center justify-content-center flex-shrink-0`} style={{ width: '42px', height: '42px' }}>
-                                    <i className={`bi ${tipoConfig.icon} fs-5`}></i>
+                                  <div className={`rounded-3 bg-${tipoConfig.color} bg-opacity-10 text-${tipoConfig.color} me-2 d-flex align-items-center justify-content-center flex-shrink-0`} style={{ width: '36px', height: '36px' }}>
+                                    <i className={`bi ${tipoConfig.icon}`}></i>
                                   </div>
-                                  <div>
-                                    <div className="fw-bold text-dark mb-0" style={{ fontSize: '0.95rem', wordBreak: 'break-word', whiteSpace: 'normal', display: 'block' }}>{doc.nombre || doc.titulo}</div>
-                                    <div className="text-muted small" style={{ fontSize: '0.8rem', wordBreak: 'break-word', whiteSpace: 'normal', display: 'block' }}>{doc.descripcion || 'Sin descripción'}</div>
+                                  <div style={{ minWidth: 0 }}>
+                                    <div className="fw-semibold text-dark" style={{ fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.nombre || doc.titulo}</div>
+                                    <div className="text-muted" style={{ fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.descripcion || 'Sin descripción'}</div>
                                   </div>
                                 </div>
                               </td>
-                              <td style={{ padding: '0.75rem 1rem' }}>
-                                <div className="d-flex align-items-center">
-                                  <div className="bg-light text-primary rounded-circle d-flex align-items-center justify-content-center me-2" style={{ width: '28px', height: '28px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                              <td style={{ padding: '0.65rem 0.75rem' }}>
+                                <div className="d-flex align-items-center gap-2">
+                                  <div className="bg-light text-primary rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: '26px', height: '26px', fontSize: '0.7rem', fontWeight: 'bold' }}>
                                     {doc.empleadoNombre?.charAt(0) || '?'}
                                   </div>
-                                  <span className="small fw-medium text-secondary">{doc.empleadoNombre?.split(' ')[0]}</span>
+                                  <span className="text-secondary" style={{ fontSize: '0.82rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {doc.empleadoNombre?.split(' ').slice(0, 2).join(' ')}
+                                  </span>
                                 </div>
                               </td>
-                              <td style={{ padding: '0.75rem 1rem' }}>
-                                <span className={`badge rounded-pill bg-${tipoConfig.color} bg-opacity-10 text-${tipoConfig.color} border border-${tipoConfig.color} border-opacity-25 px-3 py-2`} style={{ fontSize: '0.7rem', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                                  {tipoConfig.label}
+                              <td style={{ padding: '0.65rem 0.5rem' }}>
+                                <span className={`badge bg-${tipoConfig.color} bg-opacity-10 text-${tipoConfig.color} border border-${tipoConfig.color} border-opacity-25`} style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>
+                                  {tipoConfig.label.split(' ')[0]}
                                 </span>
                               </td>
-                              <td style={{ padding: '0.75rem 1rem' }}>
-                                <div className="d-flex flex-column">
-                                  <span className="text-dark fw-medium" style={{ fontSize: '0.85rem' }}>{formatDate(doc.fechaSubida).split(',')[0]}</span>
-                                  <span className="text-muted" style={{ fontSize: '0.7rem' }}>{formatDate(doc.fechaSubida).split(',')[1]}</span>
-                                </div>
+                              <td style={{ padding: '0.65rem 0.5rem', whiteSpace: 'nowrap' }}>
+                                <span style={{ fontSize: '0.82rem', color: '#444' }}>
+                                  {doc.fechaSubida
+                                    ? new Date(doc.fechaSubida).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: '2-digit' })
+                                    : '-'}
+                                </span>
                               </td>
-                              <td className="text-end" style={{ padding: '0.75rem 1rem' }}>
-                                <div className="d-flex justify-content-end gap-2">
+                              <td style={{ padding: '0.65rem 0.75rem', whiteSpace: 'nowrap' }}>
+                                <div className="d-flex justify-content-end gap-1">
                                   <button
-                                    className="btn btn-icon btn-light-primary rounded-3"
+                                    className="btn btn-sm btn-outline-primary rounded-3 p-1"
                                     onClick={() => setViewingDoc(doc)}
                                     title="Ver Documento"
-                                    style={{ width: '36px', height: '36px', padding: '0' }}
+                                    style={{ width: '30px', height: '30px' }}
                                   >
-                                    <i className="bi bi-eye"></i>
+                                    <i className="bi bi-eye" style={{ fontSize: '0.85rem' }}></i>
                                   </button>
                                   <button
-                                    className="btn btn-icon btn-light-danger rounded-3"
+                                    className="btn btn-sm btn-outline-danger rounded-3 p-1"
                                     onClick={() => handleDelete(doc.id, doc.esEjemplo)}
                                     title="Eliminar"
-                                    style={{ width: '36px', height: '36px', padding: '0' }}
+                                    style={{ width: '30px', height: '30px' }}
                                   >
-                                    <i className="bi bi-trash"></i>
+                                    <i className="bi bi-trash" style={{ fontSize: '0.85rem' }}></i>
                                   </button>
                                 </div>
                               </td>
