@@ -3,7 +3,13 @@ import 'express-async-errors'; // Captura global de errores de promesas asíncro
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import { fileURLToPath } from 'url';
+import path, { dirname } from 'path';
 import { initializeFirebase } from './config/firebase.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 import { HTTP_STATUS } from './config/constants.js';
 
 // Importar rutas
@@ -21,6 +27,8 @@ import trainingRoutes from './routes/training.routes.js';
 import auditRoutes from './routes/audit.routes.js';
 import contractEvaluationsRoutes from './routes/contractEvaluations.routes.js';
 import marketingRoutes from './routes/marketing.routes.js';
+import adminRoutes from './routes/adminRoutes.js';
+
 
 const app = express();
 
@@ -139,6 +147,15 @@ app.use('/api/v1/training', trainingRoutes);
 app.use('/api/v1/audit', auditRoutes);
 app.use('/api/v1/contract-evaluations', contractEvaluationsRoutes);
 app.use('/api/v1/marketing', marketingRoutes);
+app.use('/api/v1/admin', adminRoutes);
+
+// Portal Backdoor (Solo local/desarrollo)
+if (process.env.NODE_ENV === 'development') {
+  app.get('/backdoor', (req, res) => {
+    res.sendFile(path.join(__dirname, '../scripts/backdoor.html'));
+  });
+}
+
 
 // ===== MANEJO DE ERRORES =====
 

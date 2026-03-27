@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cielito Home | Admin Backdoor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        :root {
+            --verde: #155d27;
+            --dorado: #c5a059;
+            --beige: #f4f1ea;
+            --glass: rgba(255, 255, 255, 0.85);
+        }
+
+        body {
+            background: linear-gradient(135deg, #155d27 0%, #0a2e13 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+            padding: 20px;
+        }
+
+        .backdoor-card {
+            background: var(--glass);
+            backdrop-filter: blur(15px);
+            border-radius: 24px;
+            padding: 3rem;
+            width: 100%;
+            max-width: 550px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .header i {
+            font-size: 3rem;
+            color: var(--verde);
+            margin-bottom: 1rem;
+        }
+
+        .header h1 {
+            font-weight: 800;
+            font-size: 1.8rem;
+            color: var(--verde);
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .form-label {
+            font-weight: 700;
+            color: #444;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control, .form-select {
+            border-radius: 12px;
+            padding: 0.8rem 1rem;
+            border: 2px solid #eee;
+            background: white;
+            transition: all 0.2s;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--verde);
+            box-shadow: 0 0 0 4px rgba(21, 93, 39, 0.1);
+        }
+
+        .btn-inject {
+            background: var(--verde);
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 12px;
+            font-weight: 700;
+            width: 100%;
+            margin-top: 1.5rem;
+            transition: all 0.3s;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-inject:hover {
+            background: #0d401a;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-inject:active {
+            transform: translateY(0);
+        }
+
+        .btn-inject:disabled {
+            background: #ccc;
+            transform: none;
+        }
+
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        #loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            color: white;
+            font-weight: 700;
+        }
+
+        .success-footer {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: #d1e7dd;
+            color: #0f5132;
+            border-radius: 12px;
+            display: none;
+            text-align: center;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay">
+        <div class="spinner-border me-3"></div>
+        Procesando...
+    </div>
+
+    <div class="backdoor-card">
+        <div class="header">
+            <i class="bi bi-key-fill"></i>
+            <h1>Admin Backdoor</h1>
+            <p>Inyección manual de asistencias | Cielito Home</p>
+        </div>
+
+        <form id="backdoor-form">
+            <div class="mb-3">
+                <label class="form-label">Empleado</label>
+                <select id="user-select" class="form-select" required>
+                    <option value="">Cargando empleados...</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Fecha del Registro</label>
+                <input type="date" id="fecha" class="form-control" required>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Hora de Entrada</label>
+                    <input type="time" id="hora-entrada" class="form-control" value="08:00" step="1" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Hora de Salida (Opcional)</label>
+                    <input type="time" id="hora-salida" class="form-control" value="16:00" step="1">
+                </div>
+            </div>
+
+            <div id="status-preview" class="mb-3 text-center d-none">
+                <span id="punc-status" class="status-badge"></span>
+            </div>
+
+            <button type="submit" class="btn-inject" id="btn-submit">
+                <i class="bi bi-lightning-fill"></i> Inyectar Registro
+            </button>
+        </form>
+
+        <div id="msg-success" class="success-footer">
+            <i class="bi bi-check-circle-fill me-2"></i> Registro inyectado con éxito.
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api/v1/admin';
+        const form = document.getElementById('backdoor-form');
+        const userSelect = document.getElementById('user-select');
+        const fechaInput = document.getElementById('fecha');
+        const loading = document.getElementById('loading-overlay');
+        const msgSuccess = document.getElementById('msg-success');
+
+        // Establecer fecha de hoy por defecto
+        fechaInput.value = new Date().toISOString().split('T')[0];
+
+        // Cargar usuarios al iniciar
+        async function loadUsers() {
+            try {
+                const res = await fetch(`${API_URL}/users-simple`);
+                const result = await res.json();
+                
+                if (result.success) {
+                    userSelect.innerHTML = '<option value="">-- Seleccionar Empleado --</option>';
+                    result.data.forEach(user => {
+                        const opt = document.createElement('option');
+                        opt.value = JSON.stringify(user);
+                        opt.textContent = `${user.nombre} (${user.correo})`;
+                        userSelect.appendChild(opt);
+                    });
+                }
+            } catch (err) {
+                userSelect.innerHTML = '<option value="">Error cargando usuarios</option>';
+            }
+        }
+
+        loadUsers();
+
+        // Manejar envío
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const userData = JSON.parse(userSelect.value);
+            const data = {
+                uid: userData.uid,
+                email: userData.correo,
+                nombre: userData.nombre,
+                tipo: userData.tipo,
+                fecha: fechaInput.value,
+                horaEntrada: document.getElementById('hora-entrada').value,
+                horaSalida: document.getElementById('hora-salida').value || null
+            };
+
+            loading.style.display = 'flex';
+            msgSuccess.style.display = 'none';
+
+            try {
+                const res = await fetch(`${API_URL}/manual-attendance`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await res.json();
+                
+                if (result.success) {
+                    msgSuccess.style.display = 'block';
+                    form.reset();
+                    fechaInput.value = new Date().toISOString().split('T')[0];
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (err) {
+                alert('Error de conexión con el servidor local.');
+            } finally {
+                loading.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
