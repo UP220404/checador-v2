@@ -41,38 +41,37 @@ router.get('/users-simple', async (req, res) => {
 router.post('/manual-attendance', async (req, res) => {
   try {
     const { uid, email, nombre, tipo, fecha, horaEntrada, horaSalida } = req.body;
+    const db = getFirestore();
+    const results = [];
 
-    if (!uid || !fecha || !horaEntrada) {
-      return res.status(400).json({ success: false, message: 'Faltan campos obligatorios' });
+    // 1. Inyectar ENTRADA (si se proporcionó)
+    if (horaEntrada) {
+      const [h, m] = horaEntrada.split(':').map(Number);
+      const timestampEntrada = new Date(`${fecha}T${horaEntrada}`);
+      
+      // Lógica de retardo (límite 8:10 AM)
+      const esRetardo = (h > 8) || (h === 8 && m > 10);
+      const estadoEntrada = (tipo === 'especial' || tipo === 'horario_especial') ? 'puntual' : (esRetardo ? 'retardo' : 'puntual');
+
+      const registroEntrada = {
+        uid,
+        nombre,
+        email,
+        tipo,
+        fecha,
+        hora: horaEntrada,
+        tipoEvento: 'entrada',
+        estado: estadoEntrada,
+        ubicacion: null,
+        timestamp: timestampEntrada,
+        metodo: 'manual_backdoor'
+      };
+
+      await db.collection(COLLECTIONS.REGISTROS).add(registroEntrada);
+      results.push('Entrada');
     }
 
-    const db = getFirestore();
-
-    // 1. Inyectar ENTRADA
-    const [h, m] = horaEntrada.split(':').map(Number);
-    const timestampEntrada = new Date(`${fecha}T${horaEntrada}`);
-    
-    // Lógica de retardo
-    const esRetardo = (h > 8) || (h === 8 && m > 10);
-    const estadoEntrada = (tipo === 'especial' || tipo === 'horario_especial') ? 'puntual' : (esRetardo ? 'retardo' : 'puntual');
-
-    const registroEntrada = {
-      uid,
-      nombre,
-      email,
-      tipo,
-      fecha,
-      hora: horaEntrada,
-      tipoEvento: 'entrada',
-      estado: estadoEntrada,
-      ubicacion: null,
-      timestamp: timestampEntrada,
-      metodo: 'manual_backdoor'
-    };
-
-    await db.collection(COLLECTIONS.REGISTROS).add(registroEntrada);
-
-    // 2. Inyectar SALIDA (opcional)
+    // 2. Inyectar SALIDA (si se proporcionó)
     if (horaSalida) {
       const timestampSalida = new Date(`${fecha}T${horaSalida}`);
       const registroSalida = {
@@ -89,11 +88,16 @@ router.post('/manual-attendance', async (req, res) => {
         metodo: 'manual_backdoor'
       };
       await db.collection(COLLECTIONS.REGISTROS).add(registroSalida);
+      results.push('Salida');
+    }
+
+    if (results.length === 0) {
+      return res.status(400).json({ success: false, message: 'Debes proporcionar al menos una hora (Entrada o Salida)' });
     }
 
     res.json({ 
       success: true, 
-      message: `Registro(s) inyectado(s) correctamente para ${nombre}` 
+      message: `${results.join(' y ')} inyectada(s) correctamente para ${nombre}` 
     });
 
   } catch (error) {
