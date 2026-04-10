@@ -19,7 +19,7 @@ export async function getUserRoleData(email) {
 
     const db = getFirestore();
     const usersRef = db.collection(COLLECTIONS.USUARIOS);
-    const snapshot = await usersRef.where('correo', '==', email).limit(1).get();
+    const snapshot = await usersRef.where('email', '==', email).limit(1).get();
 
     if (snapshot.empty) {
       // Si no está en BD pero sí en .env, retornar datos básicos de admin

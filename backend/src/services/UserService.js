@@ -7,6 +7,7 @@ import { COLLECTIONS, TIPOS_FECHA_IMPORTANTE } from '../config/constants.js';
 import { validarEmail, validarTipoUsuario } from '../utils/validators.js';
 import admin from 'firebase-admin';
 import crypto from 'crypto';
+import UserMigrationService from './UserMigrationService.js';
 
 class UserService {
   constructor() {
@@ -193,44 +194,36 @@ class UserService {
 
       const currentData = userDoc.data();
 
-      // Si se está reactivando al usuario y tiene un correo resguardado
+      // ── CASO: Reactivación con correo resguardado ────────────────────────────
       if (updateData.activo === true && currentData.activo === false && currentData.correoOriginal) {
         try {
           const auth = getAuth();
           await auth.updateUser(uid, {
             email: currentData.correoOriginal,
-            disabled: false // Reactivamos el acceso
+            disabled: false
           });
-          
-          // Si Firebase Auth lo acepta, restauramos en DB
           updateData.email = currentData.correoOriginal;
-          
-          // Borrar los campos de baja y respaldo
           updateData.correoOriginal = admin.firestore.FieldValue.delete();
           updateData.fechaRetencionHasta = admin.firestore.FieldValue.delete();
         } catch (authError) {
           console.error(`No se pudo restaurar el correo original para ${uid}:`, authError);
-          // Opcional: Podríamos lanzar error, pero mejor dejamos que se reactive con el correo +baja y que RH lo cambie manual
         }
+
+      // ── CASO: Cambio de email → migración completa de UID ────────────────────
       } else if (updateData.email && updateData.email !== currentData.email) {
-        // Si no es reactivación especial, pero el correo cambió, actualizar en Firebase Auth
-        try {
-          const auth = getAuth();
-          await auth.updateUser(uid, {
-            email: updateData.email
-          });
-          // Forzar cierre de sesión en todos los dispositivos
-          await auth.revokeRefreshTokens(uid);
-          console.log(`Sesiones revocadas para ${uid} tras cambio de correo`);
-        } catch (authError) {
-          console.error(`Error actualizando email en Auth para ${uid}:`, authError);
-          if (authError.code === 'auth/email-already-exists') {
-             throw new Error('El nuevo correo ya está registrado en otra cuenta.');
-          }
-          throw new Error('No se pudo actualizar el correo de acceso en el sistema.');
-        }
+        console.log(`📧 [UserService] Cambio de email detectado. Iniciando migración de UID...`);
+        const newUID = await UserMigrationService.migrateUserIdentity(uid, updateData.email);
+        // La migración ya guardó todos los datos con el nuevo UID.
+        // Retornamos el nuevo UID para que el controlador lo informe al frontend.
+        return {
+          uid: newUID,
+          email: updateData.email,
+          _uidMigrado: true,
+          _oldUID: uid
+        };
       }
 
+      // ── CASO: Actualización normal (sin cambio de email) ─────────────────────
       await userRef.update({
         ...updateData,
         fechaActualizacion: new Date()
@@ -238,7 +231,7 @@ class UserService {
 
       // 🔄 Sync legacy collection
       const fullUpdatedData = (await userRef.get()).data();
-      await this._syncToLegacyEmployees(uid, fullUpdatedData).catch(err => 
+      await this._syncToLegacyEmployees(uid, fullUpdatedData).catch(err =>
         console.error('⚠️ Error en sync legacy (update):', err)
       );
 

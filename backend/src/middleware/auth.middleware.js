@@ -25,9 +25,9 @@ export async function authMiddleware(req, res, next) {
       });
     }
 
-    // Verificar token con Firebase Admin
+    // Verificar token con Firebase Admin (forzamos checkRevoked para expulsar instantáneamente)
     const auth = getAuth();
-    const decodedToken = await auth.verifyIdToken(token);
+    const decodedToken = await auth.verifyIdToken(token, true);
 
     // Agregar información del usuario al request
     req.user = {
@@ -54,6 +54,13 @@ export async function authMiddleware(req, res, next) {
       return res.status(HTTP_STATUS.UNAUTHORIZED).json({
         success: false,
         message: ERROR_MESSAGES.AUTH.INVALID_TOKEN
+      });
+    }
+
+    if (error.code === 'auth/id-token-revoked') {
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        success: false,
+        message: 'Tu sesión ha sido revocada (cambio de correo o seguridad). Por favor inicia sesión nuevamente.'
       });
     }
 
