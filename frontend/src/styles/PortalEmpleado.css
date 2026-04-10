@@ -4116,10 +4116,147 @@ textarea.form-control-panel {
 /* Estilos para Ausencias Justificadas en Calendario */
 .calendar-cell.justified {
   background: #e7f3ff !important;
+  border-left: 4px solid #0d6efd;
 }
 .calendar-cell.justified .calendar-day-number {
   color: #0d6efd !important;
   font-weight: 700;
+}
+
+/* Estilos para Vacaciones en Calendario */
+.calendar-cell.vacation {
+  background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%) !important;
+  border-left: 4px solid #0097a7;
+}
+.calendar-cell.vacation .calendar-day-number {
+  color: #00838f !important;
+  font-weight: 800;
+}
+.calendar-cell.vacation .cell-status-label-v3 {
+  background: #0097a7 !important;
+  color: white !important;
+}
+
+/* Indicador de vacaciones (umbrella icon) */
+.justified-indicator-v3.vacation-indicator {
+  background: #0097a7 !important;
+}
+.justified-indicator-v3.vacation-indicator i {
+  color: white;
+}
+
+/* ============================================
+   DETAIL PANEL - Rich Date Badge & Status Cards
+   ============================================ */
+
+/* Full date header in side panel */
+.selected-date-badge-v2 {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+.sdb-weekday {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #adb5bd;
+  text-transform: capitalize;
+  letter-spacing: 0.03em;
+}
+.sdb-date {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  text-transform: capitalize;
+  line-height: 1.2;
+}
+
+/* Status card shared base */
+.detail-status-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1rem 0.75rem;
+  border-radius: 12px;
+  gap: 0.35rem;
+  animation: fadeInCard 0.2s ease;
+}
+@keyframes fadeInCard {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.dsc-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+  margin-bottom: 0.1rem;
+}
+.dsc-label {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+.dsc-sub {
+  font-size: 0.78rem;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+/* Vacation card */
+.vacation-card {
+  background: linear-gradient(135deg, #e0f7fa 0%, #b2ebf2 100%);
+  border: 1.5px solid #0097a7;
+}
+.vacation-card .dsc-label { color: #00838f; }
+.vacation-card .dsc-sub   { color: #00838f; }
+
+/* Justified card */
+.justified-card {
+  background: #e7f3ff;
+  border: 1.5px solid #0d6efd;
+}
+.justified-card .dsc-icon { color: #0d6efd; }
+.justified-card .dsc-label { color: #0a4ecc; }
+.justified-card .dsc-sub   { color: #4b7bdb; text-transform: capitalize; }
+
+/* Holiday card */
+.holiday-card {
+  background: #f3f0ff;
+  border: 1.5px solid #7048e8;
+}
+.holiday-card .dsc-label { color: #5f3dc4; }
+.holiday-card .dsc-sub   { color: #7048e8; }
+
+/* Empty/no-record card */
+.empty-card {
+  background: #f8f9fa;
+  border: 1.5px solid #dee2e6;
+}
+.empty-card .dsc-icon  { color: #adb5bd; }
+.empty-card .dsc-label { color: #6c757d; }
+.empty-card .dsc-sub   { color: #adb5bd; }
+
+/* Future day card */
+.future-card {
+  background: #f0fdf4;
+  border: 1.5px solid #bbf7d0;
+}
+.future-card .dsc-icon  { color: #16a34a; }
+.future-card .dsc-label { color: #15803d; }
+.future-card .dsc-sub   { color: #4ade80; }
+
+/* Retardo badge in side-time-item */
+.retardo-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  background: #fff3cd;
+  color: #856404;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  margin-left: auto;
+}
+.side-time-item.retardo .val {
+  color: #ff9f0a;
 }
 
 /* Estilos para Historial de Solicitudes agrupado */
@@ -4247,5 +4384,6 @@ textarea.form-control-panel {
 .cell-status-label-v3.late { color: #856404; }
 .cell-status-label-v3.complete { color: #0f5132; }
 .cell-status-label-v3.justified { color: #004085; }
+.cell-status-label-v3.vacation { color: #00838f; }
 .cell-status-label-v3.partial { color: #0c5460; }
 

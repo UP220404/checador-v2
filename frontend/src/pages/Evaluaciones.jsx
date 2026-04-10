@@ -190,7 +190,7 @@ function Evaluaciones() {
     const uid = e.target.value;
     const empleado = empleados.find(emp => (emp.uid || emp.id) === uid);
     if (empleado) {
-      setFormData({ ...formData, empleadoUid: empleado.uid || empleado.id, empleadoEmail: empleado.email || empleado.correo, empleadoNombre: empleado.nombre, departamento: empleado.departamento || '' });
+      setFormData({ ...formData, empleadoUid: empleado.uid || empleado.id, empleadoEmail: empleado.email, empleadoNombre: empleado.nombre, departamento: empleado.departamento || '' });
     }
   };
 

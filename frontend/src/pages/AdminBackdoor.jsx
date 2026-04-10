@@ -160,7 +160,7 @@ const AdminBackdoor = () => {
                   className="form-control" 
                   disabled={!formData.usarSalida}
                   value={formData.horaSalida}
-                  onChange={(e) => setFormData({...formData, usarSalida: e.target.value})}
+                  onChange={(e) => setFormData({...formData, horaSalida: e.target.value})}
                 />
               </div>
             </div>

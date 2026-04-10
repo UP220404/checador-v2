@@ -11,17 +11,12 @@ class MarketingController {
   async getCarouselImages(req, res) {
     try {
       const db = getFirestore();
-      
-      // En este caso, no necesitamos índices complejos si filtramos en memoria,
-      // la colección de marketing será pequeña (10-20 fotos).
       const snapshot = await db.collection('marketing_carousel')
                                .orderBy('createdAt', 'desc')
                                .get();
       
       const images = [];
       const now = new Date();
-      // Ignoramos la hora exacta y checamos solo contra las 00:00 del día actual para dar margen
-      now.setHours(0, 0, 0, 0);
 
       snapshot.forEach(doc => {
         const data = doc.data();
@@ -29,15 +24,17 @@ class MarketingController {
         if (data.tipo === 'indefinido') {
           images.push({ id: doc.id, ...data });
         } else if (data.fechaExpiracion) {
-          // Si tiene expiración, verificamos si aún es válida hoy.
-          // Ej. fechaExpiracion = "2026-03-25", validamos hasta las 23:59 de ese día.
+          // Verificar que aún no expiró
           const expDate = new Date(data.fechaExpiracion);
-          // Permitir hasta las 23:59:59 del día de expiración
-          expDate.setHours(23, 59, 59, 999);
+          if (now > expDate) return; // ya expiró
           
-          if (now <= expDate) {
-            images.push({ id: doc.id, ...data });
+          // Verificar que ya inició (si tiene fechaInicio)
+          if (data.fechaInicio) {
+            const startDate = new Date(data.fechaInicio);
+            if (now < startDate) return; // todavía no empieza
           }
+          
+          images.push({ id: doc.id, ...data });
         }
       });
 
@@ -68,7 +65,7 @@ class MarketingController {
       }
 
       // El body viene como FormData
-      let { tipo, fechaExpiracion, titulo, duracion, objectPosition } = req.body;
+      let { tipo, fechaExpiracion, fechaInicio, titulo, duracion, objectPosition } = req.body;
       
       // Sanitizar valores predeterminados
       tipo = tipo || 'indefinido';
@@ -78,7 +75,7 @@ class MarketingController {
       if (tipo === 'fecha_especifica' && !fechaExpiracion) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
-          message: 'Una fecha de expiración es requerida si el tipo es: fecha_especifica'
+          message: 'Una fecha/hora de fin es requerida si el tipo es: fecha_especifica'
         });
       }
 
@@ -114,11 +111,12 @@ class MarketingController {
         tipo,
         duracion: duracionNum,
         resource_type: resourceType,
+        fechaInicio: tipo === 'fecha_especifica' ? (fechaInicio || null) : null,
         fechaExpiracion: tipo === 'fecha_especifica' ? fechaExpiracion : null,
         titulo: titulo || '',
         objectPosition: objectPosition || '50% 50%',
         subidoPor: req.user.uid,
-        subidoPorNombre: req.user.email || 'Admin', // o traer el perfil
+        subidoPorNombre: req.user.email || 'Admin',
         createdAt: new Date().toISOString()
       };
 
@@ -146,7 +144,7 @@ class MarketingController {
   async updateCarouselImage(req, res) {
     try {
       const { id } = req.params;
-      let { tipo, fechaExpiracion, titulo, duracion, objectPosition } = req.body;
+      let { tipo, fechaExpiracion, fechaInicio, titulo, duracion, objectPosition } = req.body;
       const db = getFirestore();
       const docRef = db.collection('marketing_carousel').doc(id);
       const doc = await docRef.get();
@@ -163,6 +161,7 @@ class MarketingController {
         titulo: titulo !== undefined ? titulo : currentData.titulo,
         tipo: tipo !== undefined ? tipo : currentData.tipo,
         duracion: duracion !== undefined ? parseInt(duracion) : currentData.duracion,
+        fechaInicio: tipo === 'fecha_especifica' ? (fechaInicio || null) : null,
         fechaExpiracion: tipo === 'fecha_especifica' ? fechaExpiracion : (tipo === 'indefinido' ? null : currentData.fechaExpiracion),
         objectPosition: objectPosition !== undefined ? objectPosition : (currentData.objectPosition || '50% 50%'),
         updatedAt: new Date().toISOString()

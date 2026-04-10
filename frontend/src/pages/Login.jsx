@@ -28,10 +28,19 @@ function Login() {
   const qrToken = queryParams.get('token');
 
   useEffect(() => {
+    // Cargar error persistente si existe (ej. denegado por AuthContext)
+    const savedError = sessionStorage.getItem('authError');
+    if (savedError) {
+      setError(savedError);
+    }
+
     // Si ya hay una sesión activa, intentar redirigir automáticamente
     const checkSession = async () => {
       if (auth.currentUser) {
-        await handleRedirect(auth.currentUser);
+        // Si hay error en sesión, no intentar redirección automática
+        if (!savedError) {
+          await handleRedirect(auth.currentUser);
+        }
       }
       setCheckingAuth(false);
     };
@@ -61,18 +70,19 @@ function Login() {
         }
 
         // Caso 2: Login general - Redirigir según rol
-        if (userRole === ROLES.ADMIN_RH || userRole === ROLES.ADMIN_AREA) {
+        if (userRole === ROLES.ADMIN_RH || userRole === ROLES.ADMIN_AREA || userRole === 'sistemas') {
           navigate('/admin/dashboard');
         } else {
           navigate('/empleado/portal');
         }
       } else {
-        // Fallback si no hay rol definido
-        navigate('/empleado/portal');
+        // Acceso denegado por el backend
+        setError(response.data?.message || 'No autorizado');
       }
     } catch (apiError) {
       console.error('[Login] Error en redirección:', apiError);
-      navigate('/empleado/portal');
+      const errorMsg = apiError.response?.data?.message || 'Error al conectar con el servidor';
+      setError(errorMsg);
     }
   };
 
@@ -80,6 +90,7 @@ function Login() {
     try {
       setLoading(true);
       setError('');
+      sessionStorage.removeItem('authError'); // Limpiar errores previos
 
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);

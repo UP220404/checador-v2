@@ -226,7 +226,7 @@ function Ausencias() {
 
       const dataToSend = {
         ...formData,
-        emailUsuario: usuarioSeleccionado?.correo || ausenciaSeleccionada?.emailUsuario,
+        emailUsuario: ausenciaSeleccionada?.emailUsuario,
         nombreUsuario: usuarioSeleccionado?.nombre || ausenciaSeleccionada?.nombreUsuario
       };
 
@@ -729,7 +729,7 @@ function Ausencias() {
                     <option value="">Seleccione un empleado...</option>
                     {usuarios.map(user => (
                       <option key={user.uid} value={user.uid}>
-                        {user.nombre} - {user.correo}
+                        {user.nombre} - {user.email}
                       </option>
                     ))}
                   </select>

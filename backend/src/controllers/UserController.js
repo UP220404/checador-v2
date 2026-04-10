@@ -60,19 +60,25 @@ class UserController {
         }
       }
 
-      // Si no existe, devolver rol por defecto
+      // Si no existe, denegar acceso
       if (!user) {
         if (process.env.NODE_ENV === 'development') {
-          console.log('[getCurrentUserRole] Usuario no encontrado, devolviendo rol por defecto');
+          console.warn('[getCurrentUserRole] Usuario no encontrado en BD:', userEmail);
         }
-        return res.json({
-          success: true,
-          data: {
-            role: ROLES.EMPLEADO,
-            departamento: '',
-            nombre: req.user.name || '',
-            email: userEmail
-          }
+        return res.status(HTTP_STATUS.FORBIDDEN).json({
+          success: false,
+          message: 'Tu cuenta no está registrada en el sistema. Contacta al administrador.'
+        });
+      }
+
+      // Si no está activo, denegar acceso
+      if (user.activo === false) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[getCurrentUserRole] Usuario inactivo:', userEmail);
+        }
+        return res.status(HTTP_STATUS.FORBIDDEN).json({
+          success: false,
+          message: 'Tu cuenta ha sido desactivada. Contacta al administrador.'
         });
       }
 
@@ -85,21 +91,15 @@ class UserController {
           role: user.role || ROLES.EMPLEADO,
           departamento: user.departamento || '',
           nombre: user.nombre || '',
-          email: user.correo || userEmail,
+          email: user.email || userEmail,
           uid: user.uid || userUid
         }
       });
     } catch (error) {
       console.error('Error en getCurrentUserRole:', error);
-      // En caso de error, devolver rol por defecto para no bloquear el login
-      res.json({
-        success: true,
-        data: {
-          role: ROLES.EMPLEADO,
-          departamento: '',
-          nombre: '',
-          email: req.user.email
-        }
+      res.status(HTTP_STATUS.INTERNAL_ERROR).json({
+        success: false,
+        message: 'Error al verificar los permisos de tu cuenta.'
       });
     }
   }
@@ -243,15 +243,14 @@ class UserController {
       const {
         uid,
         nombre,
-        correo,
-        email,  // Alias del frontend
+        email,
         tipo,
-        role,   // Alias del frontend
+        role,
         ...rest
       } = req.body;
 
-      // Aceptar tanto 'correo' como 'email' - verificar que no sea vacío
-      const userEmail = (correo && correo.trim()) || (email && email.trim());
+      // Aceptar email - verificar que no sea vacío
+      const userEmail = email && email.trim();
       // El tipo de contrato - por defecto 'tiempo_completo'
       const userTipo = tipo || 'tiempo_completo';
       // El rol de acceso - por defecto 'empleado'
@@ -275,7 +274,7 @@ class UserController {
 
       const user = await UserService.createUser(userId, {
         nombre: nombre.trim(),
-        correo: userEmail,
+        email: userEmail,
         tipo: userTipo,
         role: userRole,
         ...rest
@@ -368,6 +367,50 @@ class UserController {
       });
     } catch (error) {
       console.error('Error en deleteUser:', error);
+
+      if (error.message === 'Usuario no encontrado') {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          message: error.message
+        });
+      }
+
+      res.status(HTTP_STATUS.INTERNAL_ERROR).json({
+        success: false,
+        message: ERROR_MESSAGES.GENERAL.INTERNAL_ERROR
+      });
+    }
+  }
+
+  /**
+   * PATCH /api/v1/users/:uid/deactivate
+   * Da de baja a un empleado con motivo y fecha (solo admin_rh)
+   */
+  async deactivateUser(req, res) {
+    try {
+      const { uid } = req.params;
+      const { motivoBaja, fechaBaja, observacionesBaja } = req.body;
+
+      if (!motivoBaja) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          message: 'El motivo de baja es requerido'
+        });
+      }
+
+      const result = await UserService.deactivateUserWithReason(uid, {
+        motivoBaja,
+        fechaBaja,
+        observacionesBaja
+      });
+
+      res.json({
+        success: true,
+        message: result.message,
+        data: { fechaRetencionHasta: result.fechaRetencionHasta }
+      });
+    } catch (error) {
+      console.error('Error en deactivateUser:', error);
 
       if (error.message === 'Usuario no encontrado') {
         return res.status(HTTP_STATUS.NOT_FOUND).json({
@@ -994,6 +1037,72 @@ class UserController {
         success: false,
         message: ERROR_MESSAGES.GENERAL.INTERNAL_ERROR
       });
+    }
+  }
+
+  // ============================================
+  // MÉTODOS DE VACACIONES
+  // ============================================
+
+  /**
+   * GET /api/v1/users/:uid/vacaciones-saldo
+   */
+  async getSaldoVacaciones(req, res) {
+    try {
+      const { uid } = req.params;
+      const isAdmin = req.user.role === ROLES.ADMIN_RH || req.user.role === ROLES.ADMIN_AREA;
+      if (uid !== req.user.uid && !isAdmin) {
+        return res.status(HTTP_STATUS.FORBIDDEN).json({ success: false, message: 'No autorizado' });
+      }
+      const saldo = await UserService.getSaldoVacaciones(uid);
+      res.json({ success: true, data: saldo });
+    } catch (error) {
+      console.error('Error en getSaldoVacaciones:', error);
+      res.status(HTTP_STATUS.INTERNAL_ERROR).json({ success: false, message: ERROR_MESSAGES.GENERAL.INTERNAL_ERROR });
+    }
+  }
+
+  /**
+   * PUT /api/v1/users/:uid/vacaciones-saldo
+   * Permite a RH ajustar manualmente diasUsados
+   */
+  async updateSaldoVacaciones(req, res) {
+    try {
+      const { uid } = req.params;
+      const result = await UserService.updateSaldoVacaciones(uid, req.body);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      console.error('Error en updateSaldoVacaciones:', error);
+      res.status(HTTP_STATUS.INTERNAL_ERROR).json({ success: false, message: ERROR_MESSAGES.GENERAL.INTERNAL_ERROR });
+    }
+  }
+
+  /**
+   * POST /api/v1/users/:uid/vacaciones-recalcular
+   * Recalcula diasUsados/diasPendientes contando ausencias en Firestore
+   */
+  async recalcularSaldoVacaciones(req, res) {
+    try {
+      const { uid } = req.params;
+      const result = await UserService.recalcularSaldoVacaciones(uid);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      console.error('Error en recalcularSaldoVacaciones:', error);
+      res.status(HTTP_STATUS.INTERNAL_ERROR).json({ success: false, message: ERROR_MESSAGES.GENERAL.INTERNAL_ERROR });
+    }
+  }
+
+  /**
+   * GET /api/v1/users/vacaciones-panel
+   * Panel RH: todos los empleados activos con su saldo de vacaciones calculado
+   */
+  async getAllVacacionesSummary(req, res) {
+    try {
+      const data = await UserService.getAllVacacionesSummary();
+      res.json({ success: true, count: data.length, data });
+    } catch (error) {
+      console.error('Error en getAllVacacionesSummary:', error);
+      res.status(HTTP_STATUS.INTERNAL_ERROR).json({ success: false, message: ERROR_MESSAGES.GENERAL.INTERNAL_ERROR });
     }
   }
 }

@@ -12,10 +12,12 @@ function Registros() {
   const [showModal, setShowModal] = useState(false);
   const [registroSeleccionado, setRegistroSeleccionado] = useState(null);
 
+  const today = new Date().toISOString().split('T')[0];
+
+  // Un solo estado: el día seleccionado (por defecto hoy)
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(today);
   const [filters, setFilters] = useState({
     busqueda: '',
-    fechaInicio: '',
-    fechaFin: '',
     tipo: '',
     evento: ''
   });
@@ -25,10 +27,20 @@ function Registros() {
     isLoading: loading, 
     refetch: refetchRegistros 
   } = useQuery({
-    queryKey: ['todayAttendance'],
+    // Re-fetcha cuando cambia el día
+    queryKey: ['attendanceRegistros', fechaSeleccionada],
     queryFn: async () => {
-      const response = await api.getTodayAttendance();
-      return response.data?.data || [];
+      if (fechaSeleccionada === today) {
+        // Para hoy, usar el endpoint directo
+        const response = await api.getTodayAttendance();
+        return response.data?.data || [];
+      } else {
+        // Para otros días, usar el reporte con misma fecha de inicio y fin
+        const response = await api.getWeeklyReport(fechaSeleccionada, fechaSeleccionada);
+        const data = response.data?.data;
+        const rawRegistros = Array.isArray(data) ? data : (data?.registros || []);
+        return rawRegistros.map(r => ({ ...r, email: r.email }));
+      }
     }
   });
 
@@ -51,14 +63,6 @@ function Registros() {
       );
     }
 
-    if (filters.fechaInicio) {
-      filtered = filtered.filter(reg => reg.fecha >= filters.fechaInicio);
-    }
-
-    if (filters.fechaFin) {
-      filtered = filtered.filter(reg => reg.fecha <= filters.fechaFin);
-    }
-
     if (filters.tipo) {
       filtered = filtered.filter(reg => reg.tipo === filters.tipo);
     }
@@ -78,14 +82,14 @@ function Registros() {
   };
 
   const limpiarFiltros = () => {
+    setFechaSeleccionada(today);
     setFilters({
       busqueda: '',
-      fechaInicio: '',
-      fechaFin: '',
       tipo: '',
       evento: ''
     });
   };
+
 
   const verDetalles = (registro) => {
     setRegistroSeleccionado(registro);
@@ -176,18 +180,9 @@ function Registros() {
             <input
               type="date"
               className="form-control"
-              value={filters.fechaInicio}
-              onChange={(e) => handleFilterChange('fechaInicio', e.target.value)}
-              placeholder="Fecha inicio"
-            />
-          </div>
-          <div className="col-md-2">
-            <input
-              type="date"
-              className="form-control"
-              value={filters.fechaFin}
-              onChange={(e) => handleFilterChange('fechaFin', e.target.value)}
-              placeholder="Fecha fin"
+              value={fechaSeleccionada}
+              onChange={(e) => setFechaSeleccionada(e.target.value)}
+              max={today}
             />
           </div>
           <div className="col-md-2">
@@ -213,16 +208,17 @@ function Registros() {
             </select>
           </div>
           <div className="col-md-1">
-            <button className="btn btn-secondary w-100" onClick={limpiarFiltros} title="Limpiar filtros">
-              <i className="bi bi-x-circle"></i>
+            <button className="btn btn-secondary w-100" onClick={limpiarFiltros} title="Volver a hoy">
+              <i className="bi bi-calendar-today"></i>
             </button>
           </div>
         </div>
         <div className="text-muted small">
           <i className="bi bi-info-circle me-1"></i>
-          Mostrando {filteredRegistros.length} de {registros.length} registros
+          {fechaSeleccionada === today ? 'Hoy' : fechaSeleccionada} — {filteredRegistros.length} de {registros.length} registros
         </div>
       </div>
+
 
       {/* Tabla */}
       {loading ? (
@@ -333,7 +329,7 @@ function Registros() {
                   </div>
                   <div className="detalle-item">
                     <span className="detalle-label">Email:</span>
-                    <span className="detalle-value">{registroSeleccionado.correo || registroSeleccionado.email || 'N/A'}</span>
+                    <span className="detalle-value">{registroSeleccionado.email || 'N/A'}</span>
                   </div>
                   <div className="detalle-item">
                     <span className="detalle-label">Tipo de Usuario:</span>

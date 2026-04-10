@@ -103,6 +103,7 @@ class PayrollService {
         const data = doc.data();
         const fechaStr = data.fecha; // Formato: "2025-01-01"
         festivos[fechaStr] = {
+          id: doc.id,
           fecha: data.fecha,
           año: data.año,
           mes: data.mes,
@@ -293,10 +294,15 @@ class PayrollService {
 
   /**
    * Obtener ausencias aprobadas de un período
+   * @param {string} uid - UID del empleado
+   * @param {number} mes - Mes
+   * @param {number} anio - Año
+   * @param {string} periodo - 'primera' o 'segunda'
+   * @param {string} emailFallback - Email para búsqueda en registros históricos
    */
-  static async obtenerAusenciasDelPeriodo(emailEmpleado, mes, anio, periodo) {
+  static async obtenerAusenciasDelPeriodo(uid, mes, anio, periodo, emailFallback = null) {
     try {
-      console.log(`🔄 Buscando ausencias aprobadas para ${emailEmpleado} - ${mes}/${anio} periodo ${periodo}`);
+      console.log(`🔄 Buscando ausencias aprobadas para ${uid || emailFallback} - ${mes}/${anio} periodo ${periodo}`);
       const db = getFirestore();
 
       // Convertir periodo a número
@@ -307,10 +313,10 @@ class PayrollService {
         periodoNumero = 2;
       }
 
-      // Construir query
+      // Construir query - priorizar userId
       const ausenciasRef = db.collection('ausencias');
       let query = ausenciasRef
-        .where('emailUsuario', '==', emailEmpleado)
+        .where('userId', '==', uid)
         .where('estado', '==', 'aprobada')
         .where('quincena.mes', '==', mes)
         .where('quincena.anio', '==', anio);
@@ -320,7 +326,22 @@ class PayrollService {
         query = query.where('quincena.periodo', '==', periodoNumero);
       }
 
-      const snapshot = await query.get();
+      let snapshot = await query.get();
+
+      // Si no hay resultados por userId, intentar por email (compatibilidad histórica)
+      if (snapshot.empty && emailFallback) {
+        console.log(`ℹ️ No se hallaron ausencias por UID, intentando por email: ${emailFallback}`);
+        let emailQuery = ausenciasRef
+          .where('emailUsuario', '==', emailFallback)
+          .where('estado', '==', 'aprobada')
+          .where('quincena.mes', '==', mes)
+          .where('quincena.anio', '==', anio);
+        
+        if (periodoNumero !== null) {
+          emailQuery = emailQuery.where('quincena.periodo', '==', periodoNumero);
+        }
+        snapshot = await emailQuery.get();
+      }
       const ausencias = [];
 
       snapshot.forEach(doc => {
@@ -348,10 +369,13 @@ class PayrollService {
       'incapacidad': { campo: 'incapacidad', nombre: 'Incapacidad' },
       'viaje_negocios': { campo: 'viaje', nombre: 'Viaje de negocios' },
       'permiso': { campo: 'vacaciones', nombre: 'Permiso' },
+      'permiso_con_goce': { campo: 'vacaciones', nombre: 'Permiso con Goce' },
+      'permiso_sin_goce': { campo: 'vacaciones', nombre: 'Permiso sin Goce' },
       'justificante': { campo: 'incapacidad', nombre: 'Justificante médico' },
+      'falta_justificada': { campo: 'incapacidad', nombre: 'Falta Justificada' },
       'retardo_justificado': { campo: null, nombre: 'Retardo justificado' }
     };
-    return mapeo[tipo] || null;
+    return mapeo[tipo] || { campo: null, nombre: tipo };
   }
 
   /**
@@ -409,8 +433,8 @@ class PayrollService {
           // Obtener registros de asistencia
           const registros = await this.getAttendanceRecords(empleado.uid, mes, anio, periodo);
 
-          // Obtener ausencias aprobadas
-          const ausenciasEmpleado = await this.obtenerAusenciasDelPeriodo(empleado.email, mes, anio, periodo);
+          // Obtener ausencias aprobadas (ahora usamos UID)
+          const ausenciasEmpleado = await this.obtenerAusenciasDelPeriodo(empleado.uid, mes, anio, periodo, empleado.email);
 
           const salarioBase = empleado.salarioQuincenal;
           // ✅ PAGO POR DÍA SIEMPRE FIJO dividido entre 10 (o 5 para semanal)
@@ -431,20 +455,16 @@ class PayrollService {
             if (diasLaborales.includes(regDia)) {
               diasAsistidosSet.add(regDia);
 
-              // Agrupar por día para contar retardos (solo el primer registro del día cuenta)
-              if (!registrosPorDia[regDia]) {
-                registrosPorDia[regDia] = registro;
-
-                // Solo contar retardos NO corregidos por ausencias (primer registro del día)
-                if (registro.estado === 'retardo' && !registro.corregidoPorAusencia) {
-                  retardos++;
-                  detalleRetardos.push({
-                    fecha: registro.fecha,
-                    hora: registro.hora
-                  });
-                } else if (registro.estado === 'retardo' && registro.corregidoPorAusencia) {
-                  retardosCorregidos++;
-                }
+              // Lógica corregida: solo contar retardos de registros de tipo 'entrada'
+              if (registro.tipoEvento === 'entrada' && registro.estado === 'retardo' && !registro.corregidoPorAusencia) {
+                retardos++;
+                detalleRetardos.push({
+                  fecha: registro.fecha,
+                  hora: registro.hora,
+                  estado: registro.estado
+                });
+              } else if (registro.tipoEvento === 'entrada' && registro.estado === 'retardo' && registro.corregidoPorAusencia) {
+                retardosCorregidos++;
               }
             }
           });
@@ -462,25 +482,31 @@ class PayrollService {
 
           ausenciasEmpleado.forEach(ausencia => {
             const dias = ausencia.diasJustificados || 0;
-            if (dias > 0) {
+            // Incluir cualquier justificación que no sea 0 (positivos son con goce, negativos sin goce)
+            if (dias !== 0) {
               const mapeo = this.mapearTipoAusenciaANomina(ausencia.tipo);
 
-              // Si es retardo justificado, NO cuenta para días trabajados
+              // Si es retardo justificado, NO cuenta para días trabajados completos
               if (ausencia.tipo !== 'retardo_justificado') {
-                diasJustificadosTotal += dias;
-                diasJustificadosCompletos += dias;
+                // Solo sumar a los días pagados SI es mayor a 0 (con goce de sueldo)
+                if (dias > 0) {
+                  diasJustificadosTotal += dias;
+                  diasJustificadosCompletos += dias;
+                }
+                // Si es negativo (sin goce), no suma a pago pero justifica la falta visualmente
               }
 
               justificacionesDetalle.push({
                 tipo: ausencia.tipo,
-                dias: dias,
+                dias: Math.abs(dias),
+                sinGoce: dias < 0,
                 motivo: ausencia.motivo,
                 nombreTipo: mapeo ? mapeo.nombre : ausencia.tipo,
                 fechaInicio: ausencia.fechaInicio,
                 fechaFin: ausencia.fechaFin
               });
 
-              console.log(`✅ ${empleado.nombre}: +${dias} días por ${mapeo?.nombre || ausencia.tipo}`);
+              console.log(`✅ ${empleado.nombre}: ${dias > 0 ? '+' : ''}${dias} días por ${mapeo?.nombre || ausencia.tipo}`);
             }
           });
 
@@ -876,12 +902,10 @@ class PayrollService {
         const [, , regDia] = registro.fecha.split('-').map(Number);
         if (diasLaborales.includes(regDia)) {
           diasAsistidosSet.add(regDia);
-          if (!registrosPorDia[regDia]) {
-            registrosPorDia[regDia] = registro;
-            if (registro.estado === 'retardo' && !registro.corregidoPorAusencia) {
-              retardos++;
-              detalleRetardos.push({ fecha: registro.fecha, hora: registro.hora });
-            }
+          // Solo contar retardos de registros de tipo 'entrada'
+          if (registro.tipoEvento === 'entrada' && registro.estado === 'retardo' && !registro.corregidoPorAusencia) {
+            retardos++;
+            detalleRetardos.push({ fecha: registro.fecha, hora: registro.hora });
           }
         }
       });

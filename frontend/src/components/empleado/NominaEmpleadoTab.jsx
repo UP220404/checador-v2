@@ -320,12 +320,19 @@ function NominaEmpleadoTab({ userData, mostrarMensaje }) {
               </div>
             </div>
           </div>
-          ${resultado.justificacionesDetalle&&resultado.justificacionesDetalle.length>0?`
+          ${(resultado.justificacionesDetalle && resultado.justificacionesDetalle.length > 0) || (resultado.detalleRetardos && resultado.detalleRetardos.length > 0) ? `
             <div style="margin-top:12px;padding:10px;background:#f8f9fa;border-left:2px solid #17a2b8;border-radius:4px;">
-              <div style="font-weight:600;color:#17a2b8;margin-bottom:5px;font-size:10px;">JUSTIFICACIONES:</div>
-              ${resultado.justificacionesDetalle.map(j=>`<p style="margin:0 0 3px 0;color:#495057;font-size:9px;line-height:1.3;">- ${j.nombreTipo||j.tipo}: ${j.dias} dia(s) ${j.motivo?`(${j.motivo})`:''}</p>`).join('')}
+              ${resultado.detalleRetardos && resultado.detalleRetardos.length > 0 ? `
+                <div style="font-weight:600;color:#856404;margin-bottom:5px;font-size:10px;">DETALLE DE RETARDOS:</div>
+                ${resultado.detalleRetardos.map(r => `<p style="margin:0 0 3px 0;color:#495057;font-size:9px;line-height:1.3;">- ${r.fecha}: ${r.hora}</p>`).join('')}
+                <div style="margin-top:5px;margin-bottom:10px;border-bottom:1px solid #ddd;"></div>
+              ` : ''}
+              ${resultado.justificacionesDetalle && resultado.justificacionesDetalle.length > 0 ? `
+                <div style="font-weight:600;color:#17a2b8;margin-bottom:5px;font-size:10px;">JUSTIFICACIONES:</div>
+                ${resultado.justificacionesDetalle.map(j => `<p style="margin:0 0 3px 0;color:#495057;font-size:9px;line-height:1.3;">- ${j.nombreTipo || j.tipo}: ${j.dias} dia(s) ${j.motivo ? `(${j.motivo})` : ''}</p>`).join('')}
+              ` : ''}
             </div>
-          `:''}
+          ` : ''}
         </div>
         <div style="background:linear-gradient(135deg,#0f5132 0%,#198754 100%);color:white;padding:18px 25px;text-align:center;margin-top:10px;">
           <div style="margin-bottom:8px;">

@@ -68,6 +68,9 @@ router.put('/:uid/admin-profile', adminMiddleware, UserController.updateProfileB
 // RUTAS PARA ADMINISTRADORES
 // ============================================
 
+// GET /api/v1/users/vacaciones-panel - Panel de vacaciones (solo admin_rh)
+router.get('/vacaciones-panel', adminRHMiddleware, UserController.getAllVacacionesSummary);
+
 // GET /api/v1/users - Listar usuarios (admin_rh ve todos, admin_area ve su departamento)
 router.get('/', adminAreaOrRHMiddleware, UserController.getAllUsers);
 
@@ -91,6 +94,9 @@ router.put('/:uid/payroll-config', adminMiddleware, UserController.updatePayroll
 
 // PUT /api/v1/users/:uid/role - Cambiar rol de usuario (solo admin_rh)
 router.put('/:uid/role', adminRHMiddleware, UserController.updateUserRole);
+
+// PATCH /api/v1/users/:uid/deactivate - Dar de baja empleado con motivo (solo admin_rh)
+router.patch('/:uid/deactivate', adminRHMiddleware, UserController.deactivateUser);
 
 // POST /api/v1/users/:uid/initialize-contract - Inicializar contrato (solo admin_rh)
 router.post('/:uid/initialize-contract', adminRHMiddleware, ContractEvaluationController.initializeContract);

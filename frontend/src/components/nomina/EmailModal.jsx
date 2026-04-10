@@ -27,7 +27,7 @@ export default function EmailModal({
       // Seleccionar todos los empleados con email válido por defecto
       const empleadosConEmail = nominasCalculadas.filter(nomina => {
         const empleado = nomina.empleado || {};
-        const email = empleado.email || empleado.correo;
+        const email = empleado.email;
         return email && email.includes('@');
       });
       setSelectedEmployees(empleadosConEmail.map(n => n.empleado.uid || n.uid));
@@ -41,7 +41,7 @@ export default function EmailModal({
       const empleadosConEmail = nominasCalculadas
         .filter(nomina => {
           const empleado = nomina.empleado || {};
-          const email = empleado.email || empleado.correo;
+          const email = empleado.email;
           return email && email.includes('@');
         })
         .map(n => n.empleado.uid || n.uid);
@@ -194,7 +194,7 @@ export default function EmailModal({
                 <div className="list-group">
                   {nominasCalculadas.map((nomina, index) => {
                     const empleado = nomina.empleado || {};
-                    const email = empleado.email || empleado.correo;
+                    const email = empleado.email;
                     const uid = empleado.uid || nomina.uid || index;
                     const tieneEmail = email && email.includes('@');
                     const isSelected = selectedEmployees.includes(uid);

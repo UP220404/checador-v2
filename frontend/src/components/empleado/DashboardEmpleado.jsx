@@ -122,9 +122,12 @@ function DashboardEmpleado({ userData, attendanceSummary, saldoVacaciones, unrea
               })}
             </p>
           </div>
-          <button className="btn-mini-action" onClick={() => window.location.href = '/'}>
-            <i className="bi bi-qr-code-scan me-1"></i> Ir al Checador
-          </button>
+          <div className="header-actions-group">
+            {todayRecord?.retardo && <span className="badge-retardo-fix-unique">RETARDO</span>}
+            <button className="btn-mini-action" onClick={() => window.location.href = '/'}>
+              <i className="bi bi-qr-code-scan me-1"></i> Ir al Checador
+            </button>
+          </div>
         </div>
         
         <div className="status-main">
@@ -134,7 +137,6 @@ function DashboardEmpleado({ userData, attendanceSummary, saldoVacaciones, unrea
               <span className={`status-value ${todayRecord?.entrada ? 'recorded' : 'pending'}`}>
                 {loading ? '...' : (todayRecord?.entrada || '--:--')}
               </span>
-              {todayRecord?.retardo && <span className="status-badge retardo">Retardo</span>}
             </div>
           </div>
           

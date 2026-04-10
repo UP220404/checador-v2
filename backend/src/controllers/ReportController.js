@@ -189,12 +189,13 @@ class ReportController {
    */
   async exportAttendanceExcel(req, res) {
     try {
-      const { fechaInicio, fechaFin } = req.query;
+      const fechaInicio = req.query.fechaInicio || req.query.startDate;
+      const fechaFin = req.query.fechaFin || req.query.endDate;
 
       if (!fechaInicio || !fechaFin) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
-          message: 'Se requieren los parámetros fechaInicio y fechaFin'
+          message: 'Se requieren los parámetros de fecha (fechaInicio/fechaFin o startDate/endDate)'
         });
       }
 
@@ -205,6 +206,37 @@ class ReportController {
       res.send(buffer);
     } catch (error) {
       console.error('Error en exportAttendanceExcel:', error);
+      res.status(HTTP_STATUS.INTERNAL_ERROR).json({
+        success: false,
+        message: error.message || ERROR_MESSAGES.GENERAL.INTERNAL_ERROR
+      });
+    }
+  }
+
+  /**
+   * GET /api/v1/reports/export/attendance-pdf
+   * Exportar reporte de asistencias a PDF
+   * Query params: fechaInicio, fechaFin
+   */
+  async exportAttendancePDF(req, res) {
+    try {
+      const fechaInicio = req.query.fechaInicio || req.query.startDate;
+      const fechaFin = req.query.fechaFin || req.query.endDate;
+
+      if (!fechaInicio || !fechaFin) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          message: 'Se requieren los parámetros de fecha (fechaInicio/fechaFin o startDate/endDate)'
+        });
+      }
+
+      const buffer = await ReportService.exportAttendanceToPDF(fechaInicio, fechaFin);
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=asistencias_${fechaInicio}_${fechaFin}.pdf`);
+      res.send(buffer);
+    } catch (error) {
+      console.error('Error en exportAttendancePDF:', error);
       res.status(HTTP_STATUS.INTERNAL_ERROR).json({
         success: false,
         message: error.message || ERROR_MESSAGES.GENERAL.INTERNAL_ERROR

@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import cron from 'node-cron';
 import app from './app.js';
 import ContractEvaluationService from './services/ContractEvaluationService.js';
+import NotificationService from './services/NotificationService.js';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -38,11 +39,19 @@ cron.schedule('0 8 * * *', async () => {
   } catch (error) {
     console.error('❌ [CRON] Error verificando contratos por vencer:', error);
   }
+
+  // Verificar y notificar cumpleaños
+  try {
+    const result = await NotificationService.checkAndNotifyBirthdays();
+    console.log(`🎂 [CRON] Cumpleaños verificados. ${result.cumpleaneros} cumpleañeros, ${result.notificacionesEnviadas} notificaciones enviadas.`);
+  } catch (error) {
+    console.error('❌ [CRON] Error verificando cumpleaños:', error);
+  }
 }, {
   timezone: 'America/Mexico_City'
 });
 
-console.log('📅 Cron job configurado: Verificación de evaluaciones de contrato (8:00 AM diario)');
+console.log('📅 Cron job configurado: Verificación de evaluaciones, contratos y cumpleaños (8:00 AM diario)');
 
 // Iniciar servidor
 const server = app.listen(PORT, () => {

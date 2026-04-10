@@ -16,8 +16,10 @@ function MarketingCarousel() {
   const [formData, setFormData] = useState({
     titulo: '',
     tipo: 'indefinido',
-    fechaExpiracion: '',
-    duracion: 10,
+    fechaInicioDate: '',
+    fechaInicioHora: '09:00',
+    fechaFinDate: '',
+    fechaFinHora: '23:59',
     duracion: 10,
     foto: null
   });
@@ -101,7 +103,22 @@ function MarketingCarousel() {
         const cy = (croppedArea.y + croppedArea.height / 2).toFixed(1);
         objectPosition = `${cx}% ${cy}%`;
       }
-      const dataParaSubir = { ...formData, objectPosition };
+
+      // Combinar fecha + hora en ISO strings
+      let fechaInicio = null;
+      let fechaExpiracion = null;
+      if (formData.tipo === 'fecha_especifica') {
+        if (!formData.fechaFinDate) {
+          setUploading(false);
+          return Swal.fire('Error', 'Debes indicar la fecha y hora de fin', 'error');
+        }
+        if (formData.fechaInicioDate) {
+          fechaInicio = new Date(`${formData.fechaInicioDate}T${formData.fechaInicioHora || '00:00'}:00`).toISOString();
+        }
+        fechaExpiracion = new Date(`${formData.fechaFinDate}T${formData.fechaFinHora || '23:59'}:00`).toISOString();
+      }
+
+      const dataParaSubir = { ...formData, objectPosition, fechaInicio, fechaExpiracion };
 
       let resp;
       if (editingId) {
@@ -130,10 +147,23 @@ function MarketingCarousel() {
 
   const handleEdit = (img) => {
     setEditingId(img.id);
+    // Parsear fechas ISO de regreso a partes separadas
+    const parseDateTime = (iso) => {
+      if (!iso) return { date: '', time: '' };
+      const d = new Date(iso);
+      const date = d.toLocaleDateString('en-CA'); // YYYY-MM-DD
+      const time = d.toTimeString().slice(0, 5);   // HH:MM
+      return { date, time };
+    };
+    const inicio = parseDateTime(img.fechaInicio);
+    const fin    = parseDateTime(img.fechaExpiracion);
     setFormData({
       titulo: img.titulo || '',
       tipo: img.tipo || 'indefinido',
-      fechaExpiracion: img.fechaExpiracion ? img.fechaExpiracion.split('T')[0] : '',
+      fechaInicioDate: inicio.date,
+      fechaInicioHora: inicio.time || '09:00',
+      fechaFinDate: fin.date,
+      fechaFinHora: fin.time || '23:59',
       duracion: img.duracion || 10,
       foto: null 
     });
@@ -178,7 +208,10 @@ function MarketingCarousel() {
     setFormData({
       titulo: '',
       tipo: 'indefinido',
-      fechaExpiracion: '',
+      fechaInicioDate: '',
+      fechaInicioHora: '09:00',
+      fechaFinDate: '',
+      fechaFinHora: '23:59',
       duracion: 10,
       foto: null
     });
@@ -189,11 +222,25 @@ function MarketingCarousel() {
     setCroppedArea(null);
   };
 
-  const isExpired = (dateStr) => {
-    if (!dateStr) return false;
-    const exp = new Date(dateStr);
-    exp.setHours(23, 59, 59, 999);
-    return new Date() > exp;
+  const isExpired = (fechaExpiracion) => {
+    if (!fechaExpiracion) return false;
+    return new Date() > new Date(fechaExpiracion);
+  };
+
+  const isActive = (img) => {
+    if (img.tipo === 'indefinido') return true;
+    const now = new Date();
+    if (img.fechaExpiracion && now > new Date(img.fechaExpiracion)) return false;
+    if (img.fechaInicio && now < new Date(img.fechaInicio)) return false;
+    return true;
+  };
+
+  const formatDatetime = (iso) => {
+    if (!iso) return null;
+    return new Date(iso).toLocaleString('es-MX', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: true
+    });
   };
 
   const nowTime = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -289,16 +336,22 @@ function MarketingCarousel() {
                   <div className="marketing-card-content">
                     <div className="d-flex justify-content-between align-items-start mb-2">
                        <h3 className="h5 fw-bold mb-0 text-truncate" style={{ maxWidth: '70%' }}>{img.titulo || 'Sin título'}</h3>
-                       <span className={`status-pill ${expired ? 'status-pill-expired' : 'status-pill-active'}`}>
-                         <i className={`bi bi-${expired ? 'x-circle' : 'check-circle'}`}></i>
-                         {expired ? 'Expirada' : 'Activa'}
+                       <span className={`status-pill ${!isActive(img) ? 'status-pill-expired' : 'status-pill-active'}`}>
+                         <i className={`bi bi-${!isActive(img) ? 'x-circle' : 'check-circle'}`}></i>
+                         {!isActive(img) ? 'Inactiva' : 'Activa'}
                        </span>
                     </div>
                     <div className="small text-muted mb-0">
                       <i className="bi bi-person me-1"></i> {img.subidoPorNombre}
                     </div>
                     <div className="small text-muted">
-                      <i className="bi bi-calendar3 me-1"></i> {img.tipo === 'indefinido' ? 'Visibilidad Indefinida' : `Expira el ${img.fechaExpiracion}`}
+                      <i className="bi bi-calendar3 me-1"></i>
+                      {img.tipo === 'indefinido'
+                        ? 'Visibilidad Indefinida'
+                        : img.fechaInicio
+                          ? `${formatDatetime(img.fechaInicio)} – ${formatDatetime(img.fechaExpiracion)}`
+                          : `Expira el ${formatDatetime(img.fechaExpiracion)}`
+                      }
                     </div>
                     <div className="small text-primary fw-bold mt-1">
                       <i className="bi bi-stopwatch me-1"></i> Mantiene {img.duracion || 10} seg. en pantalla
@@ -376,15 +429,52 @@ function MarketingCarousel() {
 
                         {formData.tipo === 'fecha_especifica' && (
                           <div className="mb-4 animate__animated animate__fadeIn">
-                            <label className="form-label fw-bold small text-uppercase tracking-wider">Fecha de retiro</label>
-                            <input 
-                              type="date" 
-                              className="form-control premium-input"
-                              value={formData.fechaExpiracion}
-                              onChange={(e) => setFormData({ ...formData, fechaExpiracion: e.target.value })}
-                              min={new Date().toISOString().split('T')[0]}
-                              required
-                            />
+                            <label className="form-label fw-bold small text-uppercase tracking-wider">Rango de Visibilidad</label>
+                            <div className="row g-2">
+                              <div className="col-6">
+                                <label className="form-label small text-muted mb-1">Fecha inicio</label>
+                                <input
+                                  type="date"
+                                  className="form-control premium-input"
+                                  value={formData.fechaInicioDate}
+                                  onChange={(e) => setFormData({ ...formData, fechaInicioDate: e.target.value })}
+                                />
+                              </div>
+                              <div className="col-6">
+                                <label className="form-label small text-muted mb-1">Hora inicio</label>
+                                <input
+                                  type="time"
+                                  className="form-control premium-input"
+                                  value={formData.fechaInicioHora}
+                                  onChange={(e) => setFormData({ ...formData, fechaInicioHora: e.target.value })}
+                                />
+                              </div>
+                              <div className="col-6">
+                                <label className="form-label small text-muted mb-1">Fecha fin <span className="text-danger">*</span></label>
+                                <input
+                                  type="date"
+                                  className="form-control premium-input"
+                                  value={formData.fechaFinDate}
+                                  onChange={(e) => setFormData({ ...formData, fechaFinDate: e.target.value })}
+                                  min={new Date().toISOString().split('T')[0]}
+                                  required
+                                />
+                              </div>
+                              <div className="col-6">
+                                <label className="form-label small text-muted mb-1">Hora fin <span className="text-danger">*</span></label>
+                                <input
+                                  type="time"
+                                  className="form-control premium-input"
+                                  value={formData.fechaFinHora}
+                                  onChange={(e) => setFormData({ ...formData, fechaFinHora: e.target.value })}
+                                  required
+                                />
+                              </div>
+                            </div>
+                            <small className="text-muted d-block mt-1">
+                              <i className="bi bi-info-circle me-1"></i>
+                              La imagen solo será visible entre la hora de inicio y la hora de fin.
+                            </small>
                           </div>
                         )}
 

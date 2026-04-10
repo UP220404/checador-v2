@@ -95,7 +95,7 @@ function Usuarios() {
   const usuariosFiltrados = usuarios.filter(u => {
     const matchBusqueda = !busqueda ||
       u.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
-      (u.correo || u.email)?.toLowerCase().includes(busqueda.toLowerCase());
+      (u.email)?.toLowerCase().includes(busqueda.toLowerCase());
     const matchRol = !filtroRol || u.role === filtroRol;
     const matchDepto = !filtroDepartamento || u.departamento === filtroDepartamento;
     const matchEstado = filtroEstado === '' ||
@@ -155,7 +155,7 @@ function Usuarios() {
     setUsuarioSeleccionado(usuario);
     setFormData({
       nombre: usuario.nombre || '',
-      email: usuario.correo || usuario.email || '',
+      email: usuario.email || '',
       role: usuario.role || ROLES.EMPLEADO,
       activo: usuario.activo !== false,
       telefono: usuario.telefono || '',
@@ -273,7 +273,7 @@ function Usuarios() {
         departamento: userData.departamento || userData.area || usuario.departamento || usuario.area || '',
         puesto: userData.puesto || userData.cargo || usuario.puesto || usuario.cargo || '',
         fechaIngreso: userData.fechaIngreso || userData.ingreso || usuario.fechaIngreso || usuario.ingreso || '',
-        correo: userData.correo || userData.email || usuario.correo || usuario.email || ''
+        correo: userData.email || userData.email || usuario.email || ''
       };
 
       // Si es admin, intentar traer también la configuración de nómina para el expediente
@@ -669,7 +669,7 @@ function Usuarios() {
                           </div>
                           <div className="info-slide-content">
                             <span className="info-slide-label">Email</span>
-                            <span className="info-slide-value info-email">{usuario.correo || usuario.email}</span>
+                            <span className="info-slide-value info-email">{usuario.email}</span>
                           </div>
                         </div>
                         {usuario.fechaIngreso && (
@@ -728,7 +728,7 @@ function Usuarios() {
                           {isAdminRH && (
                             <button
                               className="btn btn-outline-success"
-                              onClick={() => toggleEstado(usuario.id, false, usuario.nombre, usuario.correo || usuario.email)}
+                              onClick={() => toggleEstado(usuario.id, false, usuario.nombre, usuario.email)}
                               title="Reactivar"
                             >
                               <i className="bi bi-person-plus-fill"></i>
@@ -748,7 +748,7 @@ function Usuarios() {
                           {isAdminRH && (
                             <button
                               className={`btn ${usuario.activo !== false ? 'btn-outline-warning' : 'btn-outline-success'}`}
-                              onClick={() => toggleEstado(usuario.id, usuario.activo !== false, usuario.nombre, usuario.correo || usuario.email)}
+                              onClick={() => toggleEstado(usuario.id, usuario.activo !== false, usuario.nombre, usuario.email)}
                               title={usuario.activo !== false ? 'Desactivar/Baja' : 'Reactivar'}
                             >
                               <i className={`bi ${usuario.activo !== false ? 'bi-person-dash-fill' : 'bi-person-plus-fill'}`}></i>
@@ -794,7 +794,7 @@ function Usuarios() {
                             <small className="d-block text-muted">{usuario.puesto}</small>
                           )}
                         </td>
-                        <td>{usuario.correo || usuario.email}</td>
+                        <td>{usuario.email}</td>
                         <td>
                           <span className={`badge bg-${getRoleColor(usuario.role)} bg-opacity-10 text-${getRoleColor(usuario.role)}`}>
                             {getRoleLabel(usuario.role)}
@@ -820,7 +820,7 @@ function Usuarios() {
                               <>
                                 <button
                                   className={`btn btn-sm ${usuario.activo !== false ? 'btn-outline-warning' : 'btn-outline-success'}`}
-                                  onClick={() => toggleEstado(usuario.id, usuario.activo !== false, usuario.nombre, usuario.correo || usuario.email)}
+                                  onClick={() => toggleEstado(usuario.id, usuario.activo !== false, usuario.nombre, usuario.email)}
                                   title={usuario.activo !== false ? 'Dar de Baja' : 'Reactivar'}
                                 >
                                   <i className={`bi ${usuario.activo !== false ? 'bi-person-dash' : 'bi-person-plus'}`}></i>
@@ -889,9 +889,21 @@ function Usuarios() {
                         value={formData.email}
                         onChange={(e) => handleFormChange('email', e.target.value)}
                         placeholder="usuario@empresa.com"
-                        disabled={modoEdicion}
+                        disabled={isAdminArea && modoEdicion}
                       />
                     </div>
+                    {modoEdicion && (
+                      <div className="col-md-12 mt-2">
+                        <label className="form-label text-muted mb-1" style={{ fontSize: '0.85rem' }}>
+                          <i className="bi bi-fingerprint me-1"></i> ID del Empleado (UID)
+                        </label>
+                        <div className="d-flex align-items-center gap-2">
+                          <code className="bg-light p-2 rounded text-secondary border flex-grow-1" style={{ userSelect: 'all' }}>
+                            {usuarioSeleccionado?.uid || usuarioSeleccionado?.id}
+                          </code>
+                        </div>
+                      </div>
+                    )}
                     <div className="col-md-6">
                       <label className="form-label">Telefono</label>
                       <input
@@ -1452,7 +1464,7 @@ function Usuarios() {
                             <div className="row g-4 ps-2">
                               <div className="col-4">
                                 <small className="text-muted d-block">Correo Electrónico</small>
-                                <strong className="text-dark text-break">{(expedienteUsuario?.correo || expedienteUsuario?.email || '').trim() || '-'}</strong>
+                                <strong className="text-dark text-break">{(expedienteUsuario?.email || '').trim() || '-'}</strong>
                               </div>
                               <div className="col-4">
                                 <small className="text-muted d-block">Teléfono Celular</small>

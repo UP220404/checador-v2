@@ -529,8 +529,11 @@ class NotificationService {
 
       let enviadas = 0;
 
+      // Obtener todos los admin_rh para notificarles
+      const adminsRH = todos.filter(u => u.role === ROLES.ADMIN_RH);
+
       for (const cumple of cumpleaneros) {
-        // Notificar al propio empleado
+        // 1. Notificar al propio empleado
         try {
           await this.notifyCumpleanos(
             cumple.uid,
@@ -543,21 +546,29 @@ class NotificationService {
           console.error(`Error notificando cumpleaños propio a ${cumple.uid}:`, e);
         }
 
-        // Notificar a todos los demás
-        for (const companero of todos) {
-          if (companero.uid === cumple.uid) continue;
+        // 2. Notificar a RH
+        for (const admin of adminsRH) {
+          if (admin.uid === cumple.uid) continue; // No notificar como "compañero" si el admin es el cumpleañero
           try {
             await this.notifyCumpleanos(
-              companero.uid,
-              companero.correo || companero.email,
+              admin.uid,
+              admin.correo || admin.email,
               cumple.nombre,
               false
             );
             enviadas++;
           } catch (e) {
-            console.error(`Error notificando cumpleaños a compañero ${companero.uid}:`, e);
+            console.error(`Error notificando cumpleaños a RH ${admin.uid}:`, e);
           }
         }
+
+        // 3. (Opcional) Notificar a compañeros (Se puede habilitar si se desea ruido global)
+        /*
+        for (const companero of todos) {
+          if (companero.uid === cumple.uid || companero.role === ROLES.ADMIN_RH) continue;
+          // ... resto de lógica si se desea
+        }
+        */
       }
 
       return { cumpleaneros: cumpleaneros.length, notificacionesEnviadas: enviadas };

@@ -23,15 +23,18 @@ function HistorialMejorado({ userData, attendanceSummary }) {
     fechaInicio: '',
     fechaFin: ''
   });
+  const [festivos, setFestivos] = useState([]);
 
   // Efecto para cargar historial según el modo y la semana
   useEffect(() => {
     if (userData) {
       if (viewMode === 'calendar') {
         cargarHistorialMes(currentMonth.year, currentMonth.month);
+        cargarFestivos(currentMonth.year);
       } else if (viewMode === 'list') {
         const { start, end } = getWeekDates(weekOffset);
         cargarHistorialSemana(start, end);
+        cargarFestivos(new Date(start).getFullYear());
       }
     }
   }, [userData, currentMonth, viewMode, weekOffset]);
@@ -97,20 +100,61 @@ function HistorialMejorado({ userData, attendanceSummary }) {
       const lastDay = new Date(year, month + 1, 0).getDate();
       const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-      const response = await api.getAttendanceRecords({
-        userId: userData.uid,
-        limit: 100,
-        startDate,
-        endDate
-      });
+      // Cargar asistencia y ausencias aprobadas en paralelo
+      const [resAsistencia, resAusencias] = await Promise.all([
+        api.getAttendanceRecords({ userId: userData.uid, limit: 100, startDate, endDate }),
+        api.getMyAbsenceRequests()
+      ]);
 
-      if (response.data.success) {
-        setHistorial(response.data.data || []);
+      if (resAsistencia.data.success) {
+        let records = resAsistencia.data.data || [];
+        
+        // Filtrar ausencias aprobadas que caen en este mes
+        if (resAusencias.data.success) {
+          const aprobadas = (resAusencias.data.data || []).filter(a => 
+            (a.estado === 'aprobado' || a.estado === 'aprobada') &&
+            !(a.fechaInicio > endDate || a.fechaFin < startDate)
+          );
+          
+          // Inyectar ausencias aprobadas como tipos virtuales si no hay registro manual
+          aprobadas.forEach(ausencia => {
+            // Expandir rango de fechas
+            let current = new Date(ausencia.fechaInicio + 'T00:00:00');
+            const end = new Date((ausencia.fechaFin || ausencia.fechaInicio) + 'T00:00:00');
+            
+            while (current <= end) {
+              const dateStr = current.toISOString().split('T')[0];
+              // Solo agregar si no hay ya un registro de asistencia real para ese dia
+              if (!records.some(r => r.fecha === dateStr) && dateStr >= startDate && dateStr <= endDate) {
+                records.push({
+                  fecha: dateStr,
+                  tipoEvento: 'justificada',
+                  tipoAusencia: ausencia.tipo,
+                  virtual: true
+                });
+              }
+              current.setDate(current.getDate() + 1);
+            }
+          });
+        }
+        
+        setHistorial(records);
       }
     } catch (error) {
       console.error('Error cargando historial mensual:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const cargarFestivos = async (year) => {
+    try {
+      const response = await api.getHolidays(year);
+      if (response.data.success) {
+        setFestivos(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Error cargando festivos:', error);
     }
   };
 
@@ -127,13 +171,17 @@ function HistorialMejorado({ userData, attendanceSummary }) {
   // Agrupar registros por dia
   const registrosAgrupados = historial.reduce((acc, reg) => {
     if (!acc[reg.fecha]) {
-      acc[reg.fecha] = { entrada: null, salida: null, retardo: false };
+      acc[reg.fecha] = { entrada: null, salida: null, retardo: false, justificada: false, esVacacion: false, tipoAusencia: null };
     }
     if (reg.tipoEvento === 'entrada') {
       acc[reg.fecha].entrada = reg.hora;
       acc[reg.fecha].retardo = reg.estado === 'retardo';
     } else if (reg.tipoEvento === 'salida') {
       acc[reg.fecha].salida = reg.hora;
+    } else if (reg.tipoEvento === 'justificada') {
+      acc[reg.fecha].justificada = true;
+      acc[reg.fecha].tipoAusencia = reg.tipoAusencia;
+      acc[reg.fecha].esVacacion = reg.tipoAusencia === 'vacaciones';
     }
     return acc;
   }, {});
@@ -177,9 +225,16 @@ function HistorialMejorado({ userData, attendanceSummary }) {
       const isFuture = dateObj > today;
       const isToday = dateObj.getTime() === today.getTime();
 
+      const isHoliday = festivos.find(f => f.fecha === dateStr);
+      const holidayName = isHoliday ? isHoliday.nombre : null;
+
       let status = 'no-record';
-      if (isFuture) status = 'future';
+      // Vacaciones y festivos tienen prioridad absoluta, incluso si el día es futuro
+      if (record?.esVacacion) status = 'vacation';
+      else if (isHoliday) status = 'holiday';
+      else if (isFuture) status = 'future';
       else if (isWeekend && !record) status = 'weekend';
+      else if (record?.justificada) status = 'justified';
       else if (record?.retardo) status = 'late';
       else if (record?.entrada && record?.salida) status = 'complete';
       else if (record?.entrada) status = 'partial';
@@ -191,7 +246,9 @@ function HistorialMejorado({ userData, attendanceSummary }) {
         status,
         isToday,
         isWeekend,
-        isFuture
+        isFuture,
+        isHoliday: !!isHoliday,
+        holidayName
       });
     }
 
@@ -214,11 +271,40 @@ function HistorialMejorado({ userData, attendanceSummary }) {
         const dateObj = new Date(year, month, d);
         if (dateObj > today) continue;
         if (dateObj.getDay() === 0 || dateObj.getDay() === 6) continue;
+        
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        
+        // No contar como falta si es un dia festivo
+        const isHoliday = festivos.some(f => f.fecha === dateStr);
+        if (isHoliday) continue;
+
+        // No contar como falta si está justificada (incluyendo vacaciones)
+        if (registrosAgrupados[dateStr]?.justificada) continue;
+
         if (!registrosAgrupados[dateStr]) count++;
       }
       return count;
+    })(),
+    vacaciones: Object.values(registrosAgrupados).filter(r => r.esVacacion).length,
+    justificados: Object.values(registrosAgrupados).filter(r => r.justificada && !r.esVacacion).length,
+    festivos: (() => {
+      const { year, month } = currentMonth;
+      const monthStr = String(month + 1).padStart(2, '0');
+      const yearStr = String(year);
+      return festivos.filter(f => f.fecha.startsWith(`${yearStr}-${monthStr}`)).length;
     })()
+  };
+
+  const getStatusLabelText = (status) => {
+    switch (status) {
+      case 'holiday': return 'FESTIVO';
+      case 'late': return 'RETARDO';
+      case 'complete': return 'PUNTUAL';
+      case 'vacation': return 'VACACIONES';
+      case 'justified': return 'JUSTIFICANTE';
+      case 'partial': return 'INCOMPLETO';
+      default: return '';
+    }
   };
 
   return (
@@ -323,7 +409,9 @@ function HistorialMejorado({ userData, attendanceSummary }) {
                     key={idx}
                     className={`calendar-cell ${dayData.status || ''} ${dayData.isToday ? 'is-today' : ''} ${selectedDay === dayData.dateStr ? 'is-selected' : ''} ${dayData.type === 'padding' ? 'is-padding' : ''}`}
                     onClick={() => {
-                      if (dayData.day && !dayData.isFuture && dayData.status !== 'weekend') {
+                      // Cualquier dia real (no padding, no fin de semana sin nada) es clickeable
+                      const isClickable = dayData.day && dayData.type !== 'padding' && dayData.status !== 'weekend';
+                      if (isClickable) {
                         setSelectedDay(selectedDay === dayData.dateStr ? null : dayData.dateStr);
                       }
                     }}
@@ -334,10 +422,25 @@ function HistorialMejorado({ userData, attendanceSummary }) {
                     {dayData.day && (
                       <div className="cell-content">
                         <span className="calendar-day-number">{dayData.day}</span>
+                        {dayData.status && dayData.status !== 'no-record' && dayData.status !== 'future' && dayData.status !== 'weekend' && (
+                          <span className={`cell-status-label-v3 ${dayData.status}`}>
+                            {getStatusLabelText(dayData.status)}
+                          </span>
+                        )}
                         {dayData.record?.entrada && (
                           <div className="cell-info-hover">
                             <span className="mini-time">{dayData.record.entrada}</span>
                             <span className="status-dot-inner"></span>
+                          </div>
+                        )}
+                        {dayData.record?.esVacacion && (
+                          <div className="justified-indicator-v3 vacation-indicator">
+                            <i className="bi bi-umbrella-fill"></i>
+                          </div>
+                        )}
+                        {dayData.record?.justificada && !dayData.record?.esVacacion && (
+                          <div className="justified-indicator-v3">
+                            <i className="bi bi-file-earmark-check-fill"></i>
                           </div>
                         )}
                       </div>
@@ -355,24 +458,58 @@ function HistorialMejorado({ userData, attendanceSummary }) {
               <h6 className="side-panel-title">Detalle del Día</h6>
               {selectedDay ? (
                 <div className="selected-day-info">
-                  <div className="selected-date-badge">
-                    {new Date(selectedDay + 'T00:00:00').toLocaleDateString('es-MX', {
-                      weekday: 'short', day: 'numeric', month: 'short'
-                    })}
+                  <div className="selected-date-badge-v2">
+                    <span className="sdb-weekday">
+                      {new Date(selectedDay + 'T00:00:00').toLocaleDateString('es-MX', { weekday: 'long' })}
+                    </span>
+                    <span className="sdb-date">
+                      {new Date(selectedDay + 'T00:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </span>
                   </div>
                   {registrosAgrupados[selectedDay] ? (
-                    <div className="side-times">
-                      <div className="side-time-item">
-                        <span className="label">Entrada</span>
-                        <span className="val">{registrosAgrupados[selectedDay].entrada || '--:--'}</span>
+                    registrosAgrupados[selectedDay].esVacacion ? (
+                      <div className="detail-status-card vacation-card">
+                        <div className="dsc-icon">🏖️</div>
+                        <div className="dsc-label">Vacaciones</div>
+                        <div className="dsc-sub">Día de vacaciones aprobado</div>
                       </div>
-                      <div className="side-time-item">
-                        <span className="label">Salida</span>
-                        <span className="val">{registrosAgrupados[selectedDay].salida || '--:--'}</span>
+                    ) : registrosAgrupados[selectedDay].justificada ? (
+                      <div className="detail-status-card justified-card">
+                        <div className="dsc-icon"><i className="bi bi-file-earmark-check-fill"></i></div>
+                        <div className="dsc-label">Justificante</div>
+                        <div className="dsc-sub">{registrosAgrupados[selectedDay].tipoAusencia?.replace(/_/g, ' ') || 'Ausencia justificada'}</div>
                       </div>
+                    ) : (
+                      <div className="side-times">
+                        <div className={`side-time-item ${registrosAgrupados[selectedDay].retardo ? 'retardo' : ''}`}>
+                          <span className="label"><i className="bi bi-box-arrow-in-right me-1"></i>Entrada</span>
+                          <span className="val">{registrosAgrupados[selectedDay].entrada || '--:--'}</span>
+                          {registrosAgrupados[selectedDay].retardo && <span className="retardo-badge">Retardo</span>}
+                        </div>
+                        <div className="side-time-item">
+                          <span className="label"><i className="bi bi-box-arrow-in-left me-1"></i>Salida</span>
+                          <span className="val">{registrosAgrupados[selectedDay].salida || '--:--'}</span>
+                        </div>
+                      </div>
+                    )
+                  ) : calendarDays.find(d => d.dateStr === selectedDay)?.isHoliday ? (
+                    <div className="detail-status-card holiday-card">
+                      <div className="dsc-icon">🎉</div>
+                      <div className="dsc-label">Día Festivo</div>
+                      <div className="dsc-sub">{calendarDays.find(d => d.dateStr === selectedDay)?.holidayName}</div>
+                    </div>
+                  ) : calendarDays.find(d => d.dateStr === selectedDay)?.isFuture ? (
+                    <div className="detail-status-card future-card">
+                      <div className="dsc-icon"><i className="bi bi-calendar-check"></i></div>
+                      <div className="dsc-label">Día próximo</div>
+                      <div className="dsc-sub">Aún no hay registros para este día</div>
                     </div>
                   ) : (
-                    <p className="no-data-msg">Sin registros</p>
+                    <div className="detail-status-card empty-card">
+                      <div className="dsc-icon"><i className="bi bi-calendar-x"></i></div>
+                      <div className="dsc-label">Sin registros</div>
+                      <div className="dsc-sub">No hay asistencia registrada para este día</div>
+                    </div>
                   )}
                 </div>
               ) : (
@@ -399,6 +536,22 @@ function HistorialMejorado({ userData, attendanceSummary }) {
                   <span className="v">{calendarStats.sinRegistro}</span>
                   <span className="l">Faltas</span>
                 </div>
+                {calendarStats.vacaciones > 0 && (
+                  <div className="side-stat info" style={{ background: '#e0f7fa', color: '#0097a7' }}>
+                    <span className="v">{calendarStats.vacaciones}</span>
+                    <span className="l">🏖️ Vacaciones</span>
+                  </div>
+                )}
+                {calendarStats.justificados > 0 && (
+                  <div className="side-stat info" style={{ background: '#e7f3ff', color: '#0d6efd' }}>
+                    <span className="v">{calendarStats.justificados}</span>
+                    <span className="l">Justificadas</span>
+                  </div>
+                )}
+                <div className="side-stat info" style={{ background: '#f3f0ff', color: '#7048e8' }}>
+                  <span className="v">{calendarStats.festivos}</span>
+                  <span className="l">Festivos</span>
+                </div>
               </div>
             </div>
 
@@ -406,6 +559,19 @@ function HistorialMejorado({ userData, attendanceSummary }) {
               <div className="mini-legend">
                 <div className="leg-item"><span className="dot complete"></span> Puntual</div>
                 <div className="leg-item"><span className="dot late"></span> Retardo</div>
+                <div className="leg-item">
+                  <span className="dot" style={{ background: '#0097a7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <i className="bi bi-umbrella-fill" style={{ fontSize: '0.6rem', color: 'white' }}></i>
+                  </span>
+                  Vacaciones
+                </div>
+                <div className="leg-item">
+                  <span className="dot justified" style={{ background: '#0d6efd', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <i className="bi bi-file-earmark-check-fill" style={{ fontSize: '0.6rem', color: 'white' }}></i>
+                  </span>
+                  Justificada
+                </div>
+                <div className="leg-item"><span className="dot holiday" style={{ background: '#7048e8' }}></span> Festivo</div>
                 <div className="leg-item"><span className="dot no-record"></span> Vacío</div>
               </div>
             </div>
@@ -490,13 +656,14 @@ function HistorialMejorado({ userData, attendanceSummary }) {
                                 </div>
                               </td>
                               <td>
-                                {reg.retardo ? (
-                                  <span className="status-pill warning">Retardo</span>
-                                ) : reg.entrada ? (
-                                  <span className="status-pill success">Puntual</span>
-                                ) : (
-                                  <span className="status-pill secondary">Sin Registro</span>
-                                )}
+                                {(() => {
+                                  const isHoliday = festivos.find(f => f.fecha === fecha);
+                                  if (reg.justificada) return <span className="status-pill info" style={{ background: '#e7f3ff', color: '#0d6efd' }}>Justificada: {reg.tipoAusencia?.replace(/_/g, ' ')}</span>;
+                                  if (reg.retardo) return <span className="status-pill warning">Retardo</span>;
+                                  if (reg.entrada) return <span className="status-pill success">Puntual</span>;
+                                  if (isHoliday) return <span className="status-pill info" style={{ background: '#f3f0ff', color: '#7048e8' }}>Festivo: {isHoliday.nombre}</span>;
+                                  return <span className="status-pill secondary">Sin Registro</span>;
+                                })()}
                               </td>
                             </tr>
                           );

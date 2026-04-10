@@ -125,7 +125,7 @@ function PerfilCompleto({ userData, mostrarMensaje, onUpdateUserData }) {
 
           <div className="perfil-basico">
             <h5>{userData?.nombre || '-'}</h5>
-            <p className="text-muted">{userData?.correo || userData?.email || '-'}</p>
+            <p className="text-muted">{userData?.email || '-'}</p>
 
             <div className="info-badges">
               {userData?.puesto && (

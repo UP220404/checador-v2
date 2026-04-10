@@ -606,8 +606,9 @@ class ContractEvaluationService {
         const fechaFin = new Date(contrato.fechaFinContrato + 'T00:00:00');
         const diffDias = Math.ceil((fechaFin - hoy) / (1000 * 60 * 60 * 24));
 
-        // Notificar a HR si el contrato vence en 7 días o menos
-        if (diffDias >= 0 && diffDias <= 7) {
+        // Notificar a HR exactamente en los días 5, 4, 3, 2 y 1 antes del vencimiento
+        // El cron corre diario, así que cada día se enviará un recordatorio en ese período
+        if (diffDias >= 1 && diffDias <= 5) {
           await this.notifyAdminsAboutExpiringContract(userDoc.id, userData, contrato, diffDias);
           notified++;
         }

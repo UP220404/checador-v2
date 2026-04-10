@@ -35,11 +35,16 @@ function PrivateRoute({ children, requiredRoles = [ROLES.ADMIN_RH, ROLES.ADMIN_A
     return <Navigate to="/login" replace />;
   }
 
-  // Rol o Departamento insuficiente → portal de empleado
-  const hasRole = requiredRoles.includes(userRole);
+  // Rol o Departamento insuficiente
+  const hasRole = userRole && requiredRoles.includes(userRole);
   const hasDept = requiredDepartment && userDepartamento === requiredDepartment;
 
   if (!hasRole && !hasDept) {
+    // Si NO tiene rol (ej. null o denegado por backend), redirigir directamente a login
+    if (!userRole) {
+      return <Navigate to="/login" replace />;
+    }
+    // Si tiene rol pero no el requerido para esta ruta, al portal del empleado
     return <Navigate to="/empleado/portal" replace />;
   }
 

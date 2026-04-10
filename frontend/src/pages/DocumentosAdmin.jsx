@@ -168,7 +168,7 @@ function DocumentosAdmin() {
         ...d,
         titulo: d.nombre || d.titulo, // Alias para compatibilidad
         empleadoNombre: emp.nombre,
-        empleadoEmail: emp.email || emp.correo
+        empleadoEmail: emp.email
       }));
 
       if (empDocs.length > 0) {
@@ -322,7 +322,7 @@ function DocumentosAdmin() {
 
   const handleVerDocumentos = async (empleado) => {
     setSelectedEmpleado(empleado);
-    setFiltroEmpleado(empleado.email || empleado.correo);
+    setFiltroEmpleado(empleado.email);
     await loadEmployeeDocuments(empleado);
   };
 
@@ -536,7 +536,7 @@ function DocumentosAdmin() {
                     </div>
                   ) : (
                     empleados.map((emp) => {
-                      const empEmail = emp.email || emp.correo;
+                      const empEmail = emp.email;
                       const isSelected = filtroEmpleado === empEmail;
 
                       return (

@@ -2,9 +2,10 @@
  * Servicio para gestión de usuarios
  */
 
-import { getFirestore } from '../config/firebase.js';
+import { getFirestore, getAuth } from '../config/firebase.js';
 import { COLLECTIONS, TIPOS_FECHA_IMPORTANTE } from '../config/constants.js';
 import { validarEmail, validarTipoUsuario } from '../utils/validators.js';
+import admin from 'firebase-admin';
 import crypto from 'crypto';
 
 class UserService {
@@ -123,7 +124,7 @@ class UserService {
   async createUser(uid, userData) {
     try {
       // Validaciones
-      if (!validarEmail(userData.correo)) {
+      if (!validarEmail(userData.email)) {
         throw new Error('Email inválido');
       }
 
@@ -133,14 +134,14 @@ class UserService {
         : 'tiempo_completo';
 
       // Verificar que el email no esté ya registrado
-      const existingUser = await this.getUserByEmail(userData.correo);
+      const existingUser = await this.getUserByEmail(userData.email);
       if (existingUser) {
         throw new Error('El email ya está registrado');
       }
 
       const userDoc = {
         nombre: userData.nombre,
-        correo: userData.correo,
+        email: userData.email,
         tipo: tipoUsuario,
         role: userData.role || 'empleado',
         fechaCreacion: new Date(),
@@ -175,7 +176,7 @@ class UserService {
   async updateUser(uid, updateData) {
     try {
       // Validaciones
-      if (updateData.correo && !validarEmail(updateData.correo)) {
+      if (updateData.email && !validarEmail(updateData.email)) {
         throw new Error('Email inválido');
       }
 
@@ -188,6 +189,46 @@ class UserService {
 
       if (!userDoc.exists) {
         throw new Error('Usuario no encontrado');
+      }
+
+      const currentData = userDoc.data();
+
+      // Si se está reactivando al usuario y tiene un correo resguardado
+      if (updateData.activo === true && currentData.activo === false && currentData.correoOriginal) {
+        try {
+          const auth = getAuth();
+          await auth.updateUser(uid, {
+            email: currentData.correoOriginal,
+            disabled: false // Reactivamos el acceso
+          });
+          
+          // Si Firebase Auth lo acepta, restauramos en DB
+          updateData.email = currentData.correoOriginal;
+          
+          // Borrar los campos de baja y respaldo
+          updateData.correoOriginal = admin.firestore.FieldValue.delete();
+          updateData.fechaRetencionHasta = admin.firestore.FieldValue.delete();
+        } catch (authError) {
+          console.error(`No se pudo restaurar el correo original para ${uid}:`, authError);
+          // Opcional: Podríamos lanzar error, pero mejor dejamos que se reactive con el correo +baja y que RH lo cambie manual
+        }
+      } else if (updateData.email && updateData.email !== currentData.email) {
+        // Si no es reactivación especial, pero el correo cambió, actualizar en Firebase Auth
+        try {
+          const auth = getAuth();
+          await auth.updateUser(uid, {
+            email: updateData.email
+          });
+          // Forzar cierre de sesión en todos los dispositivos
+          await auth.revokeRefreshTokens(uid);
+          console.log(`Sesiones revocadas para ${uid} tras cambio de correo`);
+        } catch (authError) {
+          console.error(`Error actualizando email en Auth para ${uid}:`, authError);
+          if (authError.code === 'auth/email-already-exists') {
+             throw new Error('El nuevo correo ya está registrado en otra cuenta.');
+          }
+          throw new Error('No se pudo actualizar el correo de acceso en el sistema.');
+        }
       }
 
       await userRef.update({
@@ -238,6 +279,76 @@ class UserService {
       return { success: true, message: 'Usuario desactivado' };
     } catch (error) {
       console.error('Error eliminando usuario:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Da de baja a un empleado con motivo y fecha registrados
+   * Conserva toda su información para consulta durante 2 años
+   */
+  async deactivateUserWithReason(uid, { motivoBaja, fechaBaja, observacionesBaja = '' }) {
+    try {
+      const userRef = this.db.collection(this.usersCollection).doc(uid);
+      const userDoc = await userRef.get();
+
+      if (!userDoc.exists) {
+        throw new Error('Usuario no encontrado');
+      }
+
+      const userData = userDoc.data();
+      const originalEmail = userData.email || userData.correo;
+      
+      let newEmail = null;
+      if (originalEmail) {
+        // ventas@cielito.com -> ventas+baja_123456789@cielito.com
+        const [username, domain] = originalEmail.split('@');
+        newEmail = `${username}+baja_${Date.now()}@${domain || 'cielitohome.com'}`;
+        
+        try {
+          const auth = getAuth();
+          await auth.updateUser(uid, {
+            email: newEmail,
+            disabled: true // Bloqueamos también el inicio de sesión
+          });
+        } catch (authError) {
+          console.error(`Advertencia: No se pudo actualizar el Auth de Firebase para ${uid}:`, authError);
+          // Continuamos de todas formas para actualizar Firestore
+        }
+      }
+
+      const fechaBajaDate = fechaBaja ? new Date(fechaBaja + 'T00:00:00') : new Date();
+      // Retención: 2 años desde la fecha de baja
+      const fechaRetencionHasta = new Date(fechaBajaDate);
+      fechaRetencionHasta.setFullYear(fechaRetencionHasta.getFullYear() + 2);
+
+      const updateData = {
+        activo: false,
+        motivoBaja: motivoBaja || 'No especificado',
+        fechaBaja: fechaBaja || new Date().toISOString().split('T')[0],
+        observacionesBaja,
+        fechaRetencionHasta: fechaRetencionHasta.toISOString().split('T')[0],
+        fechaEliminacion: new Date()
+      };
+
+      if (newEmail) {
+        updateData.correoOriginal = originalEmail;
+        if (userData.email) updateData.email = newEmail;
+        if (userData.correo) updateData.correo = newEmail;
+      }
+
+      await userRef.update(updateData);
+
+      // 🔄 Sync legacy collection
+      await this.db.collection(this.legacyCollection).doc(uid).update({
+        activo: false,
+        ...(updateData.email && { email: updateData.email }),
+        ...(updateData.correo && { correo: updateData.correo })
+      }).catch(() => {});
+
+      return { success: true, message: 'Empleado dado de baja correctamente', fechaRetencionHasta: fechaRetencionHasta.toISOString().split('T')[0] };
+    } catch (error) {
+      console.error('Error dando de baja a usuario:', error);
       throw error;
     }
   }
@@ -505,40 +616,144 @@ class UserService {
   }
 
   /**
+   * Calcula los días de vacaciones correspondientes según antigüedad
+   * Reglas:
+   *   < 6 meses   → 0 días (sin derecho)
+   *   6m – 1 año  → 6 días
+   *   1 – 2 años  → 12 días
+   *   2+ años     → 12 + 2 × (añosCompletos − 1)
+   */
+  calcularDiasVacacionesPorAntiguedad(fechaIngreso) {
+    if (!fechaIngreso) return 0;
+    const ingreso = new Date(fechaIngreso + 'T00:00:00');
+    if (isNaN(ingreso.getTime())) return 0;
+
+    const hoy = new Date();
+    // Meses completos transcurridos
+    const meses =
+      (hoy.getFullYear() - ingreso.getFullYear()) * 12 +
+      (hoy.getMonth() - ingreso.getMonth()) +
+      (hoy.getDate() >= ingreso.getDate() ? 0 : -1);
+
+    if (meses < 6) return 0;          // Sin derecho
+    if (meses < 12) return 6;         // 6 meses – 1 año
+
+    const aniosCompletos = Math.floor(meses / 12);
+    if (aniosCompletos < 2) return 12; // 1 año – 2 años
+
+    // 2+ años: 12 + 2×(n−1)
+    return 12 + 2 * (aniosCompletos - 1);
+  }
+
+  /**
    * Obtiene el saldo de vacaciones de un usuario
+   * Los diasDisponibles se calculan dinámicamente desde fechaIngreso
    */
   async getSaldoVacaciones(uid) {
     try {
       const userDoc = await this.db.collection(this.usersCollection).doc(uid).get();
-
-      if (!userDoc.exists) {
-        throw new Error('Usuario no encontrado');
-      }
+      if (!userDoc.exists) throw new Error('Usuario no encontrado');
 
       const userData = userDoc.data();
-      const saldo = userData.saldoVacaciones || {
-        diasDisponibles: 12,
-        diasUsados: 0,
-        diasPendientes: 0,
-        ultimaActualizacion: null
-      };
+      const saldoDB = userData.saldoVacaciones || {};
 
-      // Auto-actualizar a la nueva ley de 12 días si se quedó atascado en 6
-      if (saldo.diasDisponibles === 6) {
-        saldo.diasDisponibles = 12;
-        // Guardarlo en DB para no tener que hacerlo la próxima vez
-        await this.db.collection(this.usersCollection).doc(uid).update({
-          'saldoVacaciones.diasDisponibles': 12,
-          fechaActualizacion: new Date()
+      // Calcular días disponibles correctamente desde fechaIngreso
+      const diasDisponibles = this.calcularDiasVacacionesPorAntiguedad(userData.fechaIngreso);
+
+      // Perseguir diasUsados y diasPendientes desde la DB (se actualizan al aprobar/rechazar ausencias)
+      const diasUsados = saldoDB.diasUsados || 0;
+      const diasPendientes = saldoDB.diasPendientes || 0;
+      const diasRestantes = Math.max(0, diasDisponibles - diasUsados - diasPendientes);
+
+      // Calcular antigüedad para mostrarla en el frontend
+      const mesesAntiguedad = userData.fechaIngreso
+        ? (() => {
+            const ingreso = new Date(userData.fechaIngreso + 'T00:00:00');
+            const hoy = new Date();
+            return (
+              (hoy.getFullYear() - ingreso.getFullYear()) * 12 +
+              (hoy.getMonth() - ingreso.getMonth()) +
+              (hoy.getDate() >= ingreso.getDate() ? 0 : -1)
+            );
+          })()
+        : null;
+
+      return {
+        diasDisponibles,
+        diasUsados,
+        diasPendientes,
+        diasRestantes,
+        mesesAntiguedad,
+        tieneDerecho: diasDisponibles > 0,
+        ultimaActualizacion: saldoDB.ultimaActualizacion || null,
+        fechaIngreso: userData.fechaIngreso || null
+      };
+    } catch (error) {
+      console.error('Error obteniendo saldo de vacaciones:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtiene el saldo de vacaciones de TODOS los empleados activos
+   * Usado por el panel de RH
+   */
+  async getAllVacacionesSummary() {
+    try {
+      const snapshot = await this.db
+        .collection(this.usersCollection)
+        .where('activo', '!=', false)
+        .get();
+
+      const results = [];
+      for (const doc of snapshot.docs) {
+        const u = doc.data();
+        // Omitir ex-empleados y cuentas del sistema
+        if (u.activo === false) continue;
+        if (!u.nombre) continue;
+
+        const diasDisponibles = this.calcularDiasVacacionesPorAntiguedad(u.fechaIngreso);
+        const saldoDB = u.saldoVacaciones || {};
+        const diasUsados = saldoDB.diasUsados || 0;
+        const diasPendientes = saldoDB.diasPendientes || 0;
+        const diasRestantes = Math.max(0, diasDisponibles - diasUsados - diasPendientes);
+
+        const mesesAntiguedad = u.fechaIngreso
+          ? (() => {
+              const ingreso = new Date(u.fechaIngreso + 'T00:00:00');
+              const hoy = new Date();
+              return (
+                (hoy.getFullYear() - ingreso.getFullYear()) * 12 +
+                (hoy.getMonth() - ingreso.getMonth()) +
+                (hoy.getDate() >= ingreso.getDate() ? 0 : -1)
+              );
+            })()
+          : null;
+
+        results.push({
+          uid: doc.id,
+          id: doc.id,
+          nombre: u.nombre,
+          correo: u.correo || u.email || '',
+          departamento: u.departamento || '',
+          puesto: u.puesto || '',
+          fechaIngreso: u.fechaIngreso || null,
+          mesesAntiguedad,
+          saldo: {
+            diasDisponibles,
+            diasUsados,
+            diasPendientes,
+            diasRestantes,
+            tieneDerecho: diasDisponibles > 0
+          }
         });
       }
 
-      // Calcular días restantes
-      saldo.diasRestantes = saldo.diasDisponibles - saldo.diasUsados - saldo.diasPendientes;
-
-      return saldo;
+      // Ordenar por nombre
+      results.sort((a, b) => a.nombre.localeCompare(b.nombre));
+      return results;
     } catch (error) {
-      console.error('Error obteniendo saldo de vacaciones:', error);
+      console.error('Error obteniendo resumen de vacaciones:', error);
       throw error;
     }
   }
@@ -577,100 +792,82 @@ class UserService {
   }
 
   /**
-   * Recalcula el saldo de vacaciones basado en ausencias aprobadas
+   * Recalcula diasUsados y diasPendientes desde las ausencias de Firestore
+   * Los diasDisponibles se calculan automáticamente desde fechaIngreso (no se persisten)
    */
   async recalcularSaldoVacaciones(uid) {
     try {
       const userRef = this.db.collection(this.usersCollection).doc(uid);
       const userDoc = await userRef.get();
-
-      if (!userDoc.exists) {
-        throw new Error('Usuario no encontrado');
-      }
-
-      // Obtener ausencias de tipo vacaciones aprobadas
-      const ausenciasSnapshot = await this.db.collection(COLLECTIONS.AUSENCIAS)
-        .where('uid', '==', uid)
-        .where('tipo', '==', 'vacaciones')
-        .where('estado', '==', 'aprobada')
-        .get();
-
-      let diasUsados = 0;
-      ausenciasSnapshot.docs.forEach(doc => {
-        const data = doc.data();
-        if (data.diasSolicitados) {
-          diasUsados += data.diasSolicitados;
-        } else if (data.fechaInicio && data.fechaFin) {
-          const inicio = data.fechaInicio.toDate ? data.fechaInicio.toDate() : new Date(data.fechaInicio);
-          const fin = data.fechaFin.toDate ? data.fechaFin.toDate() : new Date(data.fechaFin);
-          const diffTime = Math.abs(fin - inicio);
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-          diasUsados += diffDays;
-        }
-      });
-
-      // Obtener ausencias pendientes
-      const pendientesSnapshot = await this.db.collection(COLLECTIONS.AUSENCIAS)
-        .where('uid', '==', uid)
-        .where('tipo', '==', 'vacaciones')
-        .where('estado', '==', 'pendiente')
-        .get();
-
-      let diasPendientes = 0;
-      pendientesSnapshot.docs.forEach(doc => {
-        const data = doc.data();
-        if (data.diasSolicitados) {
-          diasPendientes += data.diasSolicitados;
-        }
-      });
+      if (!userDoc.exists) throw new Error('Usuario no encontrado');
 
       const userData = userDoc.data();
-
-      // Calcular días disponibles según antigüedad
-      // Los empleados en período de prueba (< 4 meses) no acumulan vacaciones
-      let diasDisponibles = userData.saldoVacaciones?.diasDisponibles || 0;
-      if (!userData.saldoVacaciones?.diasDisponibles) {
-        // No tiene saldo configurado — calcular según antigüedad
-        const fechaIngreso = userData.fechaIngreso 
-          ? new Date(userData.fechaIngreso) 
-          : null;
-        if (fechaIngreso) {
-          const hoy = new Date();
-          const mesesAntiguedad = (hoy.getFullYear() - fechaIngreso.getFullYear()) * 12 
-            + (hoy.getMonth() - fechaIngreso.getMonth());
-          if (mesesAntiguedad < 4) {
-            // Período de prueba: 0 días
-            diasDisponibles = 0;
-          } else if (mesesAntiguedad < 12) {
-            // Primer año, pasado período de prueba: acumula proporcionalmente (base 12)
-            diasDisponibles = Math.floor((mesesAntiguedad / 12) * 12);
-          } else {
-            diasDisponibles = 12;
-          }
-        } else {
-          diasDisponibles = 12;
-        }
+      const emailUsuario = userData.correo || userData.email;
+      if (!emailUsuario) {
+        const diasDisponibles = this.calcularDiasVacacionesPorAntiguedad(userData.fechaIngreso);
+        return { diasDisponibles, diasUsados: 0, diasPendientes: 0, diasRestantes: diasDisponibles, tieneDerecho: diasDisponibles > 0 };
       }
 
+      // Traer TODAS las ausencias de este usuario (priorizar userId, fallback a emailUsuario)
+      // (evita índices compuestos en Firestore)
+      let snapshot = await this.db.collection(COLLECTIONS.AUSENCIAS)
+        .where('userId', '==', uid)
+        .get();
+
+      // Si no hay registros con userId, intentar con emailUsuario (para datos históricos)
+      if (snapshot.empty && emailUsuario) {
+        snapshot = await this.db.collection(COLLECTIONS.AUSENCIAS)
+          .where('emailUsuario', '==', emailUsuario)
+          .get();
+      }
+
+      const contarDias = (data) => {
+        if (data.diasJustificados > 0) return Number(data.diasJustificados);
+        if (data.diasSolicitados  > 0) return Number(data.diasSolicitados);
+        if (data.fechaInicio && data.fechaFin) {
+          const inicio = data.fechaInicio.toDate ? data.fechaInicio.toDate() : new Date(data.fechaInicio + 'T00:00:00');
+          const fin    = data.fechaFin.toDate    ? data.fechaFin.toDate()    : new Date(data.fechaFin    + 'T00:00:00');
+          return Math.ceil(Math.abs(fin - inicio) / 86400000) + 1;
+        }
+        return 0;
+      };
+
+      let diasUsados = 0;
+      let diasPendientes = 0;
+
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.tipo !== 'vacaciones') return; // solo vacaciones
+        const dias = contarDias(data);
+        if (['aprobado', 'aprobada'].includes(data.estado)) {
+          diasUsados += dias;
+        } else if (data.estado === 'pendiente') {
+          diasPendientes += dias;
+        }
+      });
+
       await userRef.update({
-        'saldoVacaciones.diasDisponibles': diasDisponibles,
         'saldoVacaciones.diasUsados': diasUsados,
         'saldoVacaciones.diasPendientes': diasPendientes,
         'saldoVacaciones.ultimaActualizacion': new Date(),
         fechaActualizacion: new Date()
       });
 
+      const diasDisponibles = this.calcularDiasVacacionesPorAntiguedad(userData.fechaIngreso);
+
       return {
         diasDisponibles,
         diasUsados,
         diasPendientes,
-        diasRestantes: diasDisponibles - diasUsados - diasPendientes
+        diasRestantes: Math.max(0, diasDisponibles - diasUsados - diasPendientes),
+        tieneDerecho: diasDisponibles > 0
       };
     } catch (error) {
       console.error('Error recalculando saldo de vacaciones:', error);
       throw error;
     }
   }
+
 
   /**
    * Actualiza campos extendidos del perfil por admin (puesto, fechaIngreso, etc)

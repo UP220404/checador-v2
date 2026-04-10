@@ -6,6 +6,10 @@ import { getFirestore } from '../config/firebase.js';
 import { COLLECTIONS } from '../config/constants.js';
 import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
+import fs from 'fs';
+import path from 'path';
+import UserService from './UserService.js';
+import AbsenceService from './AbsenceService.js';
 
 class ReportService {
   constructor() {
@@ -40,26 +44,27 @@ class ReportService {
         });
       });
 
-      // Agrupar por usuario
+      // Agrupar por usuario (usar uid si está disponible, fallback a correo)
       const porUsuario = {};
       registros.forEach(registro => {
-        const email = registro.correo;
-        if (!porUsuario[email]) {
-          porUsuario[email] = {
+        const idUsuario = registro.uid || registro.correo || 'desconocido';
+        if (!porUsuario[idUsuario]) {
+          porUsuario[idUsuario] = {
+            uid: registro.uid || null,
             nombre: registro.nombre,
-            email: email,
+            email: registro.email || registro.correo,
             entradas: [],
             salidas: []
           };
         }
 
         if (registro.tipo === 'entrada') {
-          porUsuario[email].entradas.push({
+          porUsuario[idUsuario].entradas.push({
             hora: registro.hora,
             estado: registro.estado
           });
         } else if (registro.tipo === 'salida') {
-          porUsuario[email].salidas.push({
+          porUsuario[idUsuario].salidas.push({
             hora: registro.hora
           });
         }
@@ -117,32 +122,33 @@ class ReportService {
         });
       });
 
-      // Agrupar por usuario y fecha
+      // Agrupar por usuario y fecha (usar uid si está disponible)
       const porUsuario = {};
       registros.forEach(registro => {
-        const email = registro.correo;
-        if (!porUsuario[email]) {
-          porUsuario[email] = {
+        const idUsuario = registro.uid || registro.correo || 'desconocido';
+        if (!porUsuario[idUsuario]) {
+          porUsuario[idUsuario] = {
+            uid: registro.uid || null,
             nombre: registro.nombre,
-            email: email,
+            email: registro.email || registro.correo,
             dias: {}
           };
         }
 
-        if (!porUsuario[email].dias[registro.fecha]) {
-          porUsuario[email].dias[registro.fecha] = {
+        if (!porUsuario[idUsuario].dias[registro.fecha]) {
+          porUsuario[idUsuario].dias[registro.fecha] = {
             entradas: [],
             salidas: []
           };
         }
 
         if (registro.tipo === 'entrada') {
-          porUsuario[email].dias[registro.fecha].entradas.push({
+          porUsuario[idUsuario].dias[registro.fecha].entradas.push({
             hora: registro.hora,
             estado: registro.estado
           });
         } else if (registro.tipo === 'salida') {
-          porUsuario[email].dias[registro.fecha].salidas.push({
+          porUsuario[idUsuario].dias[registro.fecha].salidas.push({
             hora: registro.hora
           });
         }
@@ -461,6 +467,502 @@ class ReportService {
       return buffer;
     } catch (error) {
       console.error('Error exportando nómina a Excel:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Exportar reporte de asistencias a Excel ("Excel Cherry")
+   * Incluye resumen general, insights y hojas por día
+   */
+  async exportAttendanceToExcel(fechaInicio, fechaFin) {
+    try {
+      // 1. Obtener datos
+      const snapshot = await this.db
+        .collection(this.attendanceCollection)
+        .where('fecha', '>=', fechaInicio)
+        .where('fecha', '<=', fechaFin)
+        .orderBy('fecha', 'asc')
+        .get();
+
+      const registros = [];
+      snapshot.forEach(doc => registros.push({ id: doc.id, ...doc.data() }));
+
+      // Obtener ausencias aprobadas (solo por estado para evitar índice compuesto)
+      const absencesSnapshot = await this.db
+        .collection(this.absencesCollection)
+        .where('estado', '==', 'aprobado')
+        .get();
+
+      const ausencias = [];
+      absencesSnapshot.forEach(doc => {
+        const data = doc.data();
+        // Filtrar en memoria: la ausencia debe solaparse con el rango del reporte
+        if (data.fechaInicio <= fechaFin && data.fechaFin >= fechaInicio) {
+          ausencias.push({ id: doc.id, ...data });
+        }
+      });
+
+      const usuarios = await UserService.getAllUsers();
+      const usuariosActivos = usuarios.filter(u => u.activo !== false);
+
+      // 2. Procesar datos para resumen e insights
+      const diasDetalle = {}; // { '2026-03-26': [registros...] }
+      const statsUser = {};
+
+      usuariosActivos.forEach(u => {
+        // Indexar por UID y por correo para máxima compatibilidad durante transición
+        const userData = {
+          uid: u.uid,
+          nombre: u.nombre,
+          tipo: u.tipo,
+          asistencias: 0,
+          retardos: 0,
+          puntuales: 0,
+          salidas: 0,
+          justificaciones: 0,
+          diasAsistidos: new Set(),
+          diasJustificados: new Set()
+        };
+        statsUser[u.uid] = userData;
+        if (u.correo) statsUser[u.correo] = userData;
+      });
+
+      // Procesar asistencias
+      registros.forEach(r => {
+        if (!diasDetalle[r.fecha]) diasDetalle[r.fecha] = [];
+        diasDetalle[r.fecha].push(r);
+
+        const idUsuario = r.uid || r.email || r.correo;
+        const stats = statsUser[idUsuario];
+        if (stats) {
+          if (r.tipoEvento === 'entrada') {
+            stats.asistencias++;
+            if (r.estado === 'retardo') stats.retardos++;
+            else if (r.estado === 'puntual') stats.puntuales++;
+            stats.diasAsistidos.add(r.fecha);
+          } else {
+            stats.salidas++;
+          }
+        }
+      });
+
+      // Procesar ausencias aprobadas (para llenar huecos)
+      ausencias.forEach(a => {
+        const stats = statsUser[a.emailUsuario];
+        
+        // Iterar días de la ausencia
+        let current = new Date(a.fechaInicio + 'T00:00:00');
+        const end = new Date(a.fechaFin + 'T00:00:00');
+        
+        while (current <= end) {
+          const fStr = current.toISOString().split('T')[0];
+          
+          // Solo si el día está dentro del rango del reporte
+          if (fStr >= fechaInicio && fStr <= fechaFin) {
+            const diaSemana = current.getDay();
+            // Solo contar días laborables
+            if (diaSemana !== 0 && diaSemana !== 6) {
+              if (stats) {
+                stats.justificaciones++;
+                stats.diasJustificados.add(fStr);
+              }
+
+              // Si el usuario no asistió este día, agregar registro virtual de "Justificado"
+              if (!diasDetalle[fStr]) diasDetalle[fStr] = [];
+              const yaAsistio = (diasDetalle[fStr] || []).some(r => r.email === a.emailUsuario);
+              
+              if (!yaAsistio) {
+                diasDetalle[fStr].push({
+                  nombre: a.nombreUsuario,
+                  email: a.emailUsuario,
+                  fecha: fStr,
+                  hora: '-',
+                  tipoEvento: 'ausencia',
+                  estado: 'justificado',
+                  tipoAusencia: a.tipo
+                });
+              }
+            }
+          }
+          current.setDate(current.getDate() + 1);
+        }
+      });
+
+      // 3. Crear Workbook
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Checador V2';
+      workbook.created = new Date();
+
+      // --- HOJA 1: RESUMEN GENERAL ---
+      const summarySheet = workbook.addWorksheet('Resumen General');
+      summarySheet.columns = [
+        { header: 'Empleado', key: 'nombre', width: 35 },
+        { header: 'Tipo', key: 'tipo', width: 15 },
+        { header: 'Días Asistidos', key: 'dias', width: 15 },
+        { header: 'Justificados', key: 'justificados', width: 15 },
+        { header: 'Retardos', key: 'retardos', width: 12 },
+        { header: '% Puntualidad', key: 'porcentaje', width: 15 }
+      ];
+
+      // Título estilizado
+      summarySheet.mergeCells('A1:F1');
+      const titleCell = summarySheet.getCell('A1');
+      titleCell.value = `Resumen de Asistencias (${fechaInicio} a ${fechaFin})`;
+      titleCell.font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF198754' } };
+      titleCell.alignment = { horizontal: 'center' };
+
+      // Headers de la tabla
+      const headerRow = summarySheet.getRow(3);
+      headerRow.values = ['Empleado', 'Tipo', 'Asistencias', 'Justificados', 'Retardos', '% Puntualidad'];
+      headerRow.font = { bold: true };
+      headerRow.eachCell(cell => {
+         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE9ECEF' } };
+         cell.border = { bottom: { style: 'thin' } };
+      });
+
+      // Llenar datos
+      const uniqueUsers = Array.from(new Set(Object.values(statsUser)));
+      let totalPuntualidadCount = 0;
+      let usersWithEntries = 0;
+
+      uniqueUsers.forEach((s, i) => {
+        const totalEntradas = s.asistencias;
+        const porcentaje = totalEntradas > 0 ? (s.puntuales / totalEntradas * 100).toFixed(1) : '0.0';
+        
+        if (totalEntradas > 0) {
+          totalPuntualidadCount += parseFloat(porcentaje);
+          usersWithEntries++;
+        }
+
+        const row = summarySheet.addRow([
+          s.nombre,
+          s.tipo,
+          s.diasAsistidos.size,
+          s.diasJustificados.size,
+          s.retardos,
+          `${porcentaje}%`
+        ]);
+
+        // Color condicional para puntualidad baja
+        if (parseFloat(porcentaje) < 80 && totalEntradas > 0) {
+           row.getCell(6).font = { color: { argb: 'FFFF0000' }, bold: true };
+        }
+      });
+
+      // --- HOJA 2: INSIGHTS EJECUTIVOS ---
+      const insightSheet = workbook.addWorksheet('Resumen Ejecutivo');
+      
+      const drawBox = (sheet, startRow, title, content, color) => {
+        sheet.mergeCells(`B${startRow}:E${startRow}`);
+        const tCell = sheet.getCell(`B${startRow}`);
+        tCell.value = title;
+        tCell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        tCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+        
+        let currentRow = startRow + 1;
+        content.forEach(line => {
+          sheet.mergeCells(`B${currentRow}:E${currentRow}`);
+          sheet.getCell(`B${currentRow}`).value = line;
+          currentRow++;
+        });
+        return currentRow + 1;
+      };
+
+      const avgPuntualidad = usersWithEntries > 0 ? (totalPuntualidadCount / usersWithEntries).toFixed(1) : 0;
+      
+      let nextRow = 2;
+      // Box 1: Highlights
+      const stars = uniqueUsers
+        .filter(s => s.asistencias > 0 && s.retardos === 0)
+        .map(s => `⭐ ${s.nombre} (Puntualidad Perfecta)`);
+      
+      nextRow = drawBox(insightSheet, nextRow, 'ESTRELLAS DE LA SEMANA', stars.length > 0 ? stars : ['Sin registros perfectos esta semana.'], 'FF198754');
+
+      // Box 2: Alertas
+      const alerts = uniqueUsers
+        .filter(s => s.retardos >= 3)
+        .map(s => `⚠️ ${s.nombre}: ${s.retardos} retardos registrados.`);
+      
+      nextRow = drawBox(insightSheet, nextRow, 'ALERTAS DE PUNTUALIDAD', alerts.length > 0 ? alerts : ['No hay alertas críticas en este período.'], 'FFDC3545');
+
+      // Box 3: Recomendaciones
+      const recs = [
+        `• Puntualidad General: ${avgPuntualidad}%`,
+        avgPuntualidad < 85 ? '• SE SUGIERE REFORZAR la política de puntualidad (promedio bajo).' : '• EXCELENTE puntualidad general en el equipo.',
+        '• Se recomienda incentivar a los empleados con puntualidad perfecta para mantener la motivación.'
+      ];
+      nextRow = drawBox(insightSheet, nextRow, 'RECOMENDACIONES Y OBSERVACIONES', recs, 'FF0D6EFD');
+
+      // --- HOJAS DIARIAS ---
+      const sortedDates = Object.keys(diasDetalle).sort();
+      for (const fecha of sortedDates) {
+        const dateName = new Date(fecha + 'T00:00:00');
+        const dayLabel = dateName.toLocaleDateString('es-ES', { weekday: 'long' }).split(',')[0];
+        const sheetName = `${dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1)} ${fecha.split('-').slice(1).join('-')}`;
+        
+        const daySheet = workbook.addWorksheet(sheetName.substring(0, 30));
+        daySheet.columns = [
+          { header: 'Empleado', key: 'nombre', width: 35 },
+          { header: 'Hora', key: 'hora', width: 12 },
+          { header: 'Evento', key: 'tipo', width: 17 },
+          { header: 'Estado', key: 'estado', width: 25 }
+        ];
+
+        // Header
+        daySheet.getRow(1).font = { bold: true };
+        daySheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE9ECEF' } };
+
+        const dayRegs = diasDetalle[fecha].sort((a, b) => {
+          // 1. Agrupar por tipo (Orden: entrada=1, salida=2, ausencia=3)
+          const ordenEvento = { 'entrada': 1, 'salida': 2, 'ausencia': 3 };
+          const pA = ordenEvento[a.tipoEvento] || 99;
+          const pB = ordenEvento[b.tipoEvento] || 99;
+          
+          if (pA !== pB) return pA - pB;
+          
+          // 2. Dentro del mismo tipo, ordenar por hora (puntualidad)
+          if (a.hora !== b.hora && a.hora !== '-' && b.hora !== '-') {
+            return a.hora.localeCompare(b.hora);
+          }
+          
+          // 3. Si la hora es igual, por nombre
+          return a.nombre.localeCompare(b.nombre);
+        });
+
+        dayRegs.forEach(r => {
+          const isAusencia = r.tipoEvento === 'ausencia';
+          const row = daySheet.addRow([
+            r.nombre,
+            r.hora,
+            isAusencia ? 'JUSTIFICADO' : (r.tipoEvento === 'entrada' ? 'Entrada' : 'Salida'),
+            isAusencia ? AbsenceService.formatTipoAusencia(r.tipoAusencia).toUpperCase() : (r.estado === 'retardo' ? 'Retardo' : 'Puntual')
+          ]);
+
+          if (isAusencia) {
+             row.getCell(3).font = { color: { argb: 'FF0D6EFD' }, bold: true };
+             row.getCell(4).font = { color: { argb: 'FF0D6EFD' }, bold: true };
+          } else if (r.estado === 'retardo') {
+             row.getCell(4).font = { color: { argb: 'FFFF0000' }, bold: true };
+             row.getCell(4).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } };
+          }
+        });
+      }
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      return buffer;
+
+    } catch (error) {
+      console.error('Error generando Excel Cherry:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Exportar reporte de asistencias a PDF (Formato Original)
+   */
+  async exportAttendanceToPDF(fechaInicio, fechaFin) {
+    try {
+      // 1. Obtener registros crudos
+      const snapshot = await this.db
+        .collection(this.attendanceCollection)
+        .where('fecha', '>=', fechaInicio)
+        .where('fecha', '<=', fechaFin)
+        .orderBy('fecha', 'asc')
+        .get();
+
+      const registros = [];
+      snapshot.forEach(doc => {
+        registros.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+
+      // Obtener ausencias aprobadas para el PDF (solo por estado para evitar índice compuesto)
+      const absencesSnapshot = await this.db
+        .collection(this.absencesCollection)
+        .where('estado', '==', 'aprobado')
+        .get();
+
+      absencesSnapshot.forEach(doc => {
+        const a = doc.data();
+        // Filtrar en memoria: la ausencia debe solaparse con el rango del reporte
+        if (a.fechaInicio <= fechaFin && a.fechaFin >= fechaInicio) {
+          // Iterar días de la ausencia
+          let current = new Date(a.fechaInicio + 'T00:00:00');
+          const end = new Date(a.fechaFin + 'T00:00:00');
+          
+          while (current <= end) {
+            const fStr = current.toISOString().split('T')[0];
+            if (fStr >= fechaInicio && fStr <= fechaFin) {
+              const diaSemana = current.getDay();
+              if (diaSemana !== 0 && diaSemana !== 6) {
+                // Verificar si ya tiene asistencia ese día
+                const yaAsistio = registros.some(r => r.email === a.emailUsuario && r.fecha === fStr);
+                if (!yaAsistio) {
+                  registros.push({
+                    nombre: a.nombreUsuario,
+                    email: a.emailUsuario,
+                    fecha: fStr,
+                    hora: '-',
+                    tipoEvento: 'ausencia',
+                    estado: 'justificado',
+                    tipoAusencia: a.tipo
+                  });
+                }
+              }
+            }
+            current.setDate(current.getDate() + 1);
+          }
+        }
+      });
+
+      // 2. Ordenar por fecha y hora
+      const normalizeTime = (timeStr) => {
+        if (!timeStr || typeof timeStr !== 'string' || timeStr === '-') return '00:00:00';
+        return timeStr.split(':').map(p => p.padStart(2, '0')).join(':');
+      };
+
+      const rows = registros.sort((a, b) => {
+        if (a.fecha !== b.fecha) return a.fecha.localeCompare(b.fecha);
+        // Poner ausencias al final del día si no tienen hora
+        if (a.tipoEvento === 'ausencia' && b.tipoEvento !== 'ausencia') return 1;
+        if (a.tipoEvento !== 'ausencia' && b.tipoEvento === 'ausencia') return -1;
+        return normalizeTime(a.hora).localeCompare(normalizeTime(b.hora));
+      });
+
+      return new Promise((resolve, reject) => {
+        try {
+          const doc = new PDFDocument({ margin: 40 });
+          const chunks = [];
+
+          doc.on('data', chunk => chunks.push(chunk));
+          doc.on('end', () => resolve(Buffer.concat(chunks)));
+          doc.on('error', reject);
+
+          // Colores institucionales
+          const GREEN = '#198754';
+          const DARK_GREY = '#3C3C3C';
+          const LIGHT_GREY = '#F0F0F0';
+          const ALT_GREEN = '#DCFFDC';
+          const YELLOW = '#FFDD33';
+          const BLUE = '#0D6EFD';
+
+          // --- HEADER ---
+          const logoPath = path.join(process.cwd(), 'src/assets/logo-cielito.png');
+          try {
+            if (fs.existsSync(logoPath)) {
+              doc.image(logoPath, 40, 35, { width: 60 });
+            }
+          } catch (e) {
+            console.warn('No se pudo cargar el logo para el PDF:', e.message);
+          }
+
+          doc.fillColor(GREEN)
+             .fontSize(18)
+             .font('Helvetica-Bold')
+             .text('Reporte de Asistencias - Cielito Home', 115, 45);
+
+          doc.fillColor(DARK_GREY)
+             .fontSize(11)
+             .font('Helvetica')
+             .text('Resumen de actividades del período.', 115, 68);
+
+          doc.fontSize(10)
+             .text(`Período: ${fechaInicio} a ${fechaFin}`, 115, 83);
+
+          // Línea decorativa verde
+          doc.strokeColor(GREEN)
+             .lineWidth(2)
+             .moveTo(40, 105)
+             .lineTo(570, 105)
+             .stroke();
+
+          doc.moveDown(2);
+
+          // --- TABLA ---
+          const tableTop = 130;
+          const colX = [40, 180, 260, 340, 420, 500]; // X positions for columns
+          const colLabels = ['Nombre', 'Tipo', 'Fecha', 'Hora', 'Evento', 'Estado'];
+
+          // Header de la tabla
+          doc.rect(40, tableTop, 530, 20).fill(GREEN);
+          doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(9);
+          
+          colLabels.forEach((label, i) => {
+            doc.text(label, colX[i] + 5, tableTop + 6);
+          });
+
+          let currentY = tableTop + 20;
+
+          // Filas
+          rows.forEach((r, index) => {
+            // Nueva página si es necesario
+            if (currentY > 730) {
+              doc.addPage();
+              currentY = 50;
+              
+              // Volver a dibujar header en nueva página
+              doc.rect(40, currentY, 530, 20).fill(GREEN);
+              doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(9);
+              colLabels.forEach((label, i) => {
+                doc.text(label, colX[i] + 5, currentY + 6);
+              });
+              currentY += 20;
+            }
+
+            // Fondo alternado
+            const isAlt = index % 2 !== 0;
+            const rowColor = isAlt ? ALT_GREEN : LIGHT_GREY;
+            
+            doc.rect(40, currentY, 530, 18).fill(rowColor);
+
+            // Resaltado de retardo o ausencia
+            if (r.estado === 'retardo') {
+              doc.rect(colX[5], currentY, 70, 18).fill(YELLOW);
+              doc.fillColor('#000000');
+            } else if (r.tipoEvento === 'ausencia') {
+              doc.fillColor(BLUE);
+            } else {
+              doc.fillColor(DARK_GREY);
+            }
+
+            doc.font('Helvetica').fontSize(8);
+            
+            // Datos de la fila
+            doc.text(r.nombre || '-', colX[0] + 5, currentY + 5, { width: 135, ellipsis: true });
+            doc.text(r.tipo || '-', colX[1] + 5, currentY + 5);
+            doc.text(r.fecha || '-', colX[2] + 5, currentY + 5);
+            doc.text(normalizeTime(r.hora) === '00:00:00' ? '-' : normalizeTime(r.hora), colX[3] + 5, currentY + 5);
+            
+            const isAusencia = r.tipoEvento === 'ausencia';
+            const eventoLabel = isAusencia ? 'JUSTIFICADO' : (r.tipoEvento === 'entrada' ? 'Entrada' : 'Salida');
+            doc.text(eventoLabel, colX[4] + 5, currentY + 5);
+
+            let estadoLabel = '';
+            if (isAusencia) {
+              estadoLabel = AbsenceService.formatTipoAusencia(r.tipoAusencia);
+              doc.font('Helvetica-Bold');
+            } else if (r.tipoEvento === 'entrada') {
+              estadoLabel = r.estado === 'retardo' ? 'Retardo' : (r.estado === 'puntual' ? 'Puntual' : 'Entrada');
+            } else {
+              estadoLabel = 'Salida';
+            }
+            doc.text(estadoLabel, colX[5] + 5, currentY + 5, { width: 70, ellipsis: true });
+            doc.font('Helvetica');
+
+            currentY += 18;
+          });
+
+          doc.end();
+        } catch (error) {
+          reject(error);
+        }
+      });
+    } catch (error) {
+      console.error('Error exportando asistencias a PDF:', error);
       throw error;
     }
   }

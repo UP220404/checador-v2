@@ -48,17 +48,23 @@ export function AuthProvider({ children }) {
         sessionStorage.setItem('userEmail', firebaseUser.email || '');
         sessionStorage.setItem('userName', roleData.nombre || '');
         sessionStorage.setItem('userDepartamento', roleData.departamento || '');
+        sessionStorage.removeItem('authError'); // Limpiar errores previos
         lastFetchRef.current = Date.now();
       } else {
+        // Usuario autenticado en Firebase pero no autorizado en la app
+        console.warn('[AuthContext] Acceso denegado:', response.data?.message);
         setUser(firebaseUser);
-        setUserRole(ROLES.EMPLEADO);
+        setUserRole(null); // Explicitamente nulo para denegar acceso
         setUserName('');
         setUserDepartamento('');
+        sessionStorage.setItem('authError', response.data?.message || 'Tu cuenta no está autorizada.');
       }
     } catch (error) {
       console.error('[AuthContext] Error al obtener rol:', error);
       setUser(firebaseUser);
-      setUserRole(ROLES.EMPLEADO);
+      setUserRole(null);
+      const errorMsg = error.response?.data?.message || 'Error de conexión con el servidor.';
+      sessionStorage.setItem('authError', errorMsg);
     }
   }, []);
 

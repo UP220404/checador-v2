@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { auth } from '../config/firebase';
+import { auth, db } from '../config/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { api } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -46,6 +47,8 @@ function PortalEmpleado() {
     summary: false,
     vacaciones: false
   });
+  const prevUnreadCount = useRef(0);
+  const isFirstLoad = useRef(true);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -62,7 +65,52 @@ function PortalEmpleado() {
     return () => unsubscribe();
   }, [navigate]);
 
-  // Cargar datos cuando cambia la pestaña activa
+  // Listener en tiempo real para notificaciones
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const q = query(
+      collection(db, 'notificaciones'),
+      where('uid', '==', user.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notifs = snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        fechaCreacion: d.data().fechaCreacion?.toDate?.()?.toISOString() ?? d.data().fechaCreacion ?? null
+      }));
+      
+      // Ordenar y limitar para el preview
+      const sortedNotifs = notifs.sort((a, b) => new Date(b.fechaCreacion || 0) - new Date(a.fechaCreacion || 0));
+      setNotifPreview(sortedNotifs.slice(0, 5));
+      
+      // Actualizar conteo de no leídas
+      const noLeidas = notifs.filter(n => !n.leida).length;
+      
+      // Reproducir sonido si hay nuevas notificaciones sin leer (y no es la carga inicial)
+      if (!isFirstLoad.current && noLeidas > prevUnreadCount.current) {
+        try {
+          const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
+          audio.volume = 0.5;
+          audio.play().catch(e => console.log('Audio playback blocked by browser:', e));
+        } catch (err) {
+          console.error('Error playing notification sound:', err);
+        }
+      }
+
+      prevUnreadCount.current = noLeidas;
+      isFirstLoad.current = false;
+      
+      setUnreadCount(noLeidas);
+      loadedData.current.notifications = true;
+    }, (error) => {
+      console.error('Error en listener de notificaciones:', error);
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
   useEffect(() => {
     if (userData) {
       cargarDatosParaPestana(activeTab);

@@ -24,6 +24,7 @@ function SolicitudesTab({ userData, mostrarMensaje, saldoVacaciones }) {
     motivoEmergencia: ''
   });
   const [alertaAnticipacion, setAlertaAnticipacion] = useState(null);
+  const [activeHistTab, setActiveHistTab] = useState('todas'); // Para filtrar historial
 
   useEffect(() => {
     if (userData) {
@@ -549,52 +550,58 @@ function SolicitudesTab({ userData, mostrarMensaje, saldoVacaciones }) {
 
           {solicitudesResueltas.length > 0 && (
             <div className="solicitudes-seccion historial">
-              <h5 className="seccion-titulo">
-                <i className="bi bi-check-circle me-2"></i>
-                Historial ({solicitudesResueltas.length})
-              </h5>
-              <div className="solicitudes-lista">
-                {solicitudesResueltas.map((solicitud) => (
-                  <div key={solicitud.id} className={`solicitud-card ${solicitud.estado}`}>
-                    <div className="solicitud-header">
-                      <div className="solicitud-tipo">
-                        <i className={`bi ${obtenerIconoTipo(solicitud.tipo)}`}></i>
-                        {obtenerNombreTipo(solicitud.tipo)}
-                      </div>
-                      <span className={`badge ${getEstadoBadgeClass(solicitud.estado)}`}>
-                        {getEstadoLabel(solicitud.estado)}
-                      </span>
-                    </div>
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h5 className="seccion-titulo mb-0">
+                  <i className="bi bi-clock-history me-2"></i>
+                  Historial ({solicitudesResueltas.length})
+                </h5>
+                <div className="historial-tabs">
+                  {['todas', 'aprobada', 'rechazada'].map(tab => (
+                    <button
+                      key={tab}
+                      className={`hist-tab-btn ${activeHistTab === tab ? 'active' : ''}`}
+                      onClick={() => setActiveHistTab(tab)}
+                    >
+                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-                    <div className="solicitud-body">
-                      <div className="solicitud-fechas">
-                        <i className="bi bi-calendar3 me-2"></i>
-                        {solicitud.fechaInicio}
-                        {solicitud.fechaFin && solicitud.fechaFin !== solicitud.fechaInicio && (
-                          <> - {solicitud.fechaFin}</>
+              <div className="solicitudes-lista">
+                {solicitudesResueltas
+                  .filter(s => activeHistTab === 'todas' || s.estado === activeHistTab)
+                  .sort((a, b) => {
+                    const dateA = a.fechaCreacion?.toDate?.() || new Date(a.fechaCreacion || 0);
+                    const dateB = b.fechaCreacion?.toDate?.() || new Date(b.fechaCreacion || 0);
+                    return dateB - dateA;
+                  })
+                  .map((solicitud) => (
+                    <div key={solicitud.id} className={`solicitud-card-mini ${solicitud.estado}`}>
+                      <div className="mini-card-header">
+                        <div className="mini-tipo">
+                          <i className={`bi ${obtenerIconoTipo(solicitud.tipo)}`}></i>
+                          <span>{obtenerNombreTipo(solicitud.tipo)}</span>
+                        </div>
+                        <span className={`mini-badge ${solicitud.estado}`}>
+                          {getEstadoLabel(solicitud.estado)}
+                        </span>
+                      </div>
+                      
+                      <div className="mini-card-body">
+                        <div className="mini-fecha">
+                          <i className="bi bi-calendar3 me-1"></i>
+                          {solicitud.fechaInicio} {solicitud.fechaFin && solicitud.fechaFin !== solicitud.fechaInicio ? `- ${solicitud.fechaFin}` : ''}
+                        </div>
+                        <div className="mini-motivo">{solicitud.motivo}</div>
+                        {solicitud.comentariosAdmin && (
+                          <div className="mini-comentario">
+                            <strong>RH:</strong> {solicitud.comentariosAdmin}
+                          </div>
                         )}
                       </div>
-                      <div className="solicitud-motivo">
-                        <strong>Motivo:</strong> {solicitud.motivo}
-                      </div>
-                      {solicitud.comentariosAdmin && (
-                        <div className="solicitud-comentario">
-                          <i className="bi bi-chat-left-text me-2"></i>
-                          <strong>Comentario RH:</strong> {solicitud.comentariosAdmin}
-                        </div>
-                      )}
                     </div>
-
-                    <div className="solicitud-footer">
-                      <small className="text-muted">
-                        Creada: {solicitud.fechaCreacion ?
-                          (solicitud.fechaCreacion.toDate ?
-                            solicitud.fechaCreacion.toDate().toLocaleDateString('es-MX') :
-                            new Date(solicitud.fechaCreacion).toLocaleDateString('es-MX')) : '-'}
-                      </small>
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </div>
           )}

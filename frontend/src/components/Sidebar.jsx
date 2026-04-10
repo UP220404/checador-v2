@@ -43,6 +43,8 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
   const [notifications, setNotifications] = useState([]);
   const [loadingNotif, setLoadingNotif] = useState(true);
   const notifRef = useRef(null);
+  const prevUnreadCount = useRef(0);
+  const isFirstLoad = useRef(true);
   const [isAdmin, setIsAdmin] = useState(false); // Nuevo estado para isAdmin
 
   // Verificar permisos de administrador (Súper Admin o RH)
@@ -72,6 +74,23 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
       }));
       // Ordenar y limitar en memoria (evita índices compuestos en Firestore)
       notifs.sort((a, b) => new Date(b.fechaCreacion || 0) - new Date(a.fechaCreacion || 0));
+      
+      const newUnreadCount = notifs.filter(n => !n.leida).length;
+      
+      // Reproducir sonido si hay nuevas notificaciones sin leer (y no es la carga inicial)
+      if (!isFirstLoad.current && newUnreadCount > prevUnreadCount.current) {
+        try {
+          const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3');
+          audio.volume = 0.5;
+          audio.play().catch(e => console.log('Audio playback blocked by browser:', e));
+        } catch (err) {
+          console.error('Error playing notification sound:', err);
+        }
+      }
+
+      prevUnreadCount.current = newUnreadCount;
+      isFirstLoad.current = false;
+
       setNotifications(notifs.slice(0, 8));
       setLoadingNotif(false);
     }, (error) => {
@@ -201,6 +220,7 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
     { path: '/admin/dashboard', icon: 'bi-speedometer2', label: 'Dashboard' },
     { path: '/admin/registros', icon: 'bi-table', label: 'Registros' },
     { path: '/admin/ausencias', icon: 'bi-envelope-paper', label: 'Gestion de Ausencias' },
+    { path: '/admin/vacaciones', icon: 'bi-calendar-heart-fill', label: 'Vacaciones' },
     { path: '/admin/usuarios', icon: 'bi-people', label: 'Empleados' },
     { path: '/admin/evaluaciones', icon: 'bi-clipboard-check', label: 'Evaluaciones' },
     { path: '/admin/evaluaciones-contrato', icon: 'bi-file-earmark-person', label: 'Eval. Contratos' },

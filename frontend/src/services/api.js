@@ -187,6 +187,8 @@ export const api = {
   getSaldoVacaciones: (uid) => apiClient.get(`/users/${uid}/vacaciones-saldo`),
   updateSaldoVacaciones: (uid, data) => apiClient.put(`/users/${uid}/vacaciones-saldo`, data),
   recalcularSaldoVacaciones: (uid) => apiClient.post(`/users/${uid}/vacaciones-recalcular`),
+  // Panel RH — todos los empleados con su saldo calculado
+  getVacacionesPanel: () => apiClient.get('/users/vacaciones-panel'),
 
   // Admin Profile Update
   updateProfileByAdmin: (uid, data) => apiClient.put(`/users/${uid}/admin-profile`, data),

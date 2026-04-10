@@ -3,7 +3,6 @@ import Swal from 'sweetalert2';
 import { api } from '../services/api';
 import CustomNotification from '../components/CustomNotification';
 import EmailModal from '../components/nomina/EmailModal';
-import FestivosModal from '../components/nomina/FestivosModal';
 import '../styles/Nomina.css';
 
 function Nomina() {
@@ -30,15 +29,6 @@ function Nomina() {
   const [vistaActual, setVistaActual] = useState('compacta');
   const [empleadosSeleccionados, setEmpleadosSeleccionados] = useState([]);
 
-  // Estados para festivos
-  const [showFestivosModal, setShowFestivosModal] = useState(false);
-  const [festivos, setFestivos] = useState([]);
-  const [nuevoFestivo, setNuevoFestivo] = useState({
-    fecha: '',
-    nombre: '',
-    tipo: 'federal'
-  });
-  const [loadingFestivos, setLoadingFestivos] = useState(false);
   const [vistaTabla, setVistaTabla] = useState(false); // false = tarjetas, true = tabla
 
   // Estados para modal de envío de emails
@@ -76,13 +66,6 @@ function Nomina() {
     const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
     setMesSeleccionado(mesActual);
   }, []);
-
-  // Cargar festivos cuando se abra el modal y haya un mes seleccionado
-  useEffect(() => {
-    if (showFestivosModal && mesSeleccionado) {
-      cargarFestivos();
-    }
-  }, [showFestivosModal, mesSeleccionado]);
 
   const validarAcceso = async () => {
     try {
@@ -240,82 +223,6 @@ function Nomina() {
       showNotification('Error al actualizar los datos', 'error');
     }
   };
-
-  // ========== FUNCIONES PARA GESTIONAR FESTIVOS ==========
-
-  const cargarFestivos = async () => {
-    if (!mesSeleccionado) return;
-
-    try {
-      setLoadingFestivos(true);
-      const [anio] = mesSeleccionado.split('-');
-      const response = await api.getHolidays(anio);
-
-      if (response.data.success) {
-        setFestivos(response.data.data || []);
-      }
-    } catch (error) {
-      console.error('Error cargando festivos:', error);
-      showNotification('Error al cargar días festivos', 'error');
-    } finally {
-      setLoadingFestivos(false);
-    }
-  };
-
-  const agregarFestivo = async () => {
-    if (!nuevoFestivo.fecha || !nuevoFestivo.nombre) {
-      showNotification('Completa todos los campos', 'warning');
-      return;
-    }
-
-    try {
-      setLoadingFestivos(true);
-      const response = await api.createHoliday(nuevoFestivo);
-
-      if (response.data.success) {
-        showNotification('Día festivo agregado correctamente', 'success');
-        setNuevoFestivo({ fecha: '', nombre: '', tipo: 'federal' });
-        await cargarFestivos();
-      }
-    } catch (error) {
-      console.error('Error agregando festivo:', error);
-      showNotification(error.response?.data?.message || 'Error al agregar festivo', 'error');
-    } finally {
-      setLoadingFestivos(false);
-    }
-  };
-
-  const eliminarFestivo = async (festivoId) => {
-    const result = await Swal.fire({
-      title: '¿Eliminar festivo?',
-      text: '¿Estás seguro de eliminar este día festivo?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#dc2626',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar'
-    });
-
-    if (!result.isConfirmed) return;
-
-    try {
-      setLoadingFestivos(true);
-      const response = await api.deleteHoliday(festivoId);
-
-      if (response.data.success) {
-        showNotification('Día festivo eliminado correctamente', 'success');
-        await cargarFestivos();
-      }
-    } catch (error) {
-      console.error('Error eliminando festivo:', error);
-      showNotification('Error al eliminar festivo', 'error');
-    } finally {
-      setLoadingFestivos(false);
-    }
-  };
-
-  // ========== FIN FUNCIONES FESTIVOS ==========
 
   const calcularNomina = async () => {
     if (!mesSeleccionado) {
@@ -722,7 +629,7 @@ function Nomina() {
                   <option value="">Seleccionar empleado...</option>
                   {empleados.map((emp, idx) => (
                     <option key={emp.id || emp.uid || idx} value={emp.id || emp.uid}>
-                      {emp.nombre || emp.correo || emp.email || 'Sin nombre'}
+                      {emp.nombre || emp.email || 'Sin nombre'}
                     </option>
                   ))}
                 </select>
@@ -761,7 +668,7 @@ function Nomina() {
                   </div>
                   <div>
                     <label style={{ fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>Correo Electrónico</label>
-                    <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem' }}>{datosEmpleado.correo || datosEmpleado.email || 'Sin correo'}</div>
+                    <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem' }}>{datosEmpleado.email || 'Sin correo'}</div>
                   </div>
                   <div>
                     <label style={{ fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>Tipo de Usuario</label>
@@ -1017,17 +924,6 @@ function Nomina() {
                     Calcular Nómina
                   </>
                 )}
-              </button>
-            </div>
-            <div>
-              <label className="form-label">&nbsp;</label>
-              <button
-                className="btn btn-outline-primary"
-                onClick={() => setShowFestivosModal(true)}
-                style={{ width: '100%' }}
-              >
-                <i className="bi bi-calendar-event me-1"></i>
-                Días Festivos
               </button>
             </div>
           </div>
@@ -1351,19 +1247,6 @@ function Nomina() {
         mesSeleccionado={mesSeleccionado}
         quincenaSeleccionada={quincenaSeleccionada}
         showNotification={showNotification}
-      />
-
-      {/* Modal de Días Festivos Modularizado */}
-      <FestivosModal
-        show={showFestivosModal}
-        onClose={() => setShowFestivosModal(false)}
-        mesSeleccionado={mesSeleccionado}
-        festivos={festivos}
-        nuevoFestivo={nuevoFestivo}
-        setNuevoFestivo={setNuevoFestivo}
-        loadingFestivos={loadingFestivos}
-        agregarFestivo={agregarFestivo}
-        eliminarFestivo={eliminarFestivo}
       />
 
       {/* Notificaciones */}

@@ -134,6 +134,7 @@ class AbsenceController {
       const userEmail = req.user.email;
 
       const filters = {
+        userId: req.user.uid,
         emailUsuario: userEmail,
         estado: req.query.estado,
         tipo: req.query.tipo,
@@ -523,10 +524,20 @@ class AbsenceController {
       const { emailUsuario } = req.params;
       const { fechaInicio, fechaFin } = req.query;
 
+      // Intentar obtener el UID si es posible (si el email coincide con un usuario activo)
+      let uid = null;
+      try {
+        const user = await UserService.getUserByEmail(emailUsuario);
+        if (user) uid = user.uid;
+      } catch (err) {
+        console.log('No se pudo obtener el UID para el reporte de retardos:', err.message);
+      }
+
       const retardos = await AbsenceService.getRetardosByUser(
         emailUsuario,
         fechaInicio,
-        fechaFin
+        fechaFin,
+        uid
       );
 
       res.json({

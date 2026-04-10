@@ -87,15 +87,37 @@ function OrganigramaTab({ userData }) {
     return { ceo, direccion, rh, adminsArea, porDepto };
   };
 
-  // ── Tarjeta — solo nombre, puesto y área ─────────────────────────────────
+  // ── Tarjeta — foto o iniciales, nombre, puesto y área ─────────────────────
   const Tarjeta = ({ persona, size = 'normal' }) => {
     const sm = size === 'small';
     const color = getRoleColor(persona.role);
+    const avatarSize = sm ? 36 : 52;
+    const fontSize = sm ? 13 : 18;
     return (
       <div className={`org-card ${sm ? 'org-card-sm' : ''}`}>
+        {persona.fotoUrl ? (
+          <img
+            src={persona.fotoUrl}
+            alt={persona.nombre}
+            style={{
+              width: avatarSize, height: avatarSize, borderRadius: '50%',
+              objectFit: 'cover', margin: '0 auto 8px', display: 'block',
+              border: `2px solid ${color}`
+            }}
+            onError={e => {
+              // Si la imagen falla, reemplazar con iniciales
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'flex';
+            }}
+          />
+        ) : null}
         <div
           className="org-avatar-circle"
-          style={{ backgroundColor: color, width: sm ? 36 : 52, height: sm ? 36 : 52, fontSize: sm ? 13 : 18 }}
+          style={{
+            backgroundColor: color,
+            width: avatarSize, height: avatarSize, fontSize,
+            display: persona.fotoUrl ? 'none' : 'flex'
+          }}
         >
           {getInitials(persona.nombre)}
         </div>
@@ -118,6 +140,7 @@ function OrganigramaTab({ userData }) {
       </div>
     );
   };
+
 
   const { ceo, direccion, rh, adminsArea, porDepto } = getJerarquia();
 
@@ -324,11 +347,27 @@ function OrganigramaTab({ userData }) {
                       const isJefe = p.role === 'admin_rh' || p.role === 'admin_area';
                       return (
                         <li key={p.uid || p.id} className={`list-group-item d-flex align-items-center gap-2 py-2 ${isJefe ? 'bg-light' : ''}`}>
+                          {p.fotoUrl ? (
+                            <img
+                              src={p.fotoUrl}
+                              alt={p.nombre}
+                              style={{
+                                width: 36, height: 36, borderRadius: '50%',
+                                objectFit: 'cover', flexShrink: 0,
+                                border: `2px solid ${getRoleColor(p.role)}`
+                              }}
+                              onError={e => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : null}
                           <div
                             style={{
                               width: 36, height: 36, borderRadius: '50%',
                               backgroundColor: getRoleColor(p.role),
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              display: p.fotoUrl ? 'none' : 'flex',
+                              alignItems: 'center', justifyContent: 'center',
                               color: 'white', fontWeight: 700, fontSize: 13, flexShrink: 0
                             }}
                           >

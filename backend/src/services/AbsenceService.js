@@ -149,8 +149,8 @@ class AbsenceService {
       const requiereRevisionUrgente = esEmergencia ||
         (TIPOS_REQUIEREN_ANTICIPACION.includes(absenceData.tipo) && diasAnticipacion < DIAS_ANTICIPACION_REQUERIDOS);
 
-      // Preparar datos de ausencia
       const nuevaAusencia = {
+        userId: absenceData.uid || absenceData.userId || null,
         emailUsuario: absenceData.emailUsuario,
         nombreUsuario: absenceData.nombreUsuario || '',
         departamentoUsuario: absenceData.departamentoUsuario || '', // Para filtrado por admin_area
@@ -235,21 +235,23 @@ class AbsenceService {
       }
 
       // 2. Notificar a todos los admin_rh y al admin_area del departamento
-      // Se obtienen todos y se filtra en memoria para evitar problemas con índices de Firestore
+      // Se obtienen solo admins activos para mayor eficiencia
       const adminSnapshot = await this.db
         .collection(COLLECTIONS.USUARIOS)
+        .where('role', 'in', [ROLES.ADMIN_RH, ROLES.ADMIN_AREA])
         .get();
 
       const admins = [];
       adminSnapshot.forEach(doc => {
         const data = doc.data();
         if (data.activo === false) return; // Saltar inactivos
-        if (
-          data.role === ROLES.ADMIN_RH ||
-          (data.role === ROLES.ADMIN_AREA && departamento && data.departamento === departamento)
-        ) {
-          admins.push({ uid: doc.id, ...data });
+        
+        // Si es Admin Área, debe ser del mismo departamento
+        if (data.role === ROLES.ADMIN_AREA && departamento && data.departamento !== departamento) {
+          return;
         }
+
+        admins.push({ uid: doc.id, ...data });
       });
 
       for (const admin of admins) {
@@ -279,7 +281,9 @@ class AbsenceService {
 
       // Solo aplicar UN filtro en Firestore para evitar índices compuestos
       // Priorizamos el filtro más selectivo
-      if (filters.emailUsuario) {
+      if (filters.userId) {
+        query = query.where('userId', '==', filters.userId);
+      } else if (filters.emailUsuario) {
         query = query.where('emailUsuario', '==', filters.emailUsuario);
       }
       // Si no hay filtro de email, obtenemos todo y filtramos en memoria
@@ -493,24 +497,56 @@ class AbsenceService {
         await this.aplicarCorreccionHora(ausencia);
       }
 
+      // Si es vacaciones, recalcular saldo del empleado automáticamente
+      if (ausencia.tipo === 'vacaciones') {
+        try {
+          const uid = ausencia.userId;
+          if (uid) {
+            await UserService.recalcularSaldoVacaciones(uid);
+          } else {
+            // Fallback para registros viejos sin userId
+            const user = await UserService.getUserByEmail(ausencia.emailUsuario);
+            if (user?.uid) {
+              await UserService.recalcularSaldoVacaciones(user.uid);
+            }
+          }
+        } catch (saldoError) {
+          console.error('Error recalculando saldo de vacaciones tras aprobación:', saldoError);
+        }
+      }
+
       // Enviar notificación al empleado
       try {
-        const user = await UserService.getUserByEmail(ausencia.emailUsuario);
-        if (user && user.uid) {
+        const uid = ausencia.userId;
+        if (uid) {
           const fechas = ausencia.fechaFin && ausencia.fechaFin !== ausencia.fechaInicio
             ? `${ausencia.fechaInicio} al ${ausencia.fechaFin}`
             : ausencia.fechaInicio;
 
           await NotificationService.notifyPermisoAprobado(
-            user.uid,
+            uid,
             ausencia.emailUsuario,
             this.formatTipoAusencia(ausencia.tipo),
             fechas
           );
+        } else {
+          // Fallback para registros viejos
+          const user = await UserService.getUserByEmail(ausencia.emailUsuario);
+          if (user && user.uid) {
+            const fechas = ausencia.fechaFin && ausencia.fechaFin !== ausencia.fechaInicio
+              ? `${ausencia.fechaInicio} al ${ausencia.fechaFin}`
+              : ausencia.fechaInicio;
+
+            await NotificationService.notifyPermisoAprobado(
+              user.uid,
+              ausencia.emailUsuario,
+              this.formatTipoAusencia(ausencia.tipo),
+              fechas
+            );
+          }
         }
       } catch (notifError) {
         console.error('Error enviando notificación de aprobación:', notifError);
-        // No lanzar error para no interrumpir el flujo de aprobación
       }
 
       return await this.getAbsenceById(absenceId);
@@ -541,14 +577,25 @@ class AbsenceService {
 
       // Enviar notificación al empleado
       try {
-        const user = await UserService.getUserByEmail(ausencia.emailUsuario);
-        if (user && user.uid) {
+        const uid = ausencia.userId;
+        if (uid) {
           await NotificationService.notifyPermisoRechazado(
-            user.uid,
+            uid,
             ausencia.emailUsuario,
             this.formatTipoAusencia(ausencia.tipo),
             comentarios
           );
+        } else {
+          // Fallback para registros viejos
+          const user = await UserService.getUserByEmail(ausencia.emailUsuario);
+          if (user && user.uid) {
+            await NotificationService.notifyPermisoRechazado(
+              user.uid,
+              ausencia.emailUsuario,
+              this.formatTipoAusencia(ausencia.tipo),
+              comentarios
+            );
+          }
         }
       } catch (notifError) {
         console.error('Error enviando notificación de rechazo:', notifError);
@@ -572,7 +619,9 @@ class AbsenceService {
       'vacaciones': 'Vacaciones',
       'incapacidad': 'Incapacidad',
       'retardo_justificado': 'Retardo Justificado',
-      'falta_justificada': 'Falta Justificada'
+      'falta_justificada': 'Falta Justificada',
+      'viaje_negocios': 'Viaje de Negocios',
+      'justificante': 'Justificante Médico'
     };
     return tipos[tipo] || tipo;
   }
@@ -748,18 +797,27 @@ class AbsenceService {
    * Obtener retardos de un usuario para justificación
    * Nota: Usamos consulta simple y filtramos en memoria para evitar índices compuestos
    */
-  async getRetardosByUser(emailUsuario, fechaInicio, fechaFin) {
+  async getRetardosByUser(emailUsuario, fechaInicio, fechaFin, uid = null) {
     try {
-      // Consulta simple - solo por email (el campo puede ser 'correo' o 'email')
-      let snapshot = await this.db.collection(this.attendanceCollection)
-        .where('email', '==', emailUsuario)
-        .get();
+      let snapshot;
 
-      // Si no hay resultados, intentar con 'correo'
-      if (snapshot.empty) {
+      // Priorizar búsqueda por UID si está disponible
+      if (uid) {
         snapshot = await this.db.collection(this.attendanceCollection)
-          .where('correo', '==', emailUsuario)
+          .where('uid', '==', uid)
           .get();
+      } else {
+        // Consulta simple - solo por email (el campo puede ser 'correo' o 'email')
+        snapshot = await this.db.collection(this.attendanceCollection)
+          .where('email', '==', emailUsuario)
+          .get();
+
+        // Si no hay resultados, intentar con 'correo'
+        if (snapshot.empty) {
+          snapshot = await this.db.collection(this.attendanceCollection)
+            .where('correo', '==', emailUsuario)
+            .get();
+        }
       }
 
       // Filtrar en memoria

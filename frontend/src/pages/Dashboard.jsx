@@ -116,7 +116,7 @@ function Dashboard() {
     });
     eventos.push(...festivosMesActual);
 
-    usuarios.forEach(u => {
+    usuarios.filter(u => u.activo !== false && u.estado !== 'inactivo' && u.estatus !== 'inactivo').forEach(u => {
       const fechaNac = parseFecha(u.fechaNacimiento);
       if (fechaNac && fechaNac[1] === mesStr) {
         eventos.push({
