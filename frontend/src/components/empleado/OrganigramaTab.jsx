@@ -95,9 +95,9 @@ function OrganigramaTab({ userData }) {
     const fontSize = sm ? 13 : 18;
     return (
       <div className={`org-card ${sm ? 'org-card-sm' : ''}`}>
-        {persona.fotoUrl ? (
+        {persona.foto || persona.fotoUrl ? (
           <img
-            src={persona.fotoUrl}
+            src={persona.foto || persona.fotoUrl}
             alt={persona.nombre}
             style={{
               width: avatarSize, height: avatarSize, borderRadius: '50%',
@@ -116,7 +116,7 @@ function OrganigramaTab({ userData }) {
           style={{
             backgroundColor: color,
             width: avatarSize, height: avatarSize, fontSize,
-            display: persona.fotoUrl ? 'none' : 'flex'
+            display: (persona.foto || persona.fotoUrl) ? 'none' : 'flex'
           }}
         >
           {getInitials(persona.nombre)}

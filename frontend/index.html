@@ -17,6 +17,31 @@
   </head>
   <body>
     <div id="root"></div>
+    <div id="global-error" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:white; z-index:9999; padding:20px; color:red; overflow:auto; text-align:left; font-family:monospace;"></div>
+    <script>
+      window.addEventListener('error', function(e) {
+        var el = document.getElementById('global-error');
+        el.style.display = 'block';
+        el.innerHTML += '<h3>Uncaught Error</h3><pre>' + e.message + '\\n' + e.filename + ':' + e.lineno + '</pre>';
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        var el = document.getElementById('global-error');
+        el.style.display = 'block';
+        el.innerHTML += '<h3>Unhandled Promise Rejection</h3><pre>' + (e.reason && e.reason.stack ? e.reason.stack : e.reason) + '</pre>';
+      });
+      // Sobrescribir console.error para capturar errores de React render
+      var originalError = console.error;
+      console.error = function() {
+        var args = Array.prototype.slice.call(arguments);
+        originalError.apply(console, args);
+        var message = args.join(' ');
+        if (message && (message.indexOf('React') !== -1 || message.indexOf('Error:') !== -1)) {
+          var el = document.getElementById('global-error');
+          el.style.display = 'block';
+          el.innerHTML += '<h3>Console Error</h3><pre>' + message + '</pre>';
+        }
+      };
+    </script>
     <script type="module" src="/src/main.jsx"></script>
     <script>
       if ('serviceWorker' in navigator) {

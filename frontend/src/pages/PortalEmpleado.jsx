@@ -533,7 +533,7 @@ function PortalEmpleado() {
             </div>
             <div className="header-actions">
               {/* Botón de volver a Administración (Solo para Admins) */}
-              {(userRole === 'admin_rh' || userRole === 'admin_area') && (
+              {['super_admin', 'director', 'admin_rh', 'admin_area', 'sistemas'].includes(userRole) && (
                 <button 
                   className="btn-icon admin-shortcut"
                   onClick={() => navigate('/admin/dashboard')}
@@ -543,8 +543,8 @@ function PortalEmpleado() {
                 </button>
               )}
 
-              {/* Botón de Pantalla QR / Agenda (Solo para Sistemas o Admin RH) */}
-              {(userRole === 'sistemas' || userRole === 'admin_rh') && (
+              {/* Botón de Pantalla QR / Agenda (Solo para superiores) */}
+              {['super_admin', 'director'].includes(userRole) && (
                 <button 
                   className="btn-icon qr-shortcut shadow-sm"
                   onClick={() => navigate('/qr')}

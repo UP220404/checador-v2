@@ -9,15 +9,25 @@ import { superAdminMiddleware } from '../middleware/role.middleware.js';
 
 const router = express.Router();
 
-// Solo Super Admin puede tocar la configuración del sistema
+// Todos los endpoints de Settings requieren autenticación
 router.use(authMiddleware);
-router.use(superAdminMiddleware);
+
+// ============================================
+// LECTURA DE CONFIGURACIÓN (Todos los empleados)
+// ============================================
 
 // GET /api/v1/settings - Obtener todas las configuraciones
 router.get('/', SettingsController.getAllSettings);
 
 // GET /api/v1/settings/:category - Obtener configuracion por categoria
 router.get('/:category', SettingsController.getSettings);
+
+// ============================================
+// ESCRITURA DE CONFIGURACIÓN (Solo Super Admin)
+// ============================================
+
+// Aplicar middleware de Super Admin a todas las rutas a partir de aquí
+router.use(superAdminMiddleware);
 
 // PUT /api/v1/settings/:category - Actualizar configuracion por categoria
 router.put('/:category', SettingsController.updateSettings);

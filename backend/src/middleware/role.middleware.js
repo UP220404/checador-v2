@@ -188,11 +188,10 @@ export const adminPanelMiddleware = roleMiddleware([
   ROLES.ADMIN_AREA
 ]);
 
-/** Sistemas + Super Admin + Director → acceso QR/Agenda */
+/** Super Admin + Director → acceso QR/Agenda */
 export const sistemasOrAboveMiddleware = roleMiddleware([
   ROLES.SUPER_ADMIN,
-  ROLES.DIRECTOR,
-  ROLES.SISTEMAS
+  ROLES.DIRECTOR
 ]);
 
 /** Marketing: por rol ADMIN_RH/SUPER/DIRECTOR, o por departamento Marketing */

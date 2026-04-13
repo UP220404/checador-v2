@@ -40,11 +40,22 @@ function PrivateRoute({ children, requiredRoles = [ROLES.ADMIN_RH, ROLES.ADMIN_A
   const hasDept = requiredDepartment && userDepartamento === requiredDepartment;
 
   if (!hasRole && !hasDept) {
-    // Si NO tiene rol (ej. null o denegado por backend), redirigir directamente a login
-    if (!userRole) {
-      return <Navigate to="/login" replace />;
+    // Evitar bucles infinitos: Si ya estamos en /empleado/portal o /admin/dashboard, mostramos un error simple
+    const isPortal = window.location.pathname.startsWith('/empleado/portal');
+    const isAdmin = window.location.pathname.startsWith('/admin/');
+    
+    if (isPortal || (isAdmin && ['super_admin', 'director', 'admin_rh', 'admin_area'].includes(userRole))) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+          <h4>⛔ Acceso Denegado: No cuentas con el rol o departamento requerido para este módulo.</h4>
+        </div>
+      );
     }
-    // Si tiene rol pero no el requerido para esta ruta, al portal del empleado
+    
+    // Si tiene perfil de admin y está perdido, al dashboard. Si no, al portal.
+    if (['super_admin', 'director', 'admin_rh', 'admin_area'].includes(userRole)) {
+      return <Navigate to="/admin/dashboard" replace />;
+    }
     return <Navigate to="/empleado/portal" replace />;
   }
 

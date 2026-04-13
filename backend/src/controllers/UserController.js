@@ -120,7 +120,7 @@ class UserController {
           nombre:      u.nombre || '',
           departamento: u.departamento || '',
           puesto:      u.puesto || '',
-          foto:        u.foto || u.photoURL || null,
+          foto:        u.foto || u.fotoUrl || u.photoURL || null,
           role:        u.role || 'empleado'
         }));
 

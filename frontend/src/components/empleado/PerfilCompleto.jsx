@@ -299,11 +299,6 @@ function PerfilCompleto({ userData, mostrarMensaje, onUpdateUserData }) {
             </form>
           </div>
 
-          {/* Fechas importantes */}
-          <FechasImportantes
-            uid={userData?.uid}
-            mostrarMensaje={mostrarMensaje}
-          />
         </div>
       </div>
     </div>

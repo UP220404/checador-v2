@@ -47,7 +47,7 @@ function App() {
         <Routes>
           {/* Ruta Raíz: El Checador ahora requiere estar autenticado */}
           <Route path="/" element={
-            <PrivateRoute requiredRoles={['empleado', 'admin_area', 'admin_rh']}>
+            <PrivateRoute requiredRoles={['super_admin', 'director', 'empleado', 'admin_area', 'admin_rh', 'sistemas']}>
               <Checador />
             </PrivateRoute>
           } />
@@ -57,7 +57,7 @@ function App() {
 
           {/* Portal del Empleado */}
           <Route path="/empleado/portal" element={
-            <PrivateRoute requiredRoles={['empleado', 'admin_area', 'admin_rh']}>
+            <PrivateRoute requiredRoles={['super_admin', 'director', 'empleado', 'admin_area', 'admin_rh', 'sistemas']}>
               <PortalEmpleado />
             </PrivateRoute>
           } />
@@ -73,8 +73,8 @@ function App() {
           <Route path="/admin/vacaciones"  element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Vacaciones /></PrivateRoute>} />
           {/* Nómina: solo Director y Super Admin */}
           <Route path="/admin/nomina"      element={<PrivateRoute requiredRoles={['super_admin','director']}><Nomina /></PrivateRoute>} />
-          {/* QR/Agenda: solo Sistemas + Super Admin + Director */}
-          <Route path="/qr"                element={<PrivateRoute requiredRoles={['super_admin','director','sistemas']}><QRGenerator /></PrivateRoute>} />
+          {/* QR/Agenda: solo Super Admin + Director */}
+          <Route path="/qr"                element={<PrivateRoute requiredRoles={['super_admin','director']}><QRGenerator /></PrivateRoute>} />
           {/* Evaluaciones de desempeño: Super Admin, Director, y Jefes de Área */}
           <Route path="/admin/evaluaciones"         element={<PrivateRoute requiredRoles={['super_admin','director','admin_area']}><Evaluaciones /></PrivateRoute>} />
           <Route path="/admin/capacitacion"         element={<PrivateRoute requiredRoles={['super_admin','director','admin_area']}><Capacitacion /></PrivateRoute>} />

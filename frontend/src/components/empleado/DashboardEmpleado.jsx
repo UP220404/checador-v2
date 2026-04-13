@@ -46,49 +46,12 @@ function DashboardEmpleado({ userData, attendanceSummary, saldoVacaciones, unrea
         console.log('No se pudo cargar solicitudes');
       }
 
-      // Tercero: fechas importantes (opcional)
-      try {
-        const fechasResponse = await api.getFechasImportantes(userData.uid);
-        if (fechasResponse.data.success) {
-          const fechas = fechasResponse.data.data || [];
-          const proximas = calcularProximasFechas(fechas);
-          setProximasFechas(proximas);
-        }
-      } catch (e) {
-        console.log('No se pudo cargar fechas importantes');
-      }
-
     } catch (error) {
       console.error('Error cargando dashboard:', error);
       setLoadError(true);
     } finally {
       setLoading(false);
     }
-  };
-
-  const calcularProximasFechas = (fechas) => {
-    if (!fechas || !Array.isArray(fechas)) return [];
-
-    const hoy = new Date();
-
-    return fechas
-      .filter(fecha => fecha && fecha.fecha)
-      .map(fecha => {
-        const [mes, dia] = fecha.fecha.split('-');
-        let diasRestantes;
-
-        // Calcular dias restantes considerando vuelta de anio
-        const fechaObj = new Date(hoy.getFullYear(), parseInt(mes) - 1, parseInt(dia));
-        if (fechaObj < hoy) {
-          fechaObj.setFullYear(hoy.getFullYear() + 1);
-        }
-        diasRestantes = Math.ceil((fechaObj - hoy) / (1000 * 60 * 60 * 24));
-
-        return { ...fecha, diasRestantes };
-      })
-      .filter(f => f.diasRestantes <= 30 && f.diasRestantes >= 0)
-      .sort((a, b) => a.diasRestantes - b.diasRestantes)
-      .slice(0, 3);
   };
 
   const getGreeting = () => {
@@ -240,35 +203,6 @@ function DashboardEmpleado({ userData, attendanceSummary, saldoVacaciones, unrea
           </button>
         </div>
       </div>
-
-      {/* Proximas fechas importantes */}
-      {proximasFechas.length > 0 && (
-        <div className="upcoming-dates-card">
-          <h5><i className="bi bi-calendar-event me-2"></i>Proximas fechas importantes</h5>
-          <div className="dates-list">
-            {proximasFechas.map((fecha, index) => (
-              <div key={index} className="date-item">
-                <div className="date-icon">
-                  <i className={`bi ${fecha.tipo === 'cumpleanos' ? 'bi-gift' : fecha.tipo === 'aniversario' ? 'bi-award' : 'bi-star'}`}></i>
-                </div>
-                <div className="date-info">
-                  <span className="date-desc">{fecha.descripcion || fecha.tipo}</span>
-                  <span className="date-value">{formatDate(fecha.fecha)}</span>
-                </div>
-                <div className="date-countdown">
-                  {fecha.diasRestantes === 0 ? (
-                    <span className="badge bg-success">Hoy</span>
-                  ) : fecha.diasRestantes === 1 ? (
-                    <span className="badge bg-warning">Manana</span>
-                  ) : (
-                    <span className="text-muted">{fecha.diasRestantes} dias</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Accesos rapidos */}
       <div className="quick-actions">

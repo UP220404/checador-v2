@@ -423,9 +423,16 @@ function HistorialMejorado({ userData, attendanceSummary }) {
                       <div className="cell-content">
                         <span className="calendar-day-number">{dayData.day}</span>
                         {dayData.status && dayData.status !== 'no-record' && dayData.status !== 'future' && dayData.status !== 'weekend' && (
-                          <span className={`cell-status-label-v3 ${dayData.status}`}>
-                            {getStatusLabelText(dayData.status)}
-                          </span>
+                          <>
+                            <span className={`cell-status-label-v3 ${dayData.status}`}>
+                              {getStatusLabelText(dayData.status)}
+                            </span>
+                            {dayData.isHoliday && dayData.holidayName && (
+                              <span className="holiday-name-subtitle" style={{ fontSize: '0.55rem', display: 'block', textAlign: 'center', color: '#7048e8', marginTop: '2px', fontWeight: 'bold', lineHeight: 1.1 }}>
+                                {dayData.holidayName}
+                              </span>
+                            )}
+                          </>
                         )}
                         {dayData.record?.entrada && (
                           <div className="cell-info-hover">

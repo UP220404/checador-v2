@@ -125,7 +125,6 @@ router.get(
 router.get(
   '/holidays/:anio',
   authMiddleware,
-  adminRHMiddleware,
   PayrollController.getHolidays
 );
 
