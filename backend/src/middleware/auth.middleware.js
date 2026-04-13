@@ -72,8 +72,8 @@ export async function authMiddleware(req, res, next) {
 }
 
 /**
- * Middleware para verificar si el usuario es administrador
- * Unifica ADMIN_EMAILS (.env) con el rol ADMIN_RH (Firestore)
+ * Middleware para verificar si el usuario puede acceder al panel de administrador.
+ * Acepta: super_admin, director, admin_rh, admin_area
  */
 export async function adminMiddleware(req, res, next) {
   if (!req.user) {
@@ -83,7 +83,7 @@ export async function adminMiddleware(req, res, next) {
     });
   }
 
-  // Robustez: Si por alguna razón el rol no se ha cargado todavía, lo cargamos aquí
+  // Cargar rol si no está cargado aún
   if (!req.user.role) {
     try {
       const { getUserRoleData } = await import('./role.middleware.js');
@@ -98,12 +98,13 @@ export async function adminMiddleware(req, res, next) {
   }
 
   const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
-  
-  // Es Admin si está en el .env O si ya tiene el rol admin_rh cargado
   const isSuperAdmin = adminEmails.includes(req.user.email);
-  const isRHAdmin = req.user.role === ROLES.ADMIN_RH;
+  const adminRoles = [
+    ROLES.SUPER_ADMIN, ROLES.DIRECTOR, ROLES.ADMIN_RH, ROLES.ADMIN_AREA
+  ];
+  const hasAdminRole = adminRoles.includes(req.user.role);
 
-  if (!isSuperAdmin && !isRHAdmin) {
+  if (!isSuperAdmin && !hasAdminRole) {
     console.warn(`[adminMiddleware] Acceso denegado para: ${req.user.email} con rol: ${req.user.role}`);
     return res.status(HTTP_STATUS.FORBIDDEN).json({
       success: false,

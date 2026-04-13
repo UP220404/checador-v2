@@ -5,12 +5,12 @@
 import express from 'express';
 import AuditController from '../controllers/AuditController.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
-import { adminRHMiddleware } from '../middleware/role.middleware.js';
+import { superAdminMiddleware } from '../middleware/role.middleware.js';
 
 const router = express.Router();
 
-// Todas las rutas requieren autenticación y rol admin_rh
-router.use(authMiddleware, adminRHMiddleware);
+// Solo Super Admin puede ver la auditoría del sistema
+router.use(authMiddleware, superAdminMiddleware);
 
 // GET /api/v1/audit - Obtener registros de auditoría
 router.get('/', AuditController.getAuditLogs);

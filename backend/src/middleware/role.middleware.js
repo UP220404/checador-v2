@@ -1,20 +1,45 @@
 /**
- * Middleware de Roles
- * Gestiona permisos basados en roles: empleado, admin_area, admin_rh
+ * Middleware de Roles — RBAC completo
+ *
+ * Jerarquía de roles:
+ *   super_admin  → Acceso total, sin restricciones
+ *   director     → Acceso total excepto Config / Auditoría técnica
+ *   admin_rh     → Usuarios, Registros, Ausencias, Reportes, Vac., Docs, Eval. Contratos
+ *   admin_area   → Como RH pero filtrado a su departamento + Evaluaciones desempeño
+ *   sistemas     → Solo QR / Agenda
+ *   marketing    → Solo módulo de Marketing (por rol O por departamento)
+ *   empleado     → Solo portal del empleado
  */
 
 import { getFirestore } from '../config/firebase.js';
 import { COLLECTIONS, HTTP_STATUS, ERROR_MESSAGES, ROLES } from '../config/constants.js';
 
-/**
- * Obtiene el rol y departamento del usuario desde Firestore
- * Unifica con ADMIN_EMAILS del .env
- */
+// ────────────────────────────────────────────────────────────────
+// Jerarquía: quién incluye a quién (arriba → abajo)
+// ────────────────────────────────────────────────────────────────
+const ROLE_HIERARCHY = {
+  [ROLES.SUPER_ADMIN]: 6,
+  [ROLES.DIRECTOR]:    5,
+  [ROLES.ADMIN_RH]:    4,
+  [ROLES.ADMIN_AREA]:  3,
+  [ROLES.SISTEMAS]:    2,
+  [ROLES.EMPLEADO]:    1,
+};
+
+function hasRole(userRole, ...allowedRoles) {
+  return allowedRoles.includes(userRole);
+}
+
+function isSuperOrDirector(role) {
+  return hasRole(role, ROLES.SUPER_ADMIN, ROLES.DIRECTOR);
+}
+
+// ────────────────────────────────────────────────────────────────
+//  Obtener datos de rol desde Firestore (o .env para super_admin)
+// ────────────────────────────────────────────────────────────────
 export async function getUserRoleData(email) {
   try {
     const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
-    
-    // Si está en el .env, es Súper Admin (ADMIN_RH)
     const isSuperAdmin = adminEmails.includes(email);
 
     const db = getFirestore();
@@ -22,11 +47,10 @@ export async function getUserRoleData(email) {
     const snapshot = await usersRef.where('email', '==', email).limit(1).get();
 
     if (snapshot.empty) {
-      // Si no está en BD pero sí en .env, retornar datos básicos de admin
       if (isSuperAdmin) {
         return {
           uid: 'super-admin',
-          role: ROLES.ADMIN_RH,
+          role: ROLES.SUPER_ADMIN,
           departamento: 'Direccion',
           nombre: 'Super Administrador'
         };
@@ -35,9 +59,14 @@ export async function getUserRoleData(email) {
     }
 
     const userData = snapshot.docs[0].data();
+    const dbRole = userData.role || ROLES.EMPLEADO;
+
+    // Si está en .env, siempre es SUPER_ADMIN independientemente del rol en BD
+    const role = isSuperAdmin ? ROLES.SUPER_ADMIN : dbRole;
+
     return {
       uid: snapshot.docs[0].id,
-      role: isSuperAdmin ? ROLES.ADMIN_RH : (userData.role || ROLES.EMPLEADO),
+      role,
       departamento: userData.departamento || null,
       nombre: userData.nombre
     };
@@ -47,12 +76,11 @@ export async function getUserRoleData(email) {
   }
 }
 
-/**
- * Middleware generico para verificar roles
- * @param {string[]} allowedRoles - Roles permitidos
- * @param {Object} options - Opciones adicionales
- */
-export function roleMiddleware(allowedRoles, options = {}) {
+// ────────────────────────────────────────────────────────────────
+//  Middleware base: verifica que el rol esté en la lista permitida
+//  También acepta verificación por departamento
+// ────────────────────────────────────────────────────────────────
+export function roleMiddleware(allowedRoles, allowedDepts = []) {
   return async (req, res, next) => {
     try {
       if (!req.user) {
@@ -62,9 +90,7 @@ export function roleMiddleware(allowedRoles, options = {}) {
         });
       }
 
-      // Obtener datos de rol del usuario
       const roleData = await getUserRoleData(req.user.email);
-
       if (!roleData) {
         return res.status(HTTP_STATUS.FORBIDDEN).json({
           success: false,
@@ -72,13 +98,14 @@ export function roleMiddleware(allowedRoles, options = {}) {
         });
       }
 
-      // Agregar datos de rol al request
-      req.user.role = roleData.role;
+      req.user.role        = roleData.role;
       req.user.departamento = roleData.departamento;
-      req.user.roleData = roleData;
+      req.user.roleData    = roleData;
 
-      // Verificar si el rol está permitido
-      if (!allowedRoles.includes(roleData.role)) {
+      const hasAllowedRole = allowedRoles.includes(roleData.role);
+      const hasAllowedDept = allowedDepts.length > 0 && allowedDepts.includes(roleData.departamento);
+
+      if (!hasAllowedRole && !hasAllowedDept) {
         return res.status(HTTP_STATUS.FORBIDDEN).json({
           success: false,
           message: 'No tienes permisos para acceder a este recurso'
@@ -96,25 +123,79 @@ export function roleMiddleware(allowedRoles, options = {}) {
   };
 }
 
-/**
- * Middleware para solo admin_rh (acceso total)
- */
-export function adminRHMiddleware(req, res, next) {
-  return roleMiddleware([ROLES.ADMIN_RH])(req, res, next);
+// ────────────────────────────────────────────────────────────────
+//  Middleware adjuntar datos de rol (sin bloquear)
+// ────────────────────────────────────────────────────────────────
+export async function attachRoleData(req, res, next) {
+  try {
+    if (!req.user) return next();
+
+    const roleData = await getUserRoleData(req.user.email);
+    if (roleData) {
+      req.user.role        = roleData.role;
+      req.user.departamento = roleData.departamento;
+      req.user.roleData    = roleData;
+    } else {
+      const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
+      if (adminEmails.includes(req.user.email)) {
+        req.user.role        = ROLES.SUPER_ADMIN;
+        req.user.departamento = 'Direccion';
+      } else {
+        req.user.role        = ROLES.EMPLEADO;
+        req.user.departamento = null;
+      }
+    }
+    next();
+  } catch (error) {
+    console.error('Error en attachRoleData:', error);
+    next();
+  }
 }
 
-/**
- * Middleware para admin_area o admin_rh
- * admin_area solo puede ver/gestionar su departamento
- */
-export function adminAreaOrRHMiddleware(req, res, next) {
-  return roleMiddleware([ROLES.ADMIN_AREA, ROLES.ADMIN_RH])(req, res, next);
-}
+// ────────────────────────────────────────────────────────────────
+//  MIDDLEWARES ESPECÍFICOS POR NIVEL DE ACCESO
+// ────────────────────────────────────────────────────────────────
 
-/**
- * Middleware específico para Marketing
- * Permite acceso si el departamento es Marketing O si tiene rol admin_rh o sistemas
- */
+/** Solo Super Admin */
+export const superAdminMiddleware = roleMiddleware([ROLES.SUPER_ADMIN]);
+
+/** Super Admin + Director */
+export const directorOrAboveMiddleware = roleMiddleware([
+  ROLES.SUPER_ADMIN,
+  ROLES.DIRECTOR
+]);
+
+/** Super Admin + Director + RH → gestión de personal en toda la empresa */
+export const rhOrAboveMiddleware = roleMiddleware([
+  ROLES.SUPER_ADMIN,
+  ROLES.DIRECTOR,
+  ROLES.ADMIN_RH
+]);
+
+/** Super Admin + Director + RH + Jefe de Área → cualquier admin de área */
+export const adminAreaOrRHMiddleware = roleMiddleware([
+  ROLES.SUPER_ADMIN,
+  ROLES.DIRECTOR,
+  ROLES.ADMIN_RH,
+  ROLES.ADMIN_AREA
+]);
+
+/** Solo roles que pueden ser administradores del panel (no empleado, no sistemas, no marketing puro) */
+export const adminPanelMiddleware = roleMiddleware([
+  ROLES.SUPER_ADMIN,
+  ROLES.DIRECTOR,
+  ROLES.ADMIN_RH,
+  ROLES.ADMIN_AREA
+]);
+
+/** Sistemas + Super Admin + Director → acceso QR/Agenda */
+export const sistemasOrAboveMiddleware = roleMiddleware([
+  ROLES.SUPER_ADMIN,
+  ROLES.DIRECTOR,
+  ROLES.SISTEMAS
+]);
+
+/** Marketing: por rol ADMIN_RH/SUPER/DIRECTOR, o por departamento Marketing */
 export async function marketingMiddleware(req, res, next) {
   try {
     if (!req.user) {
@@ -132,14 +213,12 @@ export async function marketingMiddleware(req, res, next) {
       });
     }
 
-    // Guardar datos en req.user
-    req.user.role = roleData.role;
+    req.user.role        = roleData.role;
     req.user.departamento = roleData.departamento;
 
-    const hasAccess = 
-      roleData.departamento === 'Marketing' || 
-      roleData.role === ROLES.ADMIN_RH || 
-      roleData.role === ROLES.SISTEMAS;
+    const hasAccess =
+      isSuperOrDirector(roleData.role)          ||
+      roleData.departamento === 'Marketing';
 
     if (!hasAccess) {
       return res.status(HTTP_STATUS.FORBIDDEN).json({
@@ -158,82 +237,39 @@ export async function marketingMiddleware(req, res, next) {
   }
 }
 
-/**
- * Middleware para cualquier usuario autenticado
- * Agrega datos de rol al request
- */
-export async function attachRoleData(req, res, next) {
-  try {
-    if (!req.user) {
-      return next();
-    }
+// ────────────────────────────────────────────────────────────────
+//  Legacy: compatibilidad con código que aún usa adminRHMiddleware
+// ────────────────────────────────────────────────────────────────
+export const adminRHMiddleware    = rhOrAboveMiddleware;
+export const adminMiddleware      = adminAreaOrRHMiddleware;
 
-    const roleData = await getUserRoleData(req.user.email);
-    if (roleData) {
-      req.user.role = roleData.role;
-      req.user.departamento = roleData.departamento;
-      req.user.roleData = roleData;
-    } else {
-      // Verificación final con .env por si getUserRoleData falló por algo
-      const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
-      if (adminEmails.includes(req.user.email)) {
-        req.user.role = ROLES.ADMIN_RH;
-        req.user.departamento = 'Direccion';
-      } else {
-        req.user.role = ROLES.EMPLEADO;
-        req.user.departamento = null;
-      }
-    }
-
-    next();
-  } catch (error) {
-    console.error('Error en attachRoleData:', error);
-    next();
-  }
-}
-
-/**
- * Verifica si el usuario puede acceder a datos de un departamento especifico
- */
+// ────────────────────────────────────────────────────────────────
+//  Utilidades de verificación
+// ────────────────────────────────────────────────────────────────
 export function canAccessDepartment(userRole, userDepartamento, targetDepartamento) {
-  // admin_rh puede acceder a todo
-  if (userRole === ROLES.ADMIN_RH) {
-    return true;
-  }
-
-  // admin_area solo puede acceder a su departamento
-  if (userRole === ROLES.ADMIN_AREA) {
-    return userDepartamento === targetDepartamento;
-  }
-
-  // empleado no tiene acceso a datos de otros
+  if (isSuperOrDirector(userRole) || userRole === ROLES.ADMIN_RH) return true;
+  if (userRole === ROLES.ADMIN_AREA) return userDepartamento === targetDepartamento;
   return false;
 }
 
-/**
- * Filtra una lista de usuarios por departamento segun el rol
- */
 export function filterByDepartment(users, userRole, userDepartamento) {
-  // admin_rh ve todos
-  if (userRole === ROLES.ADMIN_RH) {
-    return users;
-  }
-
-  // admin_area solo ve su departamento
-  if (userRole === ROLES.ADMIN_AREA) {
-    return users.filter(u => u.departamento === userDepartamento);
-  }
-
-  // empleado no ve lista de usuarios
+  if (isSuperOrDirector(userRole) || userRole === ROLES.ADMIN_RH) return users;
+  if (userRole === ROLES.ADMIN_AREA) return users.filter(u => u.departamento === userDepartamento);
   return [];
 }
 
 export default {
   roleMiddleware,
-  adminRHMiddleware,
-  adminAreaOrRHMiddleware,
-  marketingMiddleware,
   attachRoleData,
+  superAdminMiddleware,
+  directorOrAboveMiddleware,
+  rhOrAboveMiddleware,
+  adminAreaOrRHMiddleware,
+  adminPanelMiddleware,
+  sistemasOrAboveMiddleware,
+  marketingMiddleware,
+  adminRHMiddleware,
+  adminMiddleware,
   canAccessDepartment,
   filterByDepartment
 };

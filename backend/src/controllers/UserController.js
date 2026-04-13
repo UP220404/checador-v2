@@ -105,6 +105,36 @@ class UserController {
   }
 
   /**
+   * GET /api/v1/users/organigrama
+   * Retorna datos públicos de todos los empleados activos para el organigrama.
+   * Accesible para cualquier empleado autenticado.
+   * Solo expone: nombre, departamento, puesto, foto (sin salarios, teléfonos, etc.)
+   */
+  async getOrganigrama(req, res) {
+    try {
+      const allUsers = await UserService.getAllUsers();
+      const activos = allUsers
+        .filter(u => u.activo !== false)
+        .map(u => ({
+          uid:         u.uid,
+          nombre:      u.nombre || '',
+          departamento: u.departamento || '',
+          puesto:      u.puesto || '',
+          foto:        u.foto || u.photoURL || null,
+          role:        u.role || 'empleado'
+        }));
+
+      res.json({ success: true, data: activos });
+    } catch (error) {
+      console.error('Error obteniendo organigrama:', error);
+      res.status(HTTP_STATUS.INTERNAL_ERROR).json({
+        success: false,
+        message: 'Error al obtener el organigrama.'
+      });
+    }
+  }
+
+  /**
    * PUT /api/v1/users/:uid/profile
    * Empleado actualiza su propio perfil (campos limitados)
    */

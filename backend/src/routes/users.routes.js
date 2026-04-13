@@ -6,7 +6,7 @@ import express from 'express';
 import UserController from '../controllers/UserController.js';
 import ContractEvaluationController from '../controllers/ContractEvaluationController.js';
 import { authMiddleware, adminMiddleware } from '../middleware/auth.middleware.js';
-import { attachRoleData, adminAreaOrRHMiddleware, adminRHMiddleware } from '../middleware/role.middleware.js';
+import { attachRoleData, adminAreaOrRHMiddleware, adminRHMiddleware, directorOrAboveMiddleware, superAdminMiddleware } from '../middleware/role.middleware.js';
 import { uploadSingle } from '../middleware/upload.middleware.js';
 
 const router = express.Router();
@@ -23,6 +23,9 @@ router.use(attachRoleData);
 
 // GET /api/v1/users/me/role - Obtener rol del usuario actual
 router.get('/me/role', UserController.getCurrentUserRole);
+
+// GET /api/v1/users/organigrama - Organigrama público (todos los empleados)
+router.get('/organigrama', UserController.getOrganigrama);
 
 // PUT /api/v1/users/:uid/profile - Empleado actualiza su propio perfil
 router.put('/:uid/profile', UserController.updateOwnProfile);

@@ -4,13 +4,14 @@
 
 import express from 'express';
 import SettingsController from '../controllers/SettingsController.js';
-import { authMiddleware, adminMiddleware } from '../middleware/auth.middleware.js';
+import { authMiddleware } from '../middleware/auth.middleware.js';
+import { superAdminMiddleware } from '../middleware/role.middleware.js';
 
 const router = express.Router();
 
-// Todas las rutas requieren autenticacion y permisos de admin
+// Solo Super Admin puede tocar la configuración del sistema
 router.use(authMiddleware);
-router.use(adminMiddleware);
+router.use(superAdminMiddleware);
 
 // GET /api/v1/settings - Obtener todas las configuraciones
 router.get('/', SettingsController.getAllSettings);

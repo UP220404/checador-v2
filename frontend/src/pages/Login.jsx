@@ -70,7 +70,8 @@ function Login() {
         }
 
         // Caso 2: Login general - Redirigir según rol
-        if (userRole === ROLES.ADMIN_RH || userRole === ROLES.ADMIN_AREA || userRole === 'sistemas') {
+        const adminRoles = ['super_admin', 'director', ROLES.ADMIN_RH, ROLES.ADMIN_AREA, 'sistemas'];
+        if (adminRoles.includes(userRole)) {
           navigate('/admin/dashboard');
         } else {
           navigate('/empleado/portal');

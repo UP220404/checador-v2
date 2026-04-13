@@ -13,9 +13,9 @@ function OrganigramaTab({ userData }) {
   const cargarUsuarios = async () => {
     try {
       setLoading(true);
-      const response = await api.getUsers();
+      const response = await api.getOrganigrama();
       if (response.data.success) {
-        setUsuarios((response.data.data || []).filter(u => u.activo !== false));
+        setUsuarios(response.data.data || []);
       }
     } catch (err) {
       console.error('Error cargando organigrama:', err);

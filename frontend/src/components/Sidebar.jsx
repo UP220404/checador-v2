@@ -7,11 +7,19 @@ import { useAuth } from '../contexts/AuthContext';
 import '../styles/Sidebar.css';
 
 const ROLES = {
-  EMPLEADO: 'empleado',
-  ADMIN_AREA: 'admin_area',
-  ADMIN_RH: 'admin_rh',
-  SISTEMAS: 'sistemas'
+  SUPER_ADMIN: 'super_admin',
+  DIRECTOR:    'director',
+  EMPLEADO:    'empleado',
+  ADMIN_AREA:  'admin_area',
+  ADMIN_RH:    'admin_rh',
+  SISTEMAS:    'sistemas'
 };
+
+// Roles que tienen acceso al panel de administración
+const ADMIN_ROLES = ['super_admin', 'director', 'admin_rh', 'admin_area'];
+// Helper: ¿el rol está por encima de RH? (Super Admin o Director)
+const isSuperOrDirector = (role) => ['super_admin', 'director'].includes(role);
+const isRhOrAbove = (role) => [...ADMIN_ROLES.slice(0,3)].includes(role); // super_admin, director, admin_rh
 
 function Sidebar({ isMobileOpen, onMobileClose }) {
   const location = useLocation();
@@ -52,8 +60,7 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
     const sessionUserRole = sessionStorage.getItem('userRole');
     const userEmail = auth.currentUser?.email;
     const adminEmails = import.meta.env.VITE_ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
-    
-    setIsAdmin(sessionUserRole === ROLES.ADMIN_RH || adminEmails.includes(userEmail));
+    setIsAdmin(ADMIN_ROLES.includes(sessionUserRole) || adminEmails.includes(userEmail));
   }, [auth.currentUser?.email]); // Dependencia para re-evaluar si el usuario de auth cambia
 
   // Listener en tiempo real — sin polling, cero peticiones al backend
@@ -216,41 +223,71 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
 
   const unreadCount = notifications.filter(n => !n.leida).length;
 
-  const menuBase = [
-    { path: '/admin/dashboard', icon: 'bi-speedometer2', label: 'Dashboard' },
-    { path: '/admin/registros', icon: 'bi-table', label: 'Registros' },
-    { path: '/admin/ausencias', icon: 'bi-envelope-paper', label: 'Gestion de Ausencias' },
-    { path: '/admin/vacaciones', icon: 'bi-calendar-heart-fill', label: 'Vacaciones' },
-    { path: '/admin/usuarios', icon: 'bi-people', label: 'Empleados' },
-    { path: '/admin/evaluaciones', icon: 'bi-clipboard-check', label: 'Evaluaciones' },
-    { path: '/admin/evaluaciones-contrato', icon: 'bi-file-earmark-person', label: 'Eval. Contratos' },
-    { path: '/admin/capacitacion', icon: 'bi-mortarboard', label: 'Capacitacion' },
+  // ──────────────────────────────────────────────────────────────
+  //  Construcción del menú según rol
+  // ──────────────────────────────────────────────────────────────
+
+  // Todos los admins ven estos módulos (con filtro por departamento en el backend)
+  const menuGeneral = [
+    { path: '/admin/dashboard',   icon: 'bi-speedometer2',         label: 'Dashboard' },
+    { path: '/admin/registros',   icon: 'bi-table',                label: 'Registros' },
+    { path: '/admin/ausencias',   icon: 'bi-envelope-paper',       label: 'Gestión de Ausencias' },
+    { path: '/admin/vacaciones',  icon: 'bi-calendar-heart-fill',  label: 'Vacaciones' },
+    { path: '/admin/usuarios',    icon: 'bi-people',               label: 'Empleados' },
+    { path: '/admin/analisis',    icon: 'bi-graph-up-arrow',       label: 'Análisis' },
+    { path: '/admin/reportes',    icon: 'bi-file-earmark-bar-graph', label: 'Reportes' },
+    { path: '/admin/seguridad',   icon: 'bi-shield-exclamation',   label: 'Seguridad' },
   ];
 
-  const menuAdminRH = [
-    { path: '/admin/organigrama', icon: 'bi-diagram-3', label: 'Organigrama' },
-    { path: '/admin/analisis', icon: 'bi-graph-up-arrow', label: 'Analisis' },
-    { path: '/admin/seguridad', icon: 'bi-shield-exclamation', label: 'Seguridad' },
-    { path: '/admin/reportes', icon: 'bi-file-earmark-bar-graph', label: 'Reportes' },
-    { path: '/qr', icon: 'bi-qr-code-scan', label: 'Pantalla QR / Agenda', restricted: [ROLES.SISTEMAS, ROLES.ADMIN_RH] },
-    { path: '/admin/documentos', icon: 'bi-folder', label: 'Documentos' },
-    { path: '/admin/auditoria', icon: 'bi-journal-text', label: 'Auditoria' },
+  // Evaluaciones de desempeño: Super Admin, Director, Jefe de Área
+  const menuEvaluaciones = isSuperOrDirector(userRole) || userRole === ROLES.ADMIN_AREA
+    ? [
+        { path: '/admin/evaluaciones',  icon: 'bi-clipboard-check',    label: 'Evaluaciones' },
+        { path: '/admin/capacitacion',  icon: 'bi-mortarboard',        label: 'Capacitación' },
+      ]
+    : [];
+
+  // Evaluaciones de contrato: Super Admin, Director, RH
+  const menuEvalContrato = isRhOrAbove(userRole)
+    ? [{ path: '/admin/evaluaciones-contrato', icon: 'bi-file-earmark-person', label: 'Eval. Contratos' }]
+    : [];
+
+  // Documentos: Super Admin, Director, RH
+  const menuDocumentos = isRhOrAbove(userRole)
+    ? [{ path: '/admin/documentos', icon: 'bi-folder', label: 'Documentos' }]
+    : [];
+
+  // Organigrama admin: Solo Super Admin y Director
+  const menuOrganigrama = isSuperOrDirector(userRole)
+    ? [{ path: '/admin/organigrama', icon: 'bi-diagram-3', label: 'Organigrama' }]
+    : [];
+
+  // QR/Agenda: Sistemas + Super Admin + Director
+  const menuQR = (isSuperOrDirector(userRole) || userRole === ROLES.SISTEMAS)
+    ? [{ path: '/qr', icon: 'bi-qr-code-scan', label: 'Pantalla QR / Agenda' }]
+    : [];
+
+  // Marketing: Super Admin, Director, o cualquiera del departamento Marketing
+  const menuMarketing = (isSuperOrDirector(userRole) || userDepartamento === 'Marketing')
+    ? [{ path: '/admin/marketing', icon: 'bi-megaphone', label: 'Marketing' }]
+    : [];
+
+  const menuItems = [
+    ...menuGeneral,
+    ...menuEvaluaciones,
+    ...menuEvalContrato,
+    ...menuDocumentos,
+    ...menuOrganigrama,
+    ...menuQR,
+    ...menuMarketing,
   ];
-
-  let menuItems = [...menuBase];
-  if (userRole === ROLES.ADMIN_RH) {
-    menuItems = [...menuItems, ...menuAdminRH];
-  }
-
-  // Agregar Marketing si el departamento es Marketing o es admin/sistemas
-  const hasMarketingAccess = userDepartamento === 'Marketing' || userRole === ROLES.ADMIN_RH || userRole === ROLES.SISTEMAS;
-  if (hasMarketingAccess && !menuItems.find(i => i.path === '/admin/marketing')) {
-    menuItems.push({ path: '/admin/marketing', icon: 'bi-megaphone', label: 'Marketing' });
-  }
 
   const getRoleLabel = () => {
-    if (userRole === ROLES.ADMIN_RH) return 'Admin RH';
-    if (userRole === ROLES.ADMIN_AREA) return 'Admin Area';
+    if (userRole === ROLES.SUPER_ADMIN) return 'Super Admin';
+    if (userRole === ROLES.DIRECTOR)    return 'Director';
+    if (userRole === ROLES.ADMIN_RH)    return 'Admin RH';
+    if (userRole === ROLES.ADMIN_AREA)  return `Jefe de Área${userDepartamento ? ` · ${userDepartamento}` : ''}`;
+    if (userRole === ROLES.SISTEMAS)    return 'Sistemas';
     return 'Empleado';
   };
 
@@ -419,15 +456,23 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
         );
       })}
 
-      {userRole === ROLES.ADMIN_RH && (
+      {/* Nómina: solo Super Admin y Director */}
+      {isSuperOrDirector(userRole) && (
+        <Link to="/admin/nomina" className="btn btn-outline-light">
+          <i className="bi bi-calculator"></i>
+          Sistema de Nómina
+        </Link>
+      )}
+      {/* Configuración y Auditoría: solo Super Admin */}
+      {userRole === ROLES.SUPER_ADMIN && (
         <>
-          <Link to="/admin/nomina" className="btn btn-outline-light">
-            <i className="bi bi-calculator"></i>
-            Sistema de Nomina
-          </Link>
           <Link to="/admin/configuracion" className="btn btn-outline-light mt-2">
             <i className="bi bi-gear"></i>
-            Configuracion
+            Configuración
+          </Link>
+          <Link to="/admin/auditoria" className="btn btn-outline-light mt-2">
+            <i className="bi bi-journal-text"></i>
+            Auditoría
           </Link>
         </>
       )}
@@ -438,7 +483,7 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
         )}
         
         {/* Switch a Portal Empleado (solo para admins) */}
-        {(userRole === ROLES.ADMIN_RH || userRole === ROLES.ADMIN_AREA) && (
+        {ADMIN_ROLES.includes(userRole) && (
           <button 
             className="btn btn-success w-100 mb-2 shadow-sm"
             onClick={() => navigate('/empleado/portal')}

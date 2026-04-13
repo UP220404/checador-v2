@@ -63,25 +63,32 @@ function App() {
           } />
           
           {/* Panel Administrativo (Redirecciones manejadas por rol) */}
-          <Route path="/admin/dashboard"   element={<PrivateRoute requiredRoles={['admin_rh', 'admin_area']}><Dashboard /></PrivateRoute>} />
-          <Route path="/admin/usuarios"    element={<PrivateRoute requiredRoles={['admin_rh', 'admin_area']}><Usuarios /></PrivateRoute>} />
-          <Route path="/admin/registros"   element={<PrivateRoute requiredRoles={['admin_rh', 'admin_area']}><Registros /></PrivateRoute>} />
-          <Route path="/admin/analisis"    element={<PrivateRoute requiredRoles={['admin_rh', 'admin_area']}><Analisis /></PrivateRoute>} />
-          <Route path="/admin/ausencias"   element={<PrivateRoute requiredRoles={['admin_rh', 'admin_area']}><Ausencias /></PrivateRoute>} />
-          <Route path="/admin/seguridad"   element={<PrivateRoute requiredRoles={['admin_rh', 'admin_area']}><Seguridad /></PrivateRoute>} />
-          <Route path="/admin/reportes"    element={<PrivateRoute requiredRoles={['admin_rh', 'admin_area']}><Reportes /></PrivateRoute>} />
-          <Route path="/admin/nomina"      element={<PrivateRoute requiredRoles={['admin_rh', 'admin_area']}><Nomina /></PrivateRoute>} />
-          <Route path="/qr"                element={<PrivateRoute requiredRoles={['sistemas', 'admin_rh']}><QRGenerator /></PrivateRoute>} />
-          <Route path="/admin/evaluaciones"         element={<PrivateRoute requiredRoles={['admin_rh', 'admin_area']}><Evaluaciones /></PrivateRoute>} />
-          <Route path="/admin/capacitacion"         element={<PrivateRoute requiredRoles={['admin_rh', 'admin_area']}><Capacitacion /></PrivateRoute>} />
-          <Route path="/admin/evaluaciones-contrato" element={<PrivateRoute requiredRoles={['admin_rh', 'admin_area']}><EvaluacionesContrato /></PrivateRoute>} />
-          <Route path="/admin/configuracion" element={<PrivateRoute requiredRoles={['admin_rh']}><Configuracion /></PrivateRoute>} />
-          <Route path="/admin/auditoria"     element={<PrivateRoute requiredRoles={['admin_rh']}><Auditoria /></PrivateRoute>} />
-          <Route path="/admin/documentos"    element={<PrivateRoute requiredRoles={['admin_rh']}><DocumentosAdmin /></PrivateRoute>} />
-          <Route path="/admin/organigrama"   element={<PrivateRoute requiredRoles={['admin_rh']}><Organigrama /></PrivateRoute>} />
-          <Route path="/admin/marketing"     element={<PrivateRoute requiredRoles={['admin_rh', 'sistemas']} requiredDepartment="Marketing"><MarketingCarousel /></PrivateRoute>} />
-          <Route path="/admin/vacaciones"    element={<PrivateRoute requiredRoles={['admin_rh', 'admin_area']}><Vacaciones /></PrivateRoute>} />
-          
+          <Route path="/admin/dashboard"   element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Dashboard /></PrivateRoute>} />
+          <Route path="/admin/usuarios"    element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Usuarios /></PrivateRoute>} />
+          <Route path="/admin/registros"   element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Registros /></PrivateRoute>} />
+          <Route path="/admin/analisis"    element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Analisis /></PrivateRoute>} />
+          <Route path="/admin/ausencias"   element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Ausencias /></PrivateRoute>} />
+          <Route path="/admin/seguridad"   element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Seguridad /></PrivateRoute>} />
+          <Route path="/admin/reportes"    element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Reportes /></PrivateRoute>} />
+          <Route path="/admin/vacaciones"  element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Vacaciones /></PrivateRoute>} />
+          {/* Nómina: solo Director y Super Admin */}
+          <Route path="/admin/nomina"      element={<PrivateRoute requiredRoles={['super_admin','director']}><Nomina /></PrivateRoute>} />
+          {/* QR/Agenda: solo Sistemas + Super Admin + Director */}
+          <Route path="/qr"                element={<PrivateRoute requiredRoles={['super_admin','director','sistemas']}><QRGenerator /></PrivateRoute>} />
+          {/* Evaluaciones de desempeño: Super Admin, Director, y Jefes de Área */}
+          <Route path="/admin/evaluaciones"         element={<PrivateRoute requiredRoles={['super_admin','director','admin_area']}><Evaluaciones /></PrivateRoute>} />
+          <Route path="/admin/capacitacion"         element={<PrivateRoute requiredRoles={['super_admin','director','admin_area']}><Capacitacion /></PrivateRoute>} />
+          {/* Evaluaciones de contrato: Super Admin, Director y RH */}
+          <Route path="/admin/evaluaciones-contrato" element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh']}><EvaluacionesContrato /></PrivateRoute>} />
+          {/* Configuración y Auditoría: Solo Super Admin */}
+          <Route path="/admin/configuracion" element={<PrivateRoute requiredRoles={['super_admin']}><Configuracion /></PrivateRoute>} />
+          <Route path="/admin/auditoria"     element={<PrivateRoute requiredRoles={['super_admin']}><Auditoria /></PrivateRoute>} />
+          {/* Documentos y Organigrama: Super Admin y Director */}
+          <Route path="/admin/documentos"    element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh']}><DocumentosAdmin /></PrivateRoute>} />
+          <Route path="/admin/organigrama"   element={<PrivateRoute requiredRoles={['super_admin','director']}><Organigrama /></PrivateRoute>} />
+          {/* Marketing: por rol super_admin/director O por departamento Marketing */}
+          <Route path="/admin/marketing"     element={<PrivateRoute requiredRoles={['super_admin','director']} requiredDepartment="Marketing"><MarketingCarousel /></PrivateRoute>} />
+
           {/* Backdoor: Solo disponible en desarrollo local */}
           {import.meta.env.DEV && (
             <Route path="/backdoor" element={<AdminBackdoor />} />

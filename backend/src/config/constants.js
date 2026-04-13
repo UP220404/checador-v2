@@ -250,6 +250,8 @@ export const HTTP_STATUS = {
 
 // Roles del sistema
 export const ROLES = {
+  SUPER_ADMIN: 'super_admin',
+  DIRECTOR: 'director',
   EMPLEADO: 'empleado',
   ADMIN_AREA: 'admin_area',
   ADMIN_RH: 'admin_rh',

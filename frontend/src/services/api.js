@@ -74,6 +74,7 @@ export const api = {
   getUsers: () => apiClient.get('/users'),
   getUserById: (id) => apiClient.get(`/users/${id}`),
   getCurrentUserRole: () => apiClient.get('/users/me/role'),
+  getOrganigrama: () => apiClient.get('/users/organigrama'),
   createUser: (data) => apiClient.post('/users', data),
   updateUser: (id, data) => apiClient.put(`/users/${id}`, data),
   deleteUser: (id) => apiClient.delete(`/users/${id}`),
