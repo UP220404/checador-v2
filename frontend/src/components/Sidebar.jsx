@@ -227,17 +227,21 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
   //  Construcción del menú según rol
   // ──────────────────────────────────────────────────────────────
 
-  // Todos los admins ven estos módulos (con filtro por departamento en el backend)
+  // Todos los admins de área ven estos módulos básicos
   const menuGeneral = [
     { path: '/admin/dashboard',   icon: 'bi-speedometer2',         label: 'Dashboard' },
     { path: '/admin/registros',   icon: 'bi-table',                label: 'Registros' },
     { path: '/admin/ausencias',   icon: 'bi-envelope-paper',       label: 'Gestión de Ausencias' },
     { path: '/admin/vacaciones',  icon: 'bi-calendar-heart-fill',  label: 'Vacaciones' },
+  ];
+
+  // RH, Director y Super Admin ven estos módulos avanzados
+  const menuAdminAvanzado = isRhOrAbove(userRole) ? [
     { path: '/admin/usuarios',    icon: 'bi-people',               label: 'Empleados' },
     { path: '/admin/analisis',    icon: 'bi-graph-up-arrow',       label: 'Análisis' },
     { path: '/admin/reportes',    icon: 'bi-file-earmark-bar-graph', label: 'Reportes' },
     { path: '/admin/seguridad',   icon: 'bi-shield-exclamation',   label: 'Seguridad' },
-  ];
+  ] : [];
 
   // Evaluaciones de desempeño: Super Admin, Director, Jefe de Área
   const menuEvaluaciones = isSuperOrDirector(userRole) || userRole === ROLES.ADMIN_AREA
@@ -274,6 +278,7 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
 
   const menuItems = [
     ...menuGeneral,
+    ...menuAdminAvanzado,
     ...menuEvaluaciones,
     ...menuEvalContrato,
     ...menuDocumentos,

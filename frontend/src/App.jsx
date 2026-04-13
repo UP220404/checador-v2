@@ -64,12 +64,12 @@ function App() {
           
           {/* Panel Administrativo (Redirecciones manejadas por rol) */}
           <Route path="/admin/dashboard"   element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Dashboard /></PrivateRoute>} />
-          <Route path="/admin/usuarios"    element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Usuarios /></PrivateRoute>} />
+          <Route path="/admin/usuarios"    element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh']}><Usuarios /></PrivateRoute>} />
           <Route path="/admin/registros"   element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Registros /></PrivateRoute>} />
-          <Route path="/admin/analisis"    element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Analisis /></PrivateRoute>} />
+          <Route path="/admin/analisis"    element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh']}><Analisis /></PrivateRoute>} />
           <Route path="/admin/ausencias"   element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Ausencias /></PrivateRoute>} />
-          <Route path="/admin/seguridad"   element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Seguridad /></PrivateRoute>} />
-          <Route path="/admin/reportes"    element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Reportes /></PrivateRoute>} />
+          <Route path="/admin/seguridad"   element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh']}><Seguridad /></PrivateRoute>} />
+          <Route path="/admin/reportes"    element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh']}><Reportes /></PrivateRoute>} />
           <Route path="/admin/vacaciones"  element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Vacaciones /></PrivateRoute>} />
           {/* Nómina: solo Director y Super Admin */}
           <Route path="/admin/nomina"      element={<PrivateRoute requiredRoles={['super_admin','director']}><Nomina /></PrivateRoute>} />

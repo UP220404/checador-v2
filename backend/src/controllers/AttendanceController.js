@@ -16,7 +16,8 @@ class AttendanceController {
 
   // Helper para verificar si el usuario tiene permisos de admin (Email o Rol)
   _isUserAdmin(user) {
-    return isAdmin(user.email) || user.role === ROLES.ADMIN_RH;
+    return isAdmin(user.email) || 
+           [ROLES.ADMIN_RH, ROLES.SUPER_ADMIN, ROLES.DIRECTOR, ROLES.ADMIN_AREA].includes(user.role);
   }
 
   /**
