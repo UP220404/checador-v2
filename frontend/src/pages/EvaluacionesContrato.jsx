@@ -3,6 +3,7 @@ import AdminLayout from '../components/AdminLayout';
 import DepartmentBanner, { useRoleData } from '../components/DepartmentBanner';
 import { toast } from 'sonner';
 import { api } from '../services/api';
+import { useMemo } from 'react';
 import '../styles/EvaluacionesContrato.css';
 
 const AVATAR_COLORS = [
@@ -86,6 +87,33 @@ function EvaluacionesContrato() {
       e.empleadoEmail?.toLowerCase().includes(filtros.busqueda.toLowerCase());
     return matchEstado && matchTipo && matchBusqueda;
   });
+
+  // Agrupar evaluaciones por empleado
+  const gruposEvaluaciones = useMemo(() => {
+    const groups = {};
+    
+    evaluacionesFiltradas.forEach(e => {
+      const gKey = e.empleadoEmail || e.empleadoUid || 'sin-id';
+      if (!groups[gKey]) {
+        groups[gKey] = {
+          empleadoUid: e.empleadoUid,
+          empleadoNombre: e.empleadoNombre,
+          empleadoEmail: e.empleadoEmail,
+          departamento: e.departamento,
+          evaluaciones: []
+        };
+      }
+      groups[gKey].evaluaciones.push(e);
+    });
+
+    // Ordenar evaluaciones dentro de cada grupo por fecha programada
+    return Object.values(groups).map(g => ({
+      ...g,
+      evaluaciones: [...g.evaluaciones].sort((a, b) => 
+        new Date(a.fechaProgramada) - new Date(b.fechaProgramada)
+      )
+    })).sort((a, b) => a.empleadoNombre.localeCompare(b.empleadoNombre));
+  }, [evaluacionesFiltradas]);
 
   const handleFiltroChange = (campo, valor) => {
     setFiltros(prev => ({ ...prev, [campo]: valor }));
@@ -315,90 +343,97 @@ function EvaluacionesContrato() {
         </div>
       ) : (
         <div className="evcon-list">
-          {evaluacionesFiltradas.map((evaluacion) => {
-            const fechaRef = evaluacion.fechaFinContrato || evaluacion.fechaProgramada;
-            const diasRestantes = calcularDiasRestantes(fechaRef);
-            const isUrgent = evaluacion.estado === 'pendiente' && diasRestantes <= 7;
-            const diasClass = diasRestantes <= 0 ? 'danger' : diasRestantes <= 3 ? 'warning' : diasRestantes <= 7 ? 'warning' : 'safe';
-
-            return (
-              <div
-                key={evaluacion.id}
-                className={`evcon-card estado-${evaluacion.estado} ${isUrgent ? 'urgent' : ''}`}
-              >
-                <div className="evcon-card-accent"></div>
-                <div className="evcon-card-body">
-                  {/* Avatar */}
-                  <div
-                    className="evcon-avatar"
-                    style={{ background: getAvatarColor(evaluacion.empleadoNombre) }}
-                  >
-                    {getInitials(evaluacion.empleadoNombre)}
-                  </div>
-
-                  {/* Employee Info */}
-                  <div className="evcon-card-info">
-                    <div className="evcon-card-name">{getNombreCorto(evaluacion.empleadoNombre)}</div>
-                    <div className="evcon-card-dept">{evaluacion.departamento || 'Sin departamento'}</div>
-                  </div>
-
-                  {/* Chips */}
-                  <div className="evcon-chips">
-                    <span className={`evcon-chip ${evaluacion.tipoEvaluacion === 'evaluacion_1_mes' ? 'tipo-1mes' : 'tipo-2meses'}`}>
-                      <i className={`bi ${evaluacion.tipoEvaluacion === 'evaluacion_1_mes' ? 'bi-1-circle' : 'bi-2-circle'}`}></i>
-                      {evaluacion.tipoEvaluacion === 'evaluacion_1_mes' ? '1 Mes' : '2 Meses'}
+          {gruposEvaluaciones.map((grupo) => (
+            <div key={grupo.empleadoEmail || grupo.empleadoUid} className="evcon-person-card">
+              <div className="evcon-person-header">
+                <div
+                  className="evcon-avatar"
+                  style={{ background: getAvatarColor(grupo.empleadoNombre) }}
+                >
+                  {getInitials(grupo.empleadoNombre)}
+                </div>
+                <div className="evcon-person-info">
+                  <div className="evcon-person-name">{grupo.empleadoNombre}</div>
+                  <div className="evcon-person-details">
+                    <span className="evcon-detail">
+                      <i className="bi bi-envelope"></i> {grupo.empleadoEmail}
                     </span>
-                    <span className="evcon-chip fecha" title="Fin de contrato">
-                      <i className="bi bi-calendar-x"></i>
-                      Vence: {formatFecha(evaluacion.fechaFinContrato || evaluacion.fechaProgramada)}
+                    <span className="evcon-detail">
+                      <i className="bi bi-building"></i> {grupo.departamento || 'Sin departamento'}
                     </span>
                   </div>
-
-                  {/* Estado badge */}
-                  <span className={`evcon-estado ${evaluacion.estado}`}>
-                    <i className={`bi ${getEstadoIcon(evaluacion.estado)}`}></i>
-                    {getEstadoLabel(evaluacion.estado)}
-                  </span>
-
-                  {/* Resultado / Dias / Accion */}
-                  {evaluacion.resultado ? (
-                    <span className={`evcon-resultado ${evaluacion.resultado}`}>
-                      <i className={`bi ${evaluacion.resultado === 'aprobado' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`}></i>
-                      {evaluacion.resultado === 'aprobado' ? 'Aprobado' : 'Rechazado'}
-                    </span>
-                  ) : evaluacion.estado === 'pendiente' ? (
-                    <div className="evcon-dias">
-                      <div className={`evcon-dias-number ${diasClass}`}>
-                        {diasRestantes <= 0 ? '!' : diasRestantes}
-                      </div>
-                      <div className="evcon-dias-label">
-                        {diasRestantes <= 0 ? 'Vencido' : diasRestantes === 1 ? 'dia restante' : 'dias restantes'}
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {/* Accion tomada */}
-                  {evaluacion.accionTomada && (
-                    <span className={`evcon-accion ${getAccionClass(evaluacion.accionTomada)}`}>
-                      <i className={`bi ${getAccionIcon(evaluacion.accionTomada)}`}></i>
-                      {getAccionLabel(evaluacion.accionTomada)}
-                    </span>
-                  )}
-
-                  {/* Boton evaluar */}
-                  {evaluacion.estado === 'pendiente' && isAdminRH && (
-                    <button
-                      className="evcon-btn-eval"
-                      onClick={() => abrirModalCompletar(evaluacion)}
-                    >
-                      <i className="bi bi-clipboard-check"></i>
-                      Evaluar
-                    </button>
-                  )}
                 </div>
               </div>
-            );
-          })}
+
+              <div className="evcon-person-evaluations">
+                {grupo.evaluaciones.map((evaluacion) => {
+                  const fechaRef = evaluacion.fechaFinContrato || evaluacion.fechaProgramada;
+                  const diasRestantes = calcularDiasRestantes(fechaRef);
+                  const isUrgent = (evaluacion.estado === 'pendiente' || evaluacion.estado === 'vencida') && diasRestantes <= 7;
+                  const diasClass = diasRestantes <= 0 ? 'danger' : diasRestantes <= 3 ? 'warning' : diasRestantes <= 7 ? 'warning' : 'safe';
+
+                  return (
+                    <div key={evaluacion.id} className={`evcon-eval-row estado-${evaluacion.estado} ${isUrgent ? 'urgent' : ''}`}>
+                      {/* Tipo y Fecha */}
+                      <div className="evcon-eval-type-cell">
+                        <span className={`evcon-tipo-mini ${evaluacion.tipoEvaluacion === 'evaluacion_1_mes' ? 'tipo-1' : 'tipo-2'}`}>
+                          {evaluacion.tipoEvaluacion === 'evaluacion_1_mes' ? '1 Mes' : '2 Meses'}
+                        </span>
+                        <div className="evcon-eval-date">
+                          <i className="bi bi-calendar-event"></i>
+                          {formatFecha(evaluacion.fechaProgramada)}
+                        </div>
+                      </div>
+
+                      {/* Estado */}
+                      <div className="evcon-eval-status-cell">
+                        <span className={`evcon-estado-badge ${evaluacion.estado}`}>
+                          <i className={`bi ${getEstadoIcon(evaluacion.estado)}`}></i>
+                          {getEstadoLabel(evaluacion.estado)}
+                        </span>
+                      </div>
+
+                      {/* Resultado o Dias Restantes */}
+                      <div className="evcon-eval-result-cell">
+                        {evaluacion.resultado ? (
+                          <div className={`evcon-result-pill ${evaluacion.resultado}`}>
+                            <i className={`bi ${evaluacion.resultado === 'aprobado' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}`}></i>
+                            {evaluacion.resultado === 'aprobado' ? 'Aprobado' : 'Rechazado'}
+                          </div>
+                        ) : (evaluacion.estado === 'pendiente' || evaluacion.estado === 'vencida') ? (
+                          <div className="evcon-remaining-dias">
+                            <span className={`evcon-dias-val ${diasClass}`}>
+                              {diasRestantes <= 0 ? (evaluacion.estado === 'vencida' ? '!' : 'Hoy') : diasRestantes}
+                            </span>
+                            <span className="evcon-dias-txt">{diasRestantes <= 0 ? 'Vencido' : 'días'}</span>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      {/* Accion Tomada */}
+                      <div className="evcon-eval-action-cell">
+                        {evaluacion.accionTomada ? (
+                          <span className={`evcon-accion-pill ${getAccionClass(evaluacion.accionTomada)}`}>
+                            <i className={`bi ${getAccionIcon(evaluacion.accionTomada)}`}></i>
+                            {getAccionLabel(evaluacion.accionTomada)}
+                          </span>
+                        ) : (evaluacion.estado === 'pendiente' || evaluacion.estado === 'vencida') && isAdminRH ? (
+                          <button
+                            className="evcon-btn-eval-mini"
+                            onClick={() => abrirModalCompletar(evaluacion)}
+                            title="Evaluar ahora"
+                          >
+                            <i className="bi bi-pencil-square"></i>
+                            Evaluar
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import AdminLayout from '../components/AdminLayout';
 import DepartmentBanner from '../components/DepartmentBanner';
@@ -104,13 +104,16 @@ function ModalAjuste({ empleado, onClose, onSave }) {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
+import { useRoleData } from '../components/DepartmentBanner';
+
 function Vacaciones() {
   const queryClient = useQueryClient();
+  const { departmentFilter } = useRoleData();
   const [busqueda, setBusqueda] = useState('');
   const [filtroDpto, setFiltroDpto] = useState('');
   const [ajusteEmpleado, setAjusteEmpleado] = useState(null);
 
-  const { data: empleados = [], isLoading, isFetching, isError, refetch } = useQuery({
+  const { data: allEmpleados = [], isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ['vacaciones-panel'],
     queryFn: async () => {
       const res = await api.getVacacionesPanel();
@@ -118,6 +121,16 @@ function Vacaciones() {
     },
     staleTime: 2 * 60 * 1000
   });
+
+  const empleados = useMemo(() => {
+    if (!departmentFilter) return allEmpleados;
+    
+    // Comparación robusta de departamentos (insensible a mayúsculas y espacios)
+    const targetDept = departmentFilter.trim().toLowerCase();
+    return allEmpleados.filter(e => 
+      e.departamento?.trim().toLowerCase() === targetDept
+    );
+  }, [allEmpleados, departmentFilter]);
 
   const handleRefresh = async () => {
     await refetch();

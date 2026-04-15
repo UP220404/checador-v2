@@ -12,14 +12,7 @@ import { api } from '../services/api';
 
 const AuthContext = createContext(null);
 
-const ROLES = {
-  SUPER_ADMIN: 'super_admin',
-  DIRECTOR:    'director',
-  EMPLEADO:    'empleado',
-  ADMIN_AREA:  'admin_area',
-  ADMIN_RH:    'admin_rh',
-  SISTEMAS:    'sistemas'
-};
+import { ROLES } from '../config/constants';
 
 const REFRESH_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutos entre refetches
 

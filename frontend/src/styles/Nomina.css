@@ -190,6 +190,7 @@
   font-size: 13px;
   transition: var(--transition);
   background: var(--white);
+  color: var(--primary);
   width: 100%;
 }
 
@@ -204,6 +205,7 @@
   border: 1px solid var(--border);
   font-size: 13px;
   background: var(--white);
+  color: var(--primary);
   width: 100%;
   padding: 8px 12px;
 }

@@ -106,13 +106,19 @@ class UserService {
       const querySnapshot = await this.db
         .collection(this.usersCollection)
         .where('departamento', '==', departamento)
-        .orderBy('nombre')
         .get();
 
-      return querySnapshot.docs.map(doc => ({
+      const users = querySnapshot.docs.map(doc => ({
         uid: doc.id,
         ...doc.data()
       }));
+
+      // Ordenar por nombre en memoria para evitar índices compuestos en Firestore
+      return users.sort((a, b) => {
+        const nameA = a.nombre || '';
+        const nameB = b.nombre || '';
+        return nameA.localeCompare(nameB);
+      });
     } catch (error) {
       console.error('Error obteniendo usuarios por departamento:', error);
       throw error;

@@ -18,11 +18,10 @@ import { COLLECTIONS, HTTP_STATUS, ERROR_MESSAGES, ROLES } from '../config/const
 // Jerarquía: quién incluye a quién (arriba → abajo)
 // ────────────────────────────────────────────────────────────────
 const ROLE_HIERARCHY = {
-  [ROLES.SUPER_ADMIN]: 6,
-  [ROLES.DIRECTOR]:    5,
-  [ROLES.ADMIN_RH]:    4,
-  [ROLES.ADMIN_AREA]:  3,
-  [ROLES.SISTEMAS]:    2,
+  [ROLES.SUPER_ADMIN]: 5,
+  [ROLES.DIRECTOR]:    4,
+  [ROLES.ADMIN_RH]:    3,
+  [ROLES.ADMIN_AREA]:  2,
   [ROLES.EMPLEADO]:    1,
 };
 
@@ -39,19 +38,20 @@ function isSuperOrDirector(role) {
 // ────────────────────────────────────────────────────────────────
 export async function getUserRoleData(email) {
   try {
-    const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
-    const isSuperAdmin = adminEmails.includes(email);
+    const userEmail = email?.toLowerCase() || '';
+    const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
+    const isSuperAdmin = adminEmails.includes(userEmail);
 
     const db = getFirestore();
     const usersRef = db.collection(COLLECTIONS.USUARIOS);
-    const snapshot = await usersRef.where('email', '==', email).limit(1).get();
+    const snapshot = await usersRef.where('correo', '==', userEmail).limit(1).get(); // El campo correcto es 'correo'
 
     if (snapshot.empty) {
       if (isSuperAdmin) {
         return {
           uid: 'super-admin',
           role: ROLES.SUPER_ADMIN,
-          departamento: 'Direccion',
+          departamento: null, // super_admin tiene visibilidad global, no está limitado a Dirección
           nombre: 'Super Administrador'
         };
       }
@@ -67,7 +67,7 @@ export async function getUserRoleData(email) {
     return {
       uid: snapshot.docs[0].id,
       role,
-      departamento: userData.departamento || null,
+      departamento: isSuperAdmin ? null : (userData.departamento || null),
       nombre: userData.nombre
     };
   } catch (error) {
@@ -102,8 +102,12 @@ export function roleMiddleware(allowedRoles, allowedDepts = []) {
       req.user.departamento = roleData.departamento;
       req.user.roleData    = roleData;
 
-      const hasAllowedRole = allowedRoles.includes(roleData.role);
-      const hasAllowedDept = allowedDepts.length > 0 && allowedDepts.includes(roleData.departamento);
+      const hasAllowedRole = allowedRoles.some(role => 
+        role?.toLowerCase() === roleData.role?.toLowerCase()
+      );
+      const hasAllowedDept = allowedDepts.length > 0 && allowedDepts.some(dept =>
+        dept?.toLowerCase() === roleData.departamento?.toLowerCase()
+      );
 
       if (!hasAllowedRole && !hasAllowedDept) {
         return res.status(HTTP_STATUS.FORBIDDEN).json({
@@ -188,11 +192,7 @@ export const adminPanelMiddleware = roleMiddleware([
   ROLES.ADMIN_AREA
 ]);
 
-/** Super Admin + Director → acceso QR/Agenda */
-export const sistemasOrAboveMiddleware = roleMiddleware([
-  ROLES.SUPER_ADMIN,
-  ROLES.DIRECTOR
-]);
+
 
 /** Marketing: por rol ADMIN_RH/SUPER/DIRECTOR, o por departamento Marketing */
 export async function marketingMiddleware(req, res, next) {
@@ -265,7 +265,6 @@ export default {
   rhOrAboveMiddleware,
   adminAreaOrRHMiddleware,
   adminPanelMiddleware,
-  sistemasOrAboveMiddleware,
   marketingMiddleware,
   adminRHMiddleware,
   adminMiddleware,

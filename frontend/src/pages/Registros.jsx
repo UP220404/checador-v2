@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import DepartmentBanner, { useRoleData } from '../components/DepartmentBanner';
 import { api } from '../services/api';
@@ -6,9 +6,11 @@ import { useQuery } from '@tanstack/react-query';
 import '../styles/Registros.css';
 
 function Registros() {
-  const { departmentFilter } = useRoleData();
+  // El backend filtra por departamento, el frontend solo gestiona filtros de UI
 
-  const [filteredRegistros, setFilteredRegistros] = useState([]);
+
+  // Eliminar filteredRegistros como estado para evitar bucles infinitos
+  // const [filteredRegistros, setFilteredRegistros] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [registroSeleccionado, setRegistroSeleccionado] = useState(null);
 
@@ -44,17 +46,12 @@ function Registros() {
     }
   });
 
-  const registros = departmentFilter 
-    ? allRegistros.filter(r => r.departamento === departmentFilter) 
-    : allRegistros;
+  // El backend ya filtra por departamento para admin_area.
+  // Aqui solo se retornan los registros tal cual vienen del servidor.
+  const registros = useMemo(() => allRegistros, [allRegistros]);
 
-  useEffect(() => {
-    aplicarFiltros();
-  }, [filters, registros]);
-
-  const cargarRegistros = () => refetchRegistros();
-
-  const aplicarFiltros = () => {
+  // Se deriva filteredRegistros directamente desde registros y filters usando useMemo
+  const filteredRegistros = useMemo(() => {
     let filtered = [...registros];
 
     if (filters.busqueda) {
@@ -71,8 +68,14 @@ function Registros() {
       filtered = filtered.filter(reg => reg.tipoEvento === filters.evento);
     }
 
-    setFilteredRegistros(filtered);
-  };
+    return filtered;
+  }, [registros, filters]);
+
+  // Se eliminó el useEffect que llamaba a aplicarFiltros para evitar el bucle infinito
+
+  const cargarRegistros = () => refetchRegistros();
+
+  // Función aplicarFiltros eliminada ya que ahora usamos useMemo para filteredRegistros
 
   const handleFilterChange = (filterName, value) => {
     setFilters(prev => ({
@@ -208,8 +211,8 @@ function Registros() {
             </select>
           </div>
           <div className="col-md-1">
-            <button className="btn btn-secondary w-100" onClick={limpiarFiltros} title="Volver a hoy">
-              <i className="bi bi-calendar-today"></i>
+            <button className="btn btn-outline-secondary w-100" onClick={limpiarFiltros} title="Limpiar filtros y volver a hoy">
+              <i className="bi bi-arrow-counterclockwise"></i>
             </button>
           </div>
         </div>

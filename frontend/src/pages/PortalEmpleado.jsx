@@ -533,13 +533,36 @@ function PortalEmpleado() {
             </div>
             <div className="header-actions">
               {/* Botón de volver a Administración (Solo para Admins) */}
-              {['super_admin', 'director', 'admin_rh', 'admin_area', 'sistemas'].includes(userRole) && (
+              {['super_admin', 'director', 'admin_rh', 'admin_area'].includes(userRole) && (
                 <button 
                   className="btn-icon admin-shortcut"
                   onClick={() => navigate('/admin/dashboard')}
                   title="Panel de Administración"
                 >
                   <i className="bi bi-speedometer2"></i>
+                </button>
+              )}
+
+              {/* Botón de Marketing (Solo para empleados o jefes de Marketing) */}
+              {(userData?.departamento === 'Marketing' || userRole === 'super_admin' || userRole === 'director') && (
+                <button 
+                  className="btn-icon marketing-shortcut shadow-sm"
+                  onClick={() => navigate('/admin/marketing')}
+                  title="Configurar Marketing Carousel"
+                  style={{ 
+                    background: 'rgba(255, 193, 7, 0.25)',
+                    color: '#ffc107',
+                    borderRadius: '10px',
+                    width: '38px',
+                    height: '38px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid rgba(255, 193, 7, 0.4)',
+                    marginRight: '8px'
+                  }}
+                >
+                  <i className="bi bi-megaphone-fill"></i>
                 </button>
               )}
 

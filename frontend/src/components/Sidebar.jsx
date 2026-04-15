@@ -1,22 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { signOut } from 'firebase/auth';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
+import { ROLES, ADMIN_ROLES } from '../config/constants';
 import { useAuth } from '../contexts/AuthContext';
 import '../styles/Sidebar.css';
 
-const ROLES = {
-  SUPER_ADMIN: 'super_admin',
-  DIRECTOR:    'director',
-  EMPLEADO:    'empleado',
-  ADMIN_AREA:  'admin_area',
-  ADMIN_RH:    'admin_rh',
-  SISTEMAS:    'sistemas'
-};
-
-// Roles que tienen acceso al panel de administración
-const ADMIN_ROLES = ['super_admin', 'director', 'admin_rh', 'admin_area'];
 // Helper: ¿el rol está por encima de RH? (Super Admin o Director)
 const isSuperOrDirector = (role) => ['super_admin', 'director'].includes(role);
 const isRhOrAbove = (role) => [...ADMIN_ROLES.slice(0,3)].includes(role); // super_admin, director, admin_rh
@@ -58,8 +48,8 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
   // Verificar permisos de administrador (Súper Admin o RH)
   useEffect(() => {
     const sessionUserRole = sessionStorage.getItem('userRole');
-    const userEmail = auth.currentUser?.email;
-    const adminEmails = import.meta.env.VITE_ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
+    const userEmail = auth.currentUser?.email?.toLowerCase() || '';
+    const adminEmails = import.meta.env.VITE_ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
     setIsAdmin(ADMIN_ROLES.includes(sessionUserRole) || adminEmails.includes(userEmail));
   }, [auth.currentUser?.email]); // Dependencia para re-evaluar si el usuario de auth cambia
 
@@ -266,8 +256,8 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
     ? [{ path: '/admin/organigrama', icon: 'bi-diagram-3', label: 'Organigrama' }]
     : [];
 
-  // QR/Agenda: Sistemas + Super Admin + Director
-  const menuQR = (isSuperOrDirector(userRole) || userRole === ROLES.SISTEMAS)
+  // QR/Agenda: Super Admin + Director
+  const menuQR = (isSuperOrDirector(userRole))
     ? [{ path: '/qr', icon: 'bi-qr-code-scan', label: 'Pantalla QR / Agenda' }]
     : [];
 
@@ -292,7 +282,6 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
     if (userRole === ROLES.DIRECTOR)    return 'Director';
     if (userRole === ROLES.ADMIN_RH)    return 'Admin RH';
     if (userRole === ROLES.ADMIN_AREA)  return `Jefe de Área${userDepartamento ? ` · ${userDepartamento}` : ''}`;
-    if (userRole === ROLES.SISTEMAS)    return 'Sistemas';
     return 'Empleado';
   };
 

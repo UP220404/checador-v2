@@ -234,8 +234,9 @@ class ContractEvaluationService {
         throw new Error('Evaluación no encontrada');
       }
 
-      if (evaluacion.estado !== ESTADOS_EVALUACION_CONTRATO.PENDIENTE) {
-        throw new Error('La evaluación ya fue completada');
+      const allowedStates = [ESTADOS_EVALUACION_CONTRATO.PENDIENTE, ESTADOS_EVALUACION_CONTRATO.VENCIDA];
+      if (!allowedStates.includes(evaluacion.estado)) {
+        throw new Error('La evaluación ya fue completada o está en un estado inválido');
       }
 
       let accionTomada = null;

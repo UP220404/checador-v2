@@ -47,7 +47,7 @@ function App() {
         <Routes>
           {/* Ruta Raíz: El Checador ahora requiere estar autenticado */}
           <Route path="/" element={
-            <PrivateRoute requiredRoles={['super_admin', 'director', 'empleado', 'admin_area', 'admin_rh', 'sistemas']}>
+            <PrivateRoute requiredRoles={['super_admin', 'director', 'empleado', 'admin_area', 'admin_rh']}>
               <Checador />
             </PrivateRoute>
           } />
@@ -57,7 +57,7 @@ function App() {
 
           {/* Portal del Empleado */}
           <Route path="/empleado/portal" element={
-            <PrivateRoute requiredRoles={['super_admin', 'director', 'empleado', 'admin_area', 'admin_rh', 'sistemas']}>
+            <PrivateRoute requiredRoles={['super_admin', 'director', 'empleado', 'admin_area', 'admin_rh']}>
               <PortalEmpleado />
             </PrivateRoute>
           } />

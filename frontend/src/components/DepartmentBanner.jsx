@@ -3,15 +3,13 @@
  * y proporciona informacion del rol actual
  */
 
-export const ROLES = {
-  EMPLEADO: 'empleado',
-  ADMIN_AREA: 'admin_area',
-  ADMIN_RH: 'admin_rh'
-};
+import { useAuth } from '../contexts/AuthContext';
+
+import { ROLES } from '../config/constants';
+export { ROLES };
 
 function DepartmentBanner() {
-  const userRole = sessionStorage.getItem('userRole') || ROLES.EMPLEADO;
-  const userDepartamento = sessionStorage.getItem('userDepartamento') || '';
+  const { userRole, userDepartamento } = useAuth();
 
   // Solo mostrar para admin_area
   if (userRole !== ROLES.ADMIN_AREA || !userDepartamento) {
@@ -32,16 +30,17 @@ function DepartmentBanner() {
 
 // Hook para obtener datos de rol
 export function useRoleData() {
-  const userRole = sessionStorage.getItem('userRole') || ROLES.EMPLEADO;
-  const userDepartamento = sessionStorage.getItem('userDepartamento') || '';
+  const { userRole = ROLES.EMPLEADO, userDepartamento = '' } = useAuth();
+
+  const isSuperUser = [ROLES.ADMIN_RH, ROLES.SUPER_ADMIN, ROLES.DIRECTOR].includes(userRole);
 
   return {
     userRole,
     userDepartamento,
-    isAdminRH: userRole === ROLES.ADMIN_RH,
+    isAdminRH: isSuperUser,
     isAdminArea: userRole === ROLES.ADMIN_AREA,
     isEmpleado: userRole === ROLES.EMPLEADO,
-    canSeeAllData: userRole === ROLES.ADMIN_RH,
+    canSeeAllData: isSuperUser,
     departmentFilter: userRole === ROLES.ADMIN_AREA ? userDepartamento : null
   };
 }

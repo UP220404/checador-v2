@@ -749,7 +749,199 @@
   gap: 8px;
 }
 
+
+/* ============ GROUPED PERSON CARDS ============ */
+.evcon-person-card {
+  background: white;
+  border-radius: 20px;
+  border: 1.5px solid #f0f0f0;
+  margin-bottom: 24px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+  transition: all 0.3s ease;
+}
+.evcon-person-card:hover {
+  box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+  border-color: #e2e8f0;
+}
+
+.evcon-person-header {
+  padding: 20px 24px;
+  background: #fafbfc;
+  border-bottom: 1.5px solid #f0f0f0;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.evcon-person-info {
+  flex: 1;
+}
+
+.evcon-person-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 4px;
+}
+
+.evcon-person-details {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.evcon-detail {
+  font-size: 0.8rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.evcon-detail i {
+  color: #94a3b8;
+}
+
+/* Evaluations list inside person card */
+.evcon-person-evaluations {
+  padding: 8px 16px;
+}
+
+.evcon-eval-row {
+  display: grid;
+  grid-template-columns: 180px 1fr 150px 180px;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 12px;
+  border-radius: 12px;
+  margin: 8px 0;
+  transition: background 0.2s;
+}
+
+.evcon-eval-row:not(:last-child) {
+  border-bottom: 1px solid #f8fafc;
+}
+
+.evcon-eval-row:hover {
+  background: #f8fafc;
+}
+
+.evcon-eval-row.urgent {
+  background: #fffbef;
+}
+
+/* Cell styles */
+.evcon-eval-type-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.evcon-tipo-mini {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  width: fit-content;
+}
+
+.evcon-tipo-mini.tipo-1 { background: #e0f2fe; color: #0284c7; }
+.evcon-tipo-mini.tipo-2 { background: #ede9fe; color: #7c3aed; }
+
+.evcon-eval-date {
+  font-size: 0.8rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.evcon-estado-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.evcon-estado-badge.pendiente { background: #fef3c7; color: #b45309; }
+.evcon-estado-badge.vencida { background: #fee2e2; color: #991b1b; }
+.evcon-estado-badge.completada { background: #d1fae5; color: #065f46; }
+
+.evcon-result-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.evcon-result-pill.aprobado { color: #059669; }
+.evcon-result-pill.rechazado { color: #dc2626; }
+
+.evcon-remaining-dias {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.evcon-dias-val {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+.evcon-dias-val.safe { color: #10b981; }
+.evcon-dias-val.warning { color: #f59e0b; }
+.evcon-dias-val.danger { color: #ef4444; }
+
+.evcon-dias-txt {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.evcon-accion-pill {
+  font-size: 0.75rem;
+  color: #64748b;
+  background: #f1f5f9;
+  padding: 4px 10px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.evcon-btn-eval-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1.5px solid #28a745;
+  background: white;
+  color: #28a745;
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.evcon-btn-eval-mini:hover {
+  background: #28a745;
+  color: white;
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
+}
+
 /* ============ RESPONSIVE ============ */
+@media (max-width: 992px) {
+  .evcon-eval-row {
+    grid-template-columns: 140px 1fr 100px 140px;
+    gap: 12px;
+  }
+}
 @media (max-width: 768px) {
   .evcon-page-header {
     padding: 24px 20px;

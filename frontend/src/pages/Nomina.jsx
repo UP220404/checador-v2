@@ -664,15 +664,15 @@ function Nomina() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
                   <div>
                     <label style={{ fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>Nombre Completo</label>
-                    <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem' }}>{datosEmpleado.nombre || 'Sin nombre'}</div>
+                    <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem', color: '#111827' }}>{datosEmpleado.nombre || 'Sin nombre'}</div>
                   </div>
                   <div>
                     <label style={{ fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>Correo Electrónico</label>
-                    <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem' }}>{datosEmpleado.email || 'Sin correo'}</div>
+                    <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem', color: '#111827' }}>{datosEmpleado.email || 'Sin correo'}</div>
                   </div>
                   <div>
                     <label style={{ fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>Tipo de Usuario</label>
-                    <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem' }}>{datosEmpleado.tipo || 'empleado'}</div>
+                    <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem', color: '#111827' }}>{datosEmpleado.tipo || 'empleado'}</div>
                   </div>
                   <div>
                     <label style={{ fontSize: '12px', color: '#6b7280', fontWeight: 500 }}>Estado</label>
@@ -719,7 +719,7 @@ function Nomina() {
                           placeholder="0"
                         />
                       ) : (
-                        <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem', color: '#111827' }}>
                           {datosEmpleado.horasQuincenal || 0} hrs
                         </div>
                       )}
@@ -736,7 +736,7 @@ function Nomina() {
                           <option value="semanal">Semanal</option>
                         </select>
                       ) : (
-                        <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem', color: '#111827' }}>
                           {datosEmpleado.tipoNomina || 'quincenal'}
                         </div>
                       )}
@@ -755,7 +755,7 @@ function Nomina() {
                           <label htmlFor="editIMSS" style={{ fontSize: '14px', cursor: 'pointer' }}>Tiene IMSS</label>
                         </div>
                       ) : (
-                        <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem', color: '#111827' }}>
                           {datosEmpleado.tieneIMSS ? '✓ Sí' : '✗ No'}
                         </div>
                       )}
@@ -774,7 +774,7 @@ function Nomina() {
                           <label htmlFor="editCajaAhorro" style={{ fontSize: '14px', cursor: 'pointer' }}>Participa en caja de ahorro</label>
                         </div>
                       ) : (
-                        <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem', color: '#111827' }}>
                           {datosEmpleado.tieneCajaAhorro
                             ? `✓ Sí - $${(datosEmpleado.montoCajaAhorro || 0).toLocaleString('es-MX')}`
                             : '✗ No'}
@@ -793,7 +793,7 @@ function Nomina() {
                             placeholder="0"
                           />
                         ) : (
-                          <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem' }}>
+                          <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem', color: '#111827' }}>
                             ${(datosEmpleado.montoCajaAhorro || 0).toLocaleString('es-MX')}
                           </div>
                         )}
@@ -821,7 +821,7 @@ function Nomina() {
                           <option value="Otro">Otro</option>
                         </select>
                       ) : (
-                        <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem', color: '#111827' }}>
                           {datosEmpleado.nombreBanco || 'No especificado'}
                         </div>
                       )}
@@ -842,7 +842,7 @@ function Nomina() {
                           </small>
                         </div>
                       ) : (
-                        <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem' }}>
+                        <div style={{ fontSize: '14px', fontWeight: 600, marginTop: '0.25rem', color: '#111827' }}>
                           {datosEmpleado.cuentaBancaria || 'No especificada'}
                         </div>
                       )}

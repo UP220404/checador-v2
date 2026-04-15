@@ -71,8 +71,8 @@ router.put('/:uid/admin-profile', adminMiddleware, UserController.updateProfileB
 // RUTAS PARA ADMINISTRADORES
 // ============================================
 
-// GET /api/v1/users/vacaciones-panel - Panel de vacaciones (solo admin_rh)
-router.get('/vacaciones-panel', adminRHMiddleware, UserController.getAllVacacionesSummary);
+// GET /api/v1/users/vacaciones-panel - Panel de vacaciones (admin_rh y admin_area)
+router.get('/vacaciones-panel', adminAreaOrRHMiddleware, UserController.getAllVacacionesSummary);
 
 // GET /api/v1/users - Listar usuarios (admin_rh ve todos, admin_area ve su departamento)
 router.get('/', adminAreaOrRHMiddleware, UserController.getAllUsers);

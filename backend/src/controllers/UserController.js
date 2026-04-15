@@ -1122,13 +1122,18 @@ class UserController {
     }
   }
 
-  /**
-   * GET /api/v1/users/vacaciones-panel
-   * Panel RH: todos los empleados activos con su saldo de vacaciones calculado
-   */
   async getAllVacacionesSummary(req, res) {
     try {
-      const data = await UserService.getAllVacacionesSummary();
+      let data = await UserService.getAllVacacionesSummary();
+
+      // Si es ADMIN_AREA, filtrar por departamento
+      if (req.user.role === ROLES.ADMIN_AREA && req.user.departamento) {
+        const userDept = req.user.departamento.trim().toLowerCase();
+        data = data.filter(u => 
+          u.departamento?.trim().toLowerCase() === userDept
+        );
+      }
+
       res.json({ success: true, count: data.length, data });
     } catch (error) {
       console.error('Error en getAllVacacionesSummary:', error);

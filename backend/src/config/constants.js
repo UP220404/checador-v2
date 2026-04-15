@@ -254,8 +254,7 @@ export const ROLES = {
   DIRECTOR: 'director',
   EMPLEADO: 'empleado',
   ADMIN_AREA: 'admin_area',
-  ADMIN_RH: 'admin_rh',
-  SISTEMAS: 'sistemas'
+  ADMIN_RH: 'admin_rh'
 };
 
 // Departamentos

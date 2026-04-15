@@ -97,8 +97,9 @@ export async function adminMiddleware(req, res, next) {
     }
   }
 
-  const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim()) || [];
-  const isSuperAdmin = adminEmails.includes(req.user.email);
+  const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(e => e.trim().toLowerCase()) || [];
+  const userEmail = req.user.email?.toLowerCase() || '';
+  const isSuperAdmin = adminEmails.includes(userEmail);
   const adminRoles = [
     ROLES.SUPER_ADMIN, ROLES.DIRECTOR, ROLES.ADMIN_RH, ROLES.ADMIN_AREA
   ];

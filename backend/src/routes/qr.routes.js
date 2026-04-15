@@ -5,7 +5,7 @@
 import express from 'express';
 import QRController from '../controllers/QRController.js';
 import { authMiddleware } from '../middleware/auth.middleware.js';
-import { attachRoleData, sistemasOrAboveMiddleware } from '../middleware/role.middleware.js';
+import { attachRoleData, directorOrAboveMiddleware } from '../middleware/role.middleware.js';
 
 const router = express.Router();
 
@@ -26,7 +26,7 @@ router.get('/current', authMiddleware, QRController.getCurrentToken);
  * Requiere: autenticación + admin
  * Body: { modo: 'dinamico' | 'estatico', duracionMinutos: number }
  */
-router.post('/generate', sistemasOrAboveMiddleware, QRController.generateToken);
+router.post('/generate', directorOrAboveMiddleware, QRController.generateToken);
 
 /**
  * POST /api/v1/qr/validate
@@ -42,6 +42,6 @@ router.post('/validate', QRController.validateToken);
  * Requiere: autenticación + admin
  * Query: ?fecha=YYYY-MM-DD (opcional)
  */
-router.get('/stats', sistemasOrAboveMiddleware, QRController.getStats);
+router.get('/stats', directorOrAboveMiddleware, QRController.getStats);
 
 export default router;

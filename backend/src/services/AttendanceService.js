@@ -249,6 +249,7 @@ class AttendanceService {
       hora: hora,
       tipoEvento: tipoEvento,
       estado: estado,
+      departamento: usuario.departamento || '',
       ubicacion: location || null,
       timestamp: ahora
     };

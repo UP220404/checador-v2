@@ -1,4 +1,5 @@
 import AttendanceService from '../services/AttendanceService.js';
+import UserService from '../services/UserService.js';
 import { HTTP_STATUS, ERROR_MESSAGES, ROLES } from '../config/constants.js';
 import { isAdmin } from '../config/firebase.js';
 
@@ -16,8 +17,16 @@ class AttendanceController {
 
   // Helper para verificar si el usuario tiene permisos de admin (Email o Rol)
   _isUserAdmin(user) {
-    return isAdmin(user.email) || 
-           [ROLES.ADMIN_RH, ROLES.SUPER_ADMIN, ROLES.DIRECTOR, ROLES.ADMIN_AREA].includes(user.role);
+    if (!user || !user.role) return false;
+    const userRole = user.role.toLowerCase();
+    const adminRoles = [
+      ROLES.ADMIN_RH, 
+      ROLES.SUPER_ADMIN, 
+      ROLES.DIRECTOR, 
+      ROLES.ADMIN_AREA
+    ].map(r => r.toLowerCase());
+
+    return isAdmin(user.email) || adminRoles.includes(userRole);
   }
 
   /**
@@ -139,7 +148,30 @@ class AttendanceController {
         });
       }
 
-      const today = await AttendanceService.getTodayAttendance();
+      let today = await AttendanceService.getTodayAttendance();
+
+      // Si es ADMIN_AREA, filtrar por departamento en el backend
+      // Usa in-memory para evitar problemas de case-sensitivity en Firestore
+      if (req.user.role?.toLowerCase() === ROLES.ADMIN_AREA && req.user.departamento) {
+        const userDept = req.user.departamento.trim().toLowerCase();
+        
+        // Obtener TODOS los usuarios y filtrar en memoria (permite comparación flexible)
+        const allUsers = await UserService.getAllUsers();
+        const deptUserUIDs = new Set(
+          allUsers
+            .filter(u => u.departamento?.trim().toLowerCase() === userDept)
+            .map(u => u.uid || u.id)
+        );
+        
+        today = today.filter(reg => {
+          // Registros nuevos traen campo 'departamento'
+          if (reg.departamento) {
+            return reg.departamento.trim().toLowerCase() === userDept;
+          }
+          // Registros antiguos sin campo 'departamento': verificar por UID
+          return deptUserUIDs.has(reg.uid);
+        });
+      }
 
       res.json({
         success: true,
