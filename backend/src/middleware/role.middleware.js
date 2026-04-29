@@ -44,7 +44,12 @@ export async function getUserRoleData(email) {
 
     const db = getFirestore();
     const usersRef = db.collection(COLLECTIONS.USUARIOS);
-    const snapshot = await usersRef.where('correo', '==', userEmail).limit(1).get(); // El campo correcto es 'correo'
+
+    // Buscar primero por campo 'email' (usuarios nuevos), luego por 'correo' (legacy)
+    let snapshot = await usersRef.where('email', '==', userEmail).limit(1).get();
+    if (snapshot.empty) {
+      snapshot = await usersRef.where('correo', '==', userEmail).limit(1).get();
+    }
 
     if (snapshot.empty) {
       if (isSuperAdmin) {

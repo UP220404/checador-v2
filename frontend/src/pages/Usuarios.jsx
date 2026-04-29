@@ -9,7 +9,7 @@ import html2canvas from 'html2canvas';
 import '../styles/Usuarios.css';
 
 function Usuarios() {
-  const { isAdminRH, isAdminArea, userDepartamento } = useRoleData();
+  const { isAdminRH, isAdminArea, userRole, userDepartamento } = useRoleData();
   const [showModal, setShowModal] = useState(false);
   const [modoEdicion, setModoEdicion] = useState(false);
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null);
@@ -995,14 +995,27 @@ function Usuarios() {
                         disabled={isAdminArea && modoEdicion}
                       >
                         <option value={ROLES.EMPLEADO}>Empleado</option>
-                        <option value={ROLES.ADMIN_AREA}>Admin de Area</option>
+                        <option value={ROLES.ADMIN_AREA}>Admin de Área</option>
                         <option value={ROLES.ADMIN_RH}>Admin RH</option>
+                        {/* Solo super_admin puede ver/asignar roles superiores */}
+                        {userRole === ROLES.SUPER_ADMIN && (
+                          <>
+                            <option value={ROLES.DIRECTOR}>Director</option>
+                            <option value={ROLES.SUPER_ADMIN}>Super Admin</option>
+                          </>
+                        )}
                       </select>
                       {formData.role === ROLES.ADMIN_AREA && (
                         <small className="text-muted">Administra solo su departamento</small>
                       )}
                       {formData.role === ROLES.ADMIN_RH && (
-                        <small className="text-danger">Acceso total al sistema</small>
+                        <small className="text-warning"><i className="bi bi-exclamation-triangle me-1"></i>Gestión de RH y ausencias</small>
+                      )}
+                      {formData.role === ROLES.DIRECTOR && (
+                        <small className="text-danger"><i className="bi bi-shield-exclamation me-1"></i>Acceso total excepto Configuración</small>
+                      )}
+                      {formData.role === ROLES.SUPER_ADMIN && (
+                        <small className="text-danger fw-bold"><i className="bi bi-shield-fill-exclamation me-1"></i>Acceso total al sistema ⚠️</small>
                       )}
                     </div>
                     <div className="col-md-6">

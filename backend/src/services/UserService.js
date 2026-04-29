@@ -53,15 +53,25 @@ class UserService {
   }
 
   /**
-   * Obtiene un usuario por su email
+   * Obtiene un usuario por su email (busca en campo 'email' primero, luego 'correo' legacy)
    */
   async getUserByEmail(email) {
     try {
-      const querySnapshot = await this.db
+      // Intentar primero con campo 'email' (usuarios nuevos)
+      let querySnapshot = await this.db
         .collection(this.usersCollection)
-        .where('correo', '==', email)
+        .where('email', '==', email)
         .limit(1)
         .get();
+
+      // Si no lo encuentra, buscar en campo 'correo' (usuarios legacy)
+      if (querySnapshot.empty) {
+        querySnapshot = await this.db
+          .collection(this.usersCollection)
+          .where('correo', '==', email)
+          .limit(1)
+          .get();
+      }
 
       if (querySnapshot.empty) {
         return null;

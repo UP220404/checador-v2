@@ -390,15 +390,38 @@ function QRGenerator() {
     target.scrollIntoView({ block: 'start', behavior: 'instant' });
   };
 
-  const construirNombreHoja = (fullMonth = false) => {
+  const construirNombresHoja = () => {
     const fecha = new Date();
-    const dias  = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    const mesesAbr = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const dias     = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const diasSin  = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
+    const mesesAbr  = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     const mesesFull = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-    const diaNom = dias[fecha.getDay()];
-    const diaNum = String(fecha.getDate()).padStart(2, '0');
-    const mesNom = fullMonth ? mesesFull[fecha.getMonth()] : mesesAbr[fecha.getMonth()];
-    return `${diaNom} ${diaNum} ${mesNom}`;
+    const diaNom   = dias[fecha.getDay()];
+    const diaSin   = diasSin[fecha.getDay()];
+    const diaNum   = String(fecha.getDate());
+    const diaNum0  = diaNum.padStart(2, '0');
+    const mesAbr   = mesesAbr[fecha.getMonth()];
+    const mesFull  = mesesFull[fecha.getMonth()];
+    const anio     = fecha.getFullYear();
+    // Variantes ordenadas de mayor a menor probabilidad de coincidencia
+    return [
+      // Nuevo formato: "Martes 12 Mayo 2026" (con acento y sin cero)
+      `${diaNom} ${diaNum} ${mesFull} ${anio}`,
+      // Sin acento en día: "Martes 12 Mayo 2026"
+      `${diaSin} ${diaNum} ${mesFull} ${anio}`,
+      // Con cero: "Martes 12 Mayo 2026"
+      `${diaNom} ${diaNum0} ${mesFull} ${anio}`,
+      `${diaSin} ${diaNum0} ${mesFull} ${anio}`,
+      // Mes abreviado sin año: "Martes 12 May"
+      `${diaNom} ${diaNum0} ${mesAbr}`,
+      `${diaSin} ${diaNum0} ${mesAbr}`,
+      `${diaNom} ${diaNum} ${mesAbr}`,
+      `${diaSin} ${diaNum} ${mesAbr}`,
+      // Solo número y mes
+      `${diaNum} ${mesFull}`,
+      `${diaNum0} ${mesFull}`,
+      `${diaNum} ${mesAbr}`,
+    ];
   };
 
   const parsearCSV = (texto) => {
@@ -464,29 +487,26 @@ function QRGenerator() {
 
   const cargarAgenda = async (silencioso = false) => {
     if (!silencioso) setLoadingAgenda(true);
-    const nombreHoja      = construirNombreHoja();
-    const nombreSinAcento = quitarAcentos(nombreHoja);
-    setAgendaFecha(nombreHoja);
+    const variantes = construirNombresHoja();
+    // Mostrar el primer nombre (el más probable) en el badge de la UI
+    setAgendaFecha(variantes[0]);
     try {
-      let datos = await fetchHoja(nombreHoja);
-      
-      // En JS, `[]` es truthy. Si Google Sheets no encuentra el nombre con acento, 
-      // suele devolver la primera hoja del archivo como fallback, la cual al ser parseada 
-      // puede devolver `[]`. Por lo que necesitamos checar `length === 0`.
-      if (!datos || datos.length === 0) {
-        datos = await fetchHoja(nombreSinAcento);
+      let datos = null;
+      let nombreEncontrado = '';
+      // Probar cada variante hasta encontrar una hoja con datos
+      for (const nombre of variantes) {
+        const resultado = await fetchHoja(nombre);
+        if (resultado && resultado.length > 0) {
+          datos = resultado;
+          nombreEncontrado = nombre;
+          break;
+        }
       }
-      
-      // Si sigue vacío, probemos una combinación muy común que los usuarios hacen:
-      // A veces quitan el acento del día de la semana pero no del mes, o viceversa, 
-      // pero el nombreSinAcento quita TODOS los acentos.
-      if (!datos || datos.length === 0) {
-         // Intentar algo más genérico si falla (ej. buscar qué hojas hay no es posible aquí)
-         // pero al menos ya intentamos el caso base.
+      if (nombreEncontrado) {
+        setAgendaFecha(nombreEncontrado);
       }
-      
-      const resultado  = datos || [];
-      const nuevoHash  = JSON.stringify(resultado);
+      const resultado = datos || [];
+      const nuevoHash = JSON.stringify(resultado);
       if (silencioso && nuevoHash !== agendaHashRef.current) {
         setAgendaActualizada(true);
         setTimeout(() => setAgendaActualizada(false), 3000);
