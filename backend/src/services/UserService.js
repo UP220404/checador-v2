@@ -226,7 +226,8 @@ class UserService {
         }
 
       // ── CASO: Cambio de email → migración completa de UID ────────────────────
-      } else if (updateData.email && updateData.email !== currentData.email) {
+      // Comparar contra 'email' o 'correo' (campo legacy) para no disparar migración innecesariamente
+      } else if (updateData.email && updateData.email !== (currentData.email || currentData.correo)) {
         console.log(`📧 [UserService] Cambio de email detectado. Iniciando migración de UID...`);
         const newUID = await UserMigrationService.migrateUserIdentity(uid, updateData.email);
         // La migración ya guardó todos los datos con el nuevo UID.
@@ -943,7 +944,7 @@ class UserService {
       }
 
       // Validar rol
-      const rolesValidos = ['empleado', 'admin_area', 'admin_rh', 'sistemas'];
+      const rolesValidos = ['empleado', 'admin_area', 'admin_rh', 'director', 'super_admin', 'sistemas'];
       if (!rolesValidos.includes(roleData.role)) {
         throw new Error(`Rol inválido. Roles válidos: ${rolesValidos.join(', ')}`);
       }
