@@ -228,15 +228,13 @@ class UserService {
       // ── CASO: Cambio de email → migración completa de UID ────────────────────
       // Comparar contra 'email' o 'correo' (campo legacy) para no disparar migración innecesariamente
       } else if (updateData.email && updateData.email !== (currentData.email || currentData.correo)) {
-        console.log(`📧 [UserService] Cambio de email detectado. Iniciando migración de UID...`);
-        const newUID = await UserMigrationService.migrateUserIdentity(uid, updateData.email);
-        // La migración ya guardó todos los datos con el nuevo UID.
-        // Retornamos el nuevo UID para que el controlador lo informe al frontend.
+        console.log(`📧 [UserService] Cambio de email detectado. Actualizando email en Firestore...`);
+        // Solo actualiza el email en Firestore (el UID se corregirá lazy en el próximo login)
+        await UserMigrationService.migrateUserIdentity(uid, updateData.email);
         return {
-          uid: newUID,
+          uid,
           email: updateData.email,
-          _uidMigrado: true,
-          _oldUID: uid
+          _emailActualizado: true
         };
       }
 
@@ -1007,6 +1005,26 @@ class UserService {
     } catch (error) {
       console.error('❌ Error sincronizando con colección legacy:', error);
     }
+  }
+
+  /**
+   * Auto-corrección de UID desfasado.
+   *
+   * Se llama cuando el usuario inicia sesión con Google y su UID de Auth
+   * no coincide con el ID del documento en Firestore (situación que ocurre
+   * después de cambiar el email desde el panel de RH).
+   *
+   * Mueve el documento y todas las colecciones secundarias del oldUID al newUID
+   * de forma transparente, sin interrumpir el login del empleado.
+   *
+   * @param {string} oldUID   - ID del documento en Firestore (UID desactualizado).
+   * @param {string} newUID   - UID real de Firebase Auth (el correcto).
+   * @param {string} email    - Email del usuario.
+   */
+  async autoFixUidMismatch(oldUID, newUID, email) {
+    console.log(`🔧 [AutoFix] Corrigiendo UID desfasado. Firestore: ${oldUID} → Auth: ${newUID}`);
+    await UserMigrationService.migrateAllData(oldUID, newUID, email);
+    console.log(`✅ [AutoFix] UID corregido para ${email}`);
   }
 }
 

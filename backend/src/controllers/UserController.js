@@ -53,6 +53,21 @@ class UserController {
         console.log('[getCurrentUserRole] Usuario por email:', user ? 'encontrado' : 'no encontrado');
       }
 
+      // ── Auto-corrección de UID desfasado ────────────────────────────────────
+      // Ocurre cuando el admin cambió el email del empleado: el documento en Firestore
+      // tiene el email correcto pero su ID (UID) aún no corresponde al UID real de
+      // la cuenta de Google. Lo corregimos en background sin bloquear el login.
+      if (user && user.uid !== userUid) {
+        console.log(`[getCurrentUserRole] UID desfasado detectado para ${userEmail}. Firestore: ${user.uid} → Auth: ${userUid}. Iniciando corrección en background...`);
+        const staleUID = user.uid;
+        // Ajustamos el uid local para que el resto del flujo sea correcto
+        user = { ...user, uid: userUid };
+        // Lanzamos la migración en background (sin await) para no bloquear el login
+        UserService.autoFixUidMismatch(staleUID, userUid, userEmail)
+          .then(() => console.log(`[getCurrentUserRole] ✅ UID corregido automáticamente para ${userEmail}`))
+          .catch(e => console.error(`[getCurrentUserRole] ⚠️  Auto-fix falló para ${userEmail}:`, e.message));
+      }
+
       if (!user) {
         user = await UserService.getUserByUid(userUid);
         if (process.env.NODE_ENV === 'development') {

@@ -1,19 +1,16 @@
 /**
  * UserMigrationService — Migración automática de identidad de usuario.
  *
- * Cuando un admin cambia el email de un empleado desde el panel de RH,
- * este servicio:
- *   1. Crea un nuevo usuario en Firebase Auth con el nuevo email.
- *   2. Migra el documento principal del usuario en Firestore (usuarios/{oldUID} → usuarios/{newUID}).
- *   3. Actualiza todas las colecciones secundarias que referencian el oldUID.
- *   4. Deshabilita la cuenta vieja en Firebase Auth y revoca sus tokens.
- *   5. Elimina el documento viejo de Firestore.
+ * Estrategia (simplificada vs. versión anterior):
+ *   Al cambiar el email, este servicio SOLO actualiza el campo email en Firestore
+ *   y deshabilita la cuenta vieja de Auth. NO crea usuarios en Firebase Auth
+ *   artificialmente (eso generaba UIDs que nunca coincidían con Google OAuth).
  *
- * El empleado NO necesita hacer nada especial. La próxima vez que entre
- * con su nueva cuenta de Google, Firebase la vincula al nuevo UID automáticamente.
+ *   La corrección del UID ocurre de forma "lazy" la primera vez que el empleado
+ *   inicia sesión con su nueva cuenta de Google, a través del mecanismo
+ *   autoFixUidMismatch en UserController.getCurrentUserRole.
  */
 
-import admin from 'firebase-admin';
 import { getAuth, getFirestore } from '../config/firebase.js';
 import { COLLECTIONS } from '../config/constants.js';
 
@@ -37,79 +34,60 @@ class UserMigrationService {
   get auth() { return getAuth(); }
 
   /**
-   * Punto de entrada principal.
-   * @param {string} oldUID - UID actual del empleado (cuenta vieja de Google).
+   * Cuando un admin cambia el email de un empleado:
+   *   1. Actualiza SOLO el campo email en Firestore (el documento mantiene su UID actual).
+   *   2. Intenta deshabilitar la cuenta vieja de Auth (best-effort).
+   *
+   * El UID se corregirá automáticamente la próxima vez que el empleado
+   * inicie sesión con su nueva cuenta de Google (lazy fix en getCurrentUserRole).
+   *
+   * @param {string} oldUID   - UID actual del documento en Firestore.
    * @param {string} newEmail - Nuevo correo institucional.
-   * @returns {string} newUID - El nuevo UID generado en Firebase Auth.
+   * @returns {string}        - El mismo oldUID (el doc no se mueve todavía).
    */
   async migrateUserIdentity(oldUID, newEmail) {
-    console.log(`🔄 [Migración] Iniciando migración de UID. oldUID=${oldUID} → newEmail=${newEmail}`);
+    console.log(`📧 [Migración] Actualizando email. UID=${oldUID} → newEmail=${newEmail}`);
 
-    // 1. Crear nuevo usuario en Firebase Auth
-    const newUID = await this._createNewAuthUser(newEmail);
-    console.log(`✅ [Migración] Nuevo UID creado: ${newUID}`);
+    const userRef = this.db.collection(COLLECTIONS.USUARIOS).doc(oldUID);
+    const userDoc = await userRef.get();
 
-    try {
-      // 2. Migrar documento principal del usuario
-      await this._migrateUserDocument(oldUID, newUID, newEmail);
-
-      // 3. Migrar colecciones secundarias en paralelo
-      await this._migrateAllCollections(oldUID, newUID);
-
-      // 4. Deshabilitar cuenta vieja y revocar tokens
-      await this._disableOldAccount(oldUID);
-
-      // 5. Eliminar documento viejo de Firestore
-      await this.db.collection(COLLECTIONS.USUARIOS).doc(oldUID).delete();
-
-      console.log(`🏁 [Migración] Completada. oldUID=${oldUID} → newUID=${newUID}`);
-      return newUID;
-
-    } catch (error) {
-      // Si algo falla después de crear el nuevo usuario en Auth,
-      // intentamos limpiar para no dejar cuentas huérfanas.
-      console.error(`❌ [Migración] Error durante la migración de ${oldUID}:`, error);
-      try {
-        await this.auth.deleteUser(newUID);
-        console.warn(`⚠️  [Migración] Nuevo usuario Auth (${newUID}) eliminado por rollback.`);
-      } catch (cleanupErr) {
-        console.error('❌ [Migración] No se pudo limpiar el nuevo Auth user:', cleanupErr);
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * Crea un nuevo usuario en Firebase Auth con el nuevo email.
-   * Al tener el mismo email que la cuenta de Google Workspace,
-   * Firebase lo vinculará automáticamente cuando el usuario inicie sesión.
-   */
-  async _createNewAuthUser(newEmail) {
-    // Verificar si ya existe un usuario con ese email (ej. si el admin lo intenta dos veces)
-    try {
-      const existing = await this.auth.getUserByEmail(newEmail);
-      if (existing) {
-        console.warn(`⚠️  [Migración] Ya existe un usuario Auth con ${newEmail}. UID: ${existing.uid}`);
-        return existing.uid;
-      }
-    } catch (e) {
-      // auth/user-not-found es el caso esperado → seguimos adelante
+    if (!userDoc.exists) {
+      throw new Error(`Usuario ${oldUID} no encontrado en Firestore.`);
     }
 
-    const newUser = await this.auth.createUser({
+    // Solo actualizar el campo email — no mover el documento ni crear Auth users
+    await userRef.update({
       email: newEmail,
-      emailVerified: true,
+      fechaActualizacion: new Date(),
+      _emailActualizadoEn: new Date()
     });
-    return newUser.uid;
+    console.log(`✅ [Migración] Email actualizado en Firestore para UID ${oldUID}`);
+
+    // Intentar deshabilitar la cuenta de Auth anterior (best-effort)
+    await this._disableOldAccount(oldUID);
+
+    console.log(`🏁 [Migración] Lista. El UID se corregirá automáticamente en el próximo login.`);
+
+    // Retornamos el mismo UID porque el documento no se movió
+    return oldUID;
   }
 
   /**
-   * Copia el documento del usuario del UID viejo al nuevo, actualizando el email.
+   * Mueve el documento de Firestore y TODAS las colecciones secundarias
+   * de oldUID a newUID. Llamado por el mecanismo de auto-corrección en login
+   * (UserController.getCurrentUserRole) cuando detecta un UID desfasado.
+   *
+   * @param {string} oldUID
+   * @param {string} newUID
+   * @param {string} newEmail
    */
-  async _migrateUserDocument(oldUID, newUID, newEmail) {
+  async migrateAllData(oldUID, newUID, newEmail) {
+    console.log(`🔄 [Auto-fix] Moviendo datos de Firestore. ${oldUID} → ${newUID}`);
+
+    // 1. Copiar documento principal al nuevo UID
     const oldDoc = await this.db.collection(COLLECTIONS.USUARIOS).doc(oldUID).get();
     if (!oldDoc.exists) {
-      throw new Error(`Usuario ${oldUID} no encontrado en Firestore.`);
+      throw new Error(`[Auto-fix] Documento ${oldUID} no encontrado en Firestore.`);
     }
 
     const data = oldDoc.data();
@@ -121,14 +99,9 @@ class UserMigrationService {
       _migradoDe: oldUID,
       _migradoEn: new Date()
     });
+    console.log(`✅ [Auto-fix] Documento principal copiado: ${oldUID} → ${newUID}`);
 
-    console.log(`✅ [Migración] Documento de usuario copiado: ${oldUID} → ${newUID}`);
-  }
-
-  /**
-   * Migra todas las colecciones secundarias.
-   */
-  async _migrateAllCollections(oldUID, newUID) {
+    // 2. Migrar colecciones secundarias en paralelo
     const resultados = await Promise.allSettled(
       COLECCIONES_A_MIGRAR.map(col => this._migrateCollection(col, oldUID, newUID))
     );
@@ -136,17 +109,22 @@ class UserMigrationService {
     resultados.forEach((result, i) => {
       const col = COLECCIONES_A_MIGRAR[i];
       if (result.status === 'rejected') {
-        console.error(`❌ [Migración] Fallo en colección ${col.nombre}:`, result.reason);
-      } else {
-        console.log(`✅ [Migración] ${col.nombre}: ${result.value} doc(s) migrados`);
+        console.error(`⚠️  [Auto-fix] Fallo en colección ${col.nombre}:`, result.reason?.message);
+      } else if (result.value > 0) {
+        console.log(`✅ [Auto-fix] ${col.nombre}: ${result.value} doc(s) migrados`);
       }
     });
+
+    // 3. Eliminar documento viejo
+    await this.db.collection(COLLECTIONS.USUARIOS).doc(oldUID).delete();
+    console.log(`✅ [Auto-fix] Documento viejo eliminado: ${oldUID}`);
+
+    console.log(`🏁 [Auto-fix] Completado. ${oldUID} → ${newUID}`);
   }
 
   /**
-   * Migra los documentos de una colección secundaria.
-   * Si `campo` es null, el UID es el ID del documento (se copia y borra).
-   * Si `campo` es un string, es un whereEqual query sobre ese campo.
+   * Migra los documentos de una colección secundaria de oldUID a newUID.
+   * @private
    */
   async _migrateCollection({ nombre, campo }, oldUID, newUID) {
     const db = this.db;
@@ -156,20 +134,17 @@ class UserMigrationService {
       const oldDoc = await db.collection(nombre).doc(oldUID).get();
       if (!oldDoc.exists) return 0;
 
-      const data = oldDoc.data();
-      await db.collection(nombre).doc(newUID).set({ ...data, uid: newUID });
+      await db.collection(nombre).doc(newUID).set({ ...oldDoc.data(), uid: newUID });
       await db.collection(nombre).doc(oldUID).delete();
       return 1;
     }
 
-    // Caso general: buscar por campo y actualizar
+    // Caso general: buscar por campo y actualizar en batch
     const snapshot = await db.collection(nombre).where(campo, '==', oldUID).get();
     if (snapshot.empty) return 0;
 
     const batch = db.batch();
-    snapshot.docs.forEach(doc => {
-      batch.update(doc.ref, { [campo]: newUID });
-    });
+    snapshot.docs.forEach(doc => batch.update(doc.ref, { [campo]: newUID }));
     await batch.commit();
 
     return snapshot.size;
@@ -177,15 +152,16 @@ class UserMigrationService {
 
   /**
    * Deshabilita la cuenta vieja en Firebase Auth y revoca sus tokens.
+   * No es crítico — si falla, el proceso de migración continúa.
+   * @private
    */
   async _disableOldAccount(oldUID) {
     try {
       await this.auth.updateUser(oldUID, { disabled: true });
       await this.auth.revokeRefreshTokens(oldUID);
-      console.log(`🔒 [Migración] Cuenta vieja deshabilitada y tokens revocados: ${oldUID}`);
+      console.log(`🔒 [Migración] Cuenta vieja deshabilitada: ${oldUID}`);
     } catch (error) {
-      // No crítico — si falla, la cuenta simplemente no se deshabilita pero los datos ya migraron
-      console.error(`⚠️  [Migración] No se pudo deshabilitar cuenta vieja ${oldUID}:`, error.message);
+      console.warn(`⚠️  [Migración] No se pudo deshabilitar cuenta vieja ${oldUID}:`, error.message);
     }
   }
 }
