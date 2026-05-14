@@ -695,6 +695,108 @@ class ReportService {
       ];
       nextRow = drawBox(insightSheet, nextRow, 'RECOMENDACIONES Y OBSERVACIONES', recs, 'FF0D6EFD');
 
+      // --- HOJA 3: TODOS LOS DÍAS (tabla plana filtrable) ---
+      const allDaysSheet = workbook.addWorksheet('📋 Todos los Días');
+
+      // Mapa uid/email → departamento y tipo para enriquecer cada fila
+      const deptMap = {};
+      usuariosActivos.forEach(u => {
+        const info = { dept: u.departamento || '', tipo: u.tipo || '' };
+        if (u.uid)    deptMap[u.uid]    = info;
+        if (u.correo) deptMap[u.correo] = info;
+        if (u.email)  deptMap[u.email]  = info;
+      });
+
+      allDaysSheet.columns = [
+        { header: 'Fecha',         key: 'fecha',   width: 13 },
+        { header: 'Día',           key: 'dia',     width: 13 },
+        { header: 'Empleado',      key: 'nombre',  width: 30 },
+        { header: 'Email',         key: 'email',   width: 28 },
+        { header: 'Departamento',  key: 'depto',   width: 18 },
+        { header: 'Tipo Contrato', key: 'tipo',    width: 15 },
+        { header: 'Evento',        key: 'evento',  width: 14 },
+        { header: 'Hora',          key: 'hora',    width: 10 },
+        { header: 'Estado',        key: 'estado',  width: 14 },
+        { header: 'Detalle',       key: 'detalle', width: 24 },
+      ];
+
+      // Encabezado estilizado
+      const allHdr = allDaysSheet.getRow(1);
+      allHdr.font    = { bold: true, color: { argb: 'FFFFFFFF' } };
+      allHdr.fill    = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF198754' } };
+      allHdr.height  = 22;
+      allHdr.alignment = { vertical: 'middle', horizontal: 'center' };
+
+      // AutoFilter en todas las columnas + fila congelada
+      allDaysSheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: 10 } };
+      allDaysSheet.views = [{ state: 'frozen', ySplit: 1 }];
+
+      const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+      // Rellenar una fila por cada evento de todos los días
+      Object.keys(diasDetalle).sort().forEach(fecha => {
+        const diaNombre = DIAS_SEMANA[new Date(fecha + 'T00:00:00').getDay()];
+
+        // Ordenar: entradas → salidas → justificados, luego por hora y nombre
+        const regs = [...diasDetalle[fecha]].sort((a, b) => {
+          const ord = { entrada: 1, salida: 2, ausencia: 3 };
+          const diff = (ord[a.tipoEvento] || 9) - (ord[b.tipoEvento] || 9);
+          if (diff !== 0) return diff;
+          if (a.hora && b.hora && a.hora !== '-' && b.hora !== '-') return a.hora.localeCompare(b.hora);
+          return (a.nombre || '').localeCompare(b.nombre || '');
+        });
+
+        regs.forEach(r => {
+          const idUsuario = r.uid || r.email || r.correo;
+          const info = deptMap[idUsuario] || {};
+          const isAusencia = r.tipoEvento === 'ausencia';
+
+          const eventoLabel = isAusencia
+            ? 'Justificado'
+            : r.tipoEvento === 'entrada' ? 'Entrada' : 'Salida';
+
+          const estadoLabel = isAusencia
+            ? 'Justificado'
+            : r.estado === 'retardo' ? 'Retardo'
+            : r.estado === 'puntual' ? 'Puntual' : '-';
+
+          const detalle = isAusencia
+            ? AbsenceService.formatTipoAusencia(r.tipoAusencia)
+            : '';
+
+          const row = allDaysSheet.addRow({
+            fecha:   fecha,
+            dia:     diaNombre,
+            nombre:  r.nombre  || '',
+            email:   r.email || r.correo || '',
+            depto:   info.dept || '',
+            tipo:    info.tipo || '',
+            evento:  eventoLabel,
+            hora:    r.hora    || '-',
+            estado:  estadoLabel,
+            detalle: detalle,
+          });
+
+          // Color condicional por tipo de evento
+          if (isAusencia) {
+            row.eachCell(cell => {
+              cell.font = { color: { argb: 'FF0D6EFD' } };
+            });
+          } else if (r.estado === 'retardo') {
+            row.getCell('estado').font = { color: { argb: 'FFDC3545' }, bold: true };
+            row.getCell('estado').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } };
+          }
+        });
+      });
+
+      // Borde inferior sutil en toda la tabla para distinguir filas
+      allDaysSheet.eachRow({ includeEmpty: false }, (row, rNum) => {
+        if (rNum === 1) return;
+        row.eachCell({ includeEmpty: true }, cell => {
+          cell.border = { bottom: { style: 'hair', color: { argb: 'FFD0D0D0' } } };
+        });
+      });
+
       // --- HOJAS DIARIAS ---
       const sortedDates = Object.keys(diasDetalle).sort();
       for (const fecha of sortedDates) {
