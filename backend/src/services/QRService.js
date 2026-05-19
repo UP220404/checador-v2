@@ -121,6 +121,9 @@ class QRService {
             ultimoUsuario: userEmail || 'desconocido',
             ultimoIntentoStatus: 'exito'
           });
+
+          // Renovar el QR inmediatamente tras un escaneo válido
+          await this.generateToken('dinamico', CONFIG.QR_TOKEN_EXPIRATION_MINUTES);
         }
       } else if (modoToken === 'estatico') {
         // Modo estático: múltiples usos — marcar como usado para que el frontend
