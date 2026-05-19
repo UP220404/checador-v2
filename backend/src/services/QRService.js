@@ -104,22 +104,15 @@ class QRService {
       const esUsuarioPruebas = userEmail && CONFIG.USUARIOS_MODO_PRUEBAS?.includes(userEmail);
 
       if (modoToken === 'dinamico') {
-        // Modo dinámico: solo un uso (excepto usuarios en pruebas)
-        if (tokenData.usado && !esUsuarioPruebas) {
-          await this.incrementStat('bloqueados');
-          return {
-            valido: false,
-            mensaje: '🚫 QR ya utilizado. Cada QR solo puede usarse una vez.'
-          };
-        }
-
-        // Marcar como usado si no es modo pruebas
+        // Modo dinámico: permitir múltiples validaciones del mismo token
+        // mientras sea el token actual y no haya expirado.
         if (!esUsuarioPruebas) {
           await tokenRef.update({
             usado: true,
             fechaUso: ahora,
             ultimoUsuario: userEmail || 'desconocido',
-            ultimoIntentoStatus: 'exito'
+            ultimoIntentoStatus: 'exito',
+            contadorUsos: getFirestore().constructor.FieldValue.increment(1)
           });
         }
       } else if (modoToken === 'estatico') {
