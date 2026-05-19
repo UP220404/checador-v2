@@ -225,20 +225,17 @@ class UserService {
           console.error(`No se pudo restaurar el correo original para ${uid}:`, authError);
         }
 
-      // ── CASO: Cambio de email → migración completa de UID ────────────────────
+      // ── CASO: Cambio de email → migración de identidad ────────────────────
       // Comparar contra 'email' o 'correo' (campo legacy) para no disparar migración innecesariamente
       } else if (updateData.email && updateData.email !== (currentData.email || currentData.correo)) {
         console.log(`📧 [UserService] Cambio de email detectado. Actualizando email en Firestore...`);
-        // Solo actualiza el email en Firestore (el UID se corregirá lazy en el próximo login)
+        // Actualiza el email y deshabilita la cuenta de Google antigua
         await UserMigrationService.migrateUserIdentity(uid, updateData.email);
-        return {
-          uid,
-          email: updateData.email,
-          _emailActualizado: true
-        };
+        // NOTA: Ya no retornamos aquí prematuramente.
+        // Continuamos para aplicar el resto de los cambios (ej. activo: false, motivoBaja) al mismo documento.
       }
 
-      // ── CASO: Actualización normal (sin cambio de email) ─────────────────────
+      // ── CASO: Actualización de datos en Firestore ──────────────────────────────
       await userRef.update({
         ...updateData,
         fechaActualizacion: new Date()
