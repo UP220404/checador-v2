@@ -6,6 +6,8 @@ import QRious from 'qrious';
 import { api } from '../services/api';
 import '../styles/QRGenerator.css';
 
+//Aqui se aplico el bugfix
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CARRUSEL — Agrega aquí los nombres de las fotos que pusiste en public/fotos/
 // ─────────────────────────────────────────────────────────────────────────────
@@ -58,6 +60,7 @@ function QRGenerator() {
   const carouselSnapshotRef = useRef(null); // Listener Firestore (carrusel de marketing)
   const dormidoRef        = useRef(false);  // ¿El sistema está dormido?
   const tokenActivoRef    = useRef(null);   // Token actualmente desplegado
+  const viewOverrideInitialRef = useRef(true); // Evitar efecto extra al montar
 
   // ─── Ciclo de vida principal ───────────────────────────────────────────────
   useEffect(() => {
@@ -99,6 +102,28 @@ function QRGenerator() {
       }
     }
   }, [modoActual]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (viewOverrideInitialRef.current) {
+      viewOverrideInitialRef.current = false;
+      return;
+    }
+
+    const tipo = getTipoModo();
+    setModoActual(tipo);
+
+    if (tipo === 'inactivo') {
+      dormirSistema();
+      return;
+    }
+
+    if (tipo === 'carrusel' && viewOverride !== 'qr-agenda') {
+      setStatus('carrusel');
+      return;
+    }
+
+    verificarToken();
+  }, [viewOverride]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scroll a junta actual cuando carga la agenda
   useEffect(() => {
@@ -168,9 +193,16 @@ function QRGenerator() {
   // ─── Helpers de modo ──────────────────────────────────────────────────────
   const getTipoModo = () => {
     const h = new Date().getHours();
+
     if (h < HORA_INICIO || h >= HORA_DORMIR) return 'inactivo';
-    if (h < HORA_CARRUSEL)                   return 'dinamico';
-    if (h < HORA_TARDE)                      return 'carrusel';
+
+    if (viewOverride === 'qr-agenda') {
+      if (h < HORA_TARDE) return 'dinamico';
+      return 'estatico';
+    }
+
+    if (h < HORA_CARRUSEL) return 'dinamico';
+    if (h < HORA_TARDE)      return 'carrusel';
     return 'estatico';
   };
 
@@ -736,18 +768,22 @@ function QRGenerator() {
               </div>
 
               <div className="qr-display">
-                <div className={`status-badge status-${status === 'activo' ? 'success' : status === 'escaneado' ? 'warning' : status === 'error' ? 'danger' : 'warning'}`}>
-                  <i className={`bi bi-${status === 'activo' ? 'shield-check' : status === 'escaneado' ? 'check-circle' : status === 'error' ? 'x-circle' : 'clock'}`}></i>
-                  <span>{status === 'activo' ? 'Activo' : status === 'escaneado' ? 'Escaneado' : status === 'error' ? 'Error' : 'Generando'}</span>
+                <div className={`status-badge status-${status === 'activo' ? 'success' : status === 'escaneado' ? 'warning' : status === 'error' ? 'danger' : status === 'carrusel' ? 'info' : 'warning'}`}>
+                  <i className={`bi bi-${status === 'activo' ? 'shield-check' : status === 'escaneado' ? 'check-circle' : status === 'error' ? 'x-circle' : status === 'carrusel' ? 'images' : 'clock'}`}></i>
+                  <span>{status === 'activo' ? 'Activo' : status === 'escaneado' ? 'Escaneado' : status === 'error' ? 'Error' : status === 'carrusel' ? 'Pantalla de bienvenida' : 'Generando'}</span>
                 </div>
 
                 {!showQR && (
                   <div className="loading-spinner">
                     <div className="loading-icon">
-                      <i className={`bi ${status === 'escaneado' ? 'bi-check-circle' : 'bi-hourglass-split'}`}></i>
+                      <i className={`bi ${status === 'escaneado' ? 'bi-check-circle' : status === 'carrusel' ? 'bi-images' : 'bi-hourglass-split'}`}></i>
                     </div>
                     <p className="loading-text">
-                      {status === 'escaneado' ? '¡QR escaneado! Generando nuevo...' : 'Generando QR...'}
+                      {status === 'escaneado'
+                        ? '¡QR escaneado! Generando nuevo...'
+                        : status === 'carrusel'
+                          ? 'Mostrando pantalla de bienvenida'
+                          : 'Generando QR...'}
                     </p>
                   </div>
                 )}
