@@ -6,6 +6,8 @@ import QRious from 'qrious';
 import { api } from '../services/api';
 import '../styles/QRGenerator.css';
 
+//Aqui se aplico el bugfix
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CARRUSEL — Agrega aquí los nombres de las fotos que pusiste en public/fotos/
 // ─────────────────────────────────────────────────────────────────────────────
