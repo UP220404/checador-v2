@@ -1,6 +1,6 @@
 import AttendanceService from '../services/AttendanceService.js';
 import UserService from '../services/UserService.js';
-import { HTTP_STATUS, ERROR_MESSAGES, ROLES } from '../config/constants.js';
+import { HTTP_STATUS, ERROR_MESSAGES, ROLES, USUARIOS_REMOTOS } from '../config/constants.js';
 import { isAdmin } from '../config/firebase.js';
 
 class AttendanceController {
@@ -16,6 +16,10 @@ class AttendanceController {
   }
 
   // Helper para verificar si el usuario tiene permisos de admin (Email o Rol)
+  _normalizeEmail(email) {
+    return (email || '').toString().trim().toLowerCase();
+  }
+
   _isUserAdmin(user) {
     if (!user || !user.role) return false;
     const userRole = user.role.toLowerCase();
@@ -29,6 +33,13 @@ class AttendanceController {
     return isAdmin(user.email) || adminRoles.includes(userRole);
   }
 
+  _isUserRemote(user) {
+    if (!user) return false;
+    if (user.remoto === true || user.remoto === 'true') return true;
+    const email = this._normalizeEmail(user?.email || user?.correo);
+    return USUARIOS_REMOTOS.some(remoteEmail => this._normalizeEmail(remoteEmail) === email);
+  }
+
   /**
    * POST /api/v1/attendance/check-in
    * Registra entrada o salida
@@ -36,8 +47,9 @@ class AttendanceController {
   async checkIn(req, res) {
     try {
       const { qrCode, token, location } = req.body;
+      const esRemoto = this._isUserRemote(req.user);
 
-      if (!qrCode) {
+      if (!qrCode && !esRemoto) {
         return res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
           message: 'Código QR es requerido'
@@ -46,7 +58,7 @@ class AttendanceController {
 
       const result = await AttendanceService.checkIn(
         req.user.uid,
-        { qrCode, token },
+        { qrCode: qrCode || 'OFICINA2025', token },
         location
       );
 
