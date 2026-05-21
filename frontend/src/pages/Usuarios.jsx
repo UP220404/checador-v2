@@ -44,6 +44,7 @@ function Usuarios() {
     email: '',
     role: ROLES.EMPLEADO,
     activo: true,
+    remoto: false,
     telefono: '',
     departamento: '',
     puesto: '',
@@ -158,6 +159,7 @@ function Usuarios() {
       email: usuario.email || '',
       role: usuario.role || ROLES.EMPLEADO,
       activo: usuario.activo !== false,
+      remoto: usuario.remoto === true || usuario.remoto === 'true',
       telefono: usuario.telefono || '',
       departamento: usuario.departamento || '',
       puesto: usuario.puesto || '',
@@ -208,6 +210,7 @@ function Usuarios() {
         email: formData.email,
         role: formData.role,
         activo: formData.activo,
+        remoto: formData.remoto,
         telefono: formData.telefono,
         departamento: formData.departamento,
         puesto: formData.puesto,
@@ -631,6 +634,9 @@ function Usuarios() {
                       <span className="employee-role-badge">
                         {getRoleLabel(usuario.role)}
                       </span>
+                      {usuario.remoto === true && (
+                        <span className="badge bg-info text-dark ms-2">Remoto</span>
+                      )}
                     </div>
 
                     {/* Avatar circular */}
@@ -775,6 +781,7 @@ function Usuarios() {
                       <th>Email</th>
                       <th>Rol</th>
                       <th>Departamento</th>
+                      <th>Remoto</th>
                       <th>Telefono</th>
                       <th className="text-center">Estado</th>
                       <th className="text-end">Acciones</th>
@@ -801,6 +808,13 @@ function Usuarios() {
                           </span>
                         </td>
                         <td>{usuario.departamento || '-'}</td>
+                        <td>
+                          {usuario.remoto === true ? (
+                            <span className="badge bg-info text-dark">Sí</span>
+                          ) : (
+                            <span className="text-muted">No</span>
+                          )}
+                        </td>
                         <td>{usuario.telefono || '-'}</td>
                         <td className="text-center">
                           <span className={`badge ${usuario.activo !== false ? 'bg-success' : 'bg-secondary'}`}>
@@ -1031,6 +1045,22 @@ function Usuarios() {
                           <option key={d} value={d}>{d}</option>
                         ))}
                       </select>
+                    </div>
+                    <div className="col-md-6 d-flex align-items-center mt-3">
+                      <div className="form-check form-switch w-100">
+                        <input
+                          type="checkbox"
+                          className="form-check-input"
+                          role="switch"
+                          id="chkRemoto"
+                          checked={formData.remoto}
+                          onChange={(e) => handleFormChange('remoto', e.target.checked)}
+                          disabled={isAdminArea && modoEdicion}
+                        />
+                        <label className="form-check-label" htmlFor="chkRemoto">
+                          🌐 Permitir asistencia remota
+                        </label>
+                      </div>
                     </div>
                     <div className="col-md-6">
                       <label className="form-label">Puesto</label>

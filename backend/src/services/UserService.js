@@ -167,7 +167,8 @@ class UserService {
         puesto: userData.puesto || '',
         telefono: userData.telefono || '',
         fechaIngreso: userData.fechaIngreso || '',
-        salarioBase: userData.salarioBase || 0
+        salarioBase: userData.salarioBase || 0,
+        remoto: userData.remoto === true || userData.remoto === 'true'
       };
 
       await this.db.collection(this.usersCollection).doc(uid).set(userDoc);
@@ -896,7 +897,8 @@ class UserService {
         'fechaNacimiento',
         'departamento',
         'tipo',
-        'role'
+        'role',
+        'remoto'
       ];
 
       const updates = {};

@@ -33,11 +33,16 @@ class AttendanceService {
         throw new Error('Usuario no encontrado');
       }
 
-      const esRemoto = USUARIOS_REMOTOS.includes(usuario.correo);
-      const esModoPruebas = CONFIG.MODO_PRUEBAS || USUARIOS_MODO_PRUEBAS.includes(usuario.correo);
-      const esMultiRegistro = USUARIOS_MULTI_REGISTRO.includes(usuario.correo);
+      const userEmail = (usuario.correo || usuario.email || '').toString().trim().toLowerCase();
+      const remoteEmails = USUARIOS_REMOTOS.map(e => e.toString().trim().toLowerCase());
+      const pruebasEmails = USUARIOS_MODO_PRUEBAS.map(e => e.toString().trim().toLowerCase());
+      const multiRegistroEmails = USUARIOS_MULTI_REGISTRO.map(e => e.toString().trim().toLowerCase());
 
-      console.log(`📝 Check-in para: ${usuario.nombre} (${usuario.correo})`);
+      const esRemoto = usuario.remoto === true || usuario.remoto === 'true' || remoteEmails.includes(userEmail);
+      const esModoPruebas = CONFIG.MODO_PRUEBAS || pruebasEmails.includes(userEmail);
+      const esMultiRegistro = multiRegistroEmails.includes(userEmail);
+
+      console.log(`📝 Check-in para: ${usuario.nombre} (${usuario.correo || usuario.email})`);
       console.log(`   Remoto: ${esRemoto}, Pruebas: ${esModoPruebas}, Multi: ${esMultiRegistro}`);
 
       // 2. Validar QR (solo si NO es remoto y NO es modo pruebas)

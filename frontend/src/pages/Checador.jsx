@@ -16,6 +16,10 @@ function Checador() {
   const [registroInfo, setRegistroInfo] = useState(null);
   const [historial, setHistorial] = useState([]);
   const [qrValido, setQrValido] = useState(false);
+  const [isRemoteUser, setIsRemoteUser] = useState(false);
+  const remoteUserEmails = import.meta.env.VITE_USUARIOS_REMOTOS?.split(',')
+    .map(item => item.trim().toLowerCase())
+    .filter(Boolean) || [];
 
   const [autoRegistrando, setAutoRegistrando] = useState(false);
   const registradoRef = useRef(false);
@@ -101,6 +105,10 @@ function Checador() {
     }
   };
 
+  const isRemoteEmail = (email) => {
+    return email && remoteUserEmails.includes(email.toString().trim().toLowerCase());
+  };
+
   const cargarDatosUsuario = async (uid) => {
     try {
       const token = await auth.currentUser.getIdToken();
@@ -130,6 +138,19 @@ function Checador() {
       mostrarStatus('error', 'Error de conexión con el servidor.');
     }
   };
+
+  useEffect(() => {
+    const email = (userData?.email || userData?.correo || user?.email || '').toString().toLowerCase().trim();
+    const remote = userData?.remoto === true || userData?.remoto === 'true' || isRemoteEmail(email);
+    setIsRemoteUser(remote);
+  }, [userData, user]);
+
+  useEffect(() => {
+    if (isRemoteUser && !qrValido) {
+      setQrValido(true);
+      mostrarStatus('info', '🌐 Usuario remoto habilitado. Puedes marcar asistencia sin QR.');
+    }
+  }, [isRemoteUser]);
 
   const cargarHistorial = async (uid) => {
     try {
@@ -163,7 +184,7 @@ function Checador() {
   };
 
   const registrarAsistencia = async () => {
-    if (!qrValido) {
+    if (!qrValido && !isRemoteUser) {
       mostrarStatus('error', '❌ Debes escanear el código QR de la oficina');
       return;
     }
@@ -192,11 +213,11 @@ function Checador() {
         console.warn('No se pudo obtener ubicación');
       }
 
-      const response = await api.registerAttendance({
-        qrCode: 'OFICINA2025',
-        token: token,
-        location: location
-      });
+      const requestData = { qrCode: 'OFICINA2025' };
+      if (token) requestData.token = token;
+      if (location) requestData.location = location;
+
+      const response = await api.registerAttendance(requestData);
 
       if (response.data.success) {
         const registro = response.data.data;
@@ -255,6 +276,12 @@ function Checador() {
             <h2 className="welcome-text fs-3 mb-1">Control de Asistencia</h2>
             <div className="brand-divider mx-auto mt-2" style={{ width: '60px' }}></div>
           </div>
+
+          {isRemoteUser && (
+            <div className="alert alert-info py-2 mb-3" style={{ fontSize: '0.95rem' }}>
+              🌐 Este usuario tiene permitido checar de forma remota. No es necesario escanear QR.
+            </div>
+          )}
 
           <div className="mb-4 text-center">
             <p className="mb-0 fw-medium text-white-50" style={{ fontSize: '1.1rem' }}>
