@@ -467,3 +467,102 @@ code {
     justify-content: center;
   }
 }
+
+/* ============================================ */
+/* MODAL DE REGISTRO MANUAL - ESTILOS PREMIUM  */
+/* ============================================ */
+
+.modal-manual-asistencia {
+  max-width: 650px;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.bg-gradient-manual {
+  background: linear-gradient(135deg, #198754 0%, #157347 100%) !important;
+}
+
+.modal-manual-body {
+  background: #fdfdfd;
+}
+
+.form-group-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-label-custom {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #495057;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.form-control-custom,
+.form-select-custom,
+.form-textarea-custom {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  color: #212529;
+  background-color: #fff;
+  background-clip: padding-box;
+  border: 1.5px solid #dee2e6;
+  border-radius: 10px;
+  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  outline: none;
+}
+
+.form-control-custom:focus,
+.form-select-custom:focus,
+.form-textarea-custom:focus {
+  border-color: #198754;
+  box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.15);
+}
+
+.form-select-custom:disabled {
+  background-color: #e9ecef;
+  cursor: not-allowed;
+}
+
+.form-textarea-custom {
+  resize: vertical;
+}
+
+.btn-submit-custom {
+  padding: 0.875rem 2rem;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #198754 0%, #157347 100%);
+  color: white;
+}
+
+.btn-submit-custom:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(25, 135, 84, 0.3);
+  background: linear-gradient(135deg, #157347 0%, #146c43 100%);
+}
+
+.btn-submit-custom:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Spinner adjustment */
+.spinner-border-sm {
+  width: 1rem;
+  height: 1rem;
+  border-width: 0.15em;
+}
+

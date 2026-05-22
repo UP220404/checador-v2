@@ -13,6 +13,7 @@ class AttendanceController {
     this.getSummary = this.getSummary.bind(this);
     this.getMonthlyReport = this.getMonthlyReport.bind(this);
     this.getTodayRecord = this.getTodayRecord.bind(this);
+    this.registerManual = this.registerManual.bind(this);
   }
 
   // Helper para verificar si el usuario tiene permisos de admin (Email o Rol)
@@ -285,6 +286,42 @@ class AttendanceController {
       res.status(HTTP_STATUS.INTERNAL_ERROR).json({
         success: false,
         message: ERROR_MESSAGES.GENERAL.INTERNAL_ERROR
+      });
+    }
+  }
+
+  /**
+   * POST /api/v1/attendance/manual
+   * Registra una asistencia manualmente (solo admin)
+   */
+  async registerManual(req, res) {
+    try {
+      const { uid, fecha, tipoEvento, hora, estado, observaciones } = req.body;
+
+      if (!uid || !fecha || !tipoEvento || !hora || !estado) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          message: 'Todos los campos son requeridos: Empleado, fecha, tipo de evento, hora y estado'
+        });
+      }
+
+      // El usuario administrador realizando la acción está en req.user
+      const result = await AttendanceService.registerManualAttendance(req.user, {
+        uid,
+        fecha,
+        tipoEvento,
+        hora,
+        estado,
+        observaciones
+      });
+
+      res.status(HTTP_STATUS.CREATED).json(result);
+    } catch (error) {
+      console.error('Error en registro manual de asistencia:', error);
+      res.status(HTTP_STATUS.INTERNAL_ERROR).json({
+        success: false,
+        message: ERROR_MESSAGES.GENERAL.INTERNAL_ERROR,
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   }
