@@ -41,6 +41,13 @@ router.get('/weekly/:userId', authMiddleware, AttendanceController.getWeekly);
  */
 router.get('/today', authMiddleware, adminMiddleware, AttendanceController.getToday);
 
+/**
+ * POST /api/v1/attendance/manual
+ * Registra asistencia manualmente (solo admin)
+ * Requiere: autenticación + admin
+ */
+router.post('/manual', authMiddleware, adminMiddleware, AttendanceController.registerManual);
+
 // ============================================
 // RUTAS PORTAL EMPLEADO V2
 // ============================================

@@ -3,6 +3,7 @@ import AdminLayout from '../components/AdminLayout';
 import DepartmentBanner, { useRoleData } from '../components/DepartmentBanner';
 import { api } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import '../styles/Registros.css';
 
 function Registros() {
@@ -23,6 +24,93 @@ function Registros() {
     tipo: '',
     evento: ''
   });
+
+  // Estados para Registro Manual
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [manualForm, setManualForm] = useState({
+    uid: '',
+    fecha: today,
+    tipoEvento: 'entrada',
+    hora: '',
+    estado: 'puntual',
+    observaciones: ''
+  });
+
+  // Obtener lista de usuarios para el dropdown de registro manual
+  const { data: usersData = [] } = useQuery({
+    queryKey: ['usersList'],
+    queryFn: async () => {
+      const response = await api.getUsers();
+      return response.data?.data || [];
+    }
+  });
+
+  // Filtrar y ordenar usuarios activos
+  const activeUsers = useMemo(() => {
+    return [...usersData]
+      .filter(u => u.activo !== false)
+      .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+  }, [usersData]);
+
+  const handleManualFormChange = (field, value) => {
+    setManualForm(prev => {
+      const updated = { ...prev, [field]: value };
+      if (field === 'tipoEvento') {
+        if (value === 'salida') {
+          updated.estado = 'salida';
+        } else if (prev.tipoEvento === 'salida' && value === 'entrada') {
+          updated.estado = 'puntual';
+        }
+      }
+      return updated;
+    });
+  };
+
+  const handleManualSubmit = async (e) => {
+    if (e) e.preventDefault();
+
+    if (!manualForm.uid || !manualForm.fecha || !manualForm.tipoEvento || !manualForm.hora || !manualForm.estado || !manualForm.observaciones.trim()) {
+      toast.warning('Por favor complete todos los campos obligatorios y proporcione una observaciones.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await api.registerManualAttendance({
+        uid: manualForm.uid,
+        fecha: manualForm.fecha,
+        tipoEvento: manualForm.tipoEvento,
+        hora: manualForm.hora,
+        estado: manualForm.estado,
+        observaciones: manualForm.observaciones.trim()
+      });
+
+      if (response.data?.success) {
+        toast.success(response.data.message || 'Registro de asistencia creado con éxito.');
+        setShowManualModal(false);
+        // Reset form
+        setManualForm({
+          uid: '',
+          fecha: today,
+          tipoEvento: 'entrada',
+          hora: '',
+          estado: 'puntual',
+          observaciones: ''
+        });
+        // Refetch registros
+        refetchRegistros();
+      } else {
+        toast.error(response.data?.message || 'Error al crear el registro manual');
+      }
+    } catch (error) {
+      console.error('Error al registrar asistencia manual:', error);
+      const errorMessage = error.response?.data?.message || 'Error del servidor al crear el registro manual';
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const { 
     data: allRegistros = [], 
@@ -152,15 +240,21 @@ function Registros() {
           <i className="bi bi-table me-2"></i>
           Registros de Acceso
         </h2>
-        <div className="btn-group">
-          <button className="btn btn-outline-success" onClick={exportarCSV}>
-            <i className="bi bi-file-earmark-excel me-2"></i>
-            Exportar CSV
+        <div className="d-flex gap-2 align-items-center">
+          <button className="btn btn-success" onClick={() => setShowManualModal(true)}>
+            <i className="bi bi-plus-circle me-2"></i>
+            Registro Manual
           </button>
-          <button className="btn btn-outline-primary" onClick={descargarJSON}>
-            <i className="bi bi-file-earmark-code me-2"></i>
-            Exportar JSON
-          </button>
+          <div className="btn-group">
+            <button className="btn btn-outline-success" onClick={exportarCSV}>
+              <i className="bi bi-file-earmark-excel me-2"></i>
+              Exportar CSV
+            </button>
+            <button className="btn btn-outline-primary" onClick={descargarJSON}>
+              <i className="bi bi-file-earmark-code me-2"></i>
+              Exportar JSON
+            </button>
+          </div>
         </div>
       </div>
 
@@ -450,6 +544,172 @@ function Registros() {
               <button className="btn-close-custom-footer" onClick={() => setShowModal(false)}>
                 <i className="bi bi-x-circle me-2"></i>
                 Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Registro Manual - Diseño Premium */}
+      {showManualModal && (
+        <div className="modal-overlay" onClick={() => setShowManualModal(false)}>
+          <div className="modal-content-custom modal-manual-asistencia" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header-custom bg-gradient-manual">
+              <div className="modal-icon-header">
+                <i className="bi bi-person-plus-fill"></i>
+              </div>
+              <div className="modal-title-group">
+                <h4 className="modal-title-main">Registrar Asistencia Manual</h4>
+                <p className="modal-subtitle">Agregar entrada o salida para un empleado</p>
+              </div>
+              <button className="btn-close-custom" onClick={() => setShowManualModal(false)} disabled={isSubmitting}>
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+
+            <div className="modal-body-custom modal-manual-body">
+              <form onSubmit={handleManualSubmit}>
+                <div className="form-group-custom mb-3">
+                  <label className="form-label-custom">
+                    <i className="bi bi-person-fill text-success"></i> Empleado *
+                  </label>
+                  <select
+                    className="form-select-custom"
+                    value={manualForm.uid}
+                    onChange={(e) => handleManualFormChange('uid', e.target.value)}
+                    required
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Seleccione un empleado...</option>
+                    {activeUsers.map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.nombre} ({user.correo || user.email})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="row g-3 mb-3">
+                  <div className="col-md-6">
+                    <div className="form-group-custom">
+                      <label className="form-label-custom">
+                        <i className="bi bi-calendar-event text-success"></i> Fecha *
+                      </label>
+                      <input
+                        type="date"
+                        className="form-control-custom"
+                        value={manualForm.fecha}
+                        onChange={(e) => handleManualFormChange('fecha', e.target.value)}
+                        max={today}
+                        required
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="form-group-custom">
+                      <label className="form-label-custom">
+                        <i className="bi bi-clock text-success"></i> Hora *
+                      </label>
+                      <input
+                        type="time"
+                        className="form-control-custom"
+                        value={manualForm.hora}
+                        onChange={(e) => handleManualFormChange('hora', e.target.value)}
+                        required
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="row g-3 mb-3">
+                  <div className="col-md-6">
+                    <div className="form-group-custom">
+                      <label className="form-label-custom">
+                        <i className="bi bi-arrow-left-right text-success"></i> Tipo de Evento *
+                      </label>
+                      <select
+                        className="form-select-custom"
+                        value={manualForm.tipoEvento}
+                        onChange={(e) => handleManualFormChange('tipoEvento', e.target.value)}
+                        required
+                        disabled={isSubmitting}
+                      >
+                        <option value="entrada">Entrada</option>
+                        <option value="salida">Salida</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="form-group-custom">
+                      <label className="form-label-custom">
+                        <i className="bi bi-question-circle text-success"></i> Estado *
+                      </label>
+                      <select
+                        className="form-select-custom"
+                        value={manualForm.estado}
+                        onChange={(e) => handleManualFormChange('estado', e.target.value)}
+                        disabled={manualForm.tipoEvento === 'salida' || isSubmitting}
+                        required
+                      >
+                        {manualForm.tipoEvento === 'salida' ? (
+                          <option value="salida">Salida</option>
+                        ) : (
+                          <>
+                            <option value="puntual">Puntual</option>
+                            <option value="retardo">Retardo</option>
+                          </>
+                        )}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-group-custom mb-3">
+                  <label className="form-label-custom">
+                    <i className="bi bi-chat-left-text text-success"></i> Observaciones / Justificación *
+                  </label>
+                  <textarea
+                    className="form-textarea-custom"
+                    value={manualForm.observaciones}
+                    onChange={(e) => handleManualFormChange('observaciones', e.target.value)}
+                    placeholder="Escriba aquí el motivo o justificación del registro manual..."
+                    rows="3"
+                    required
+                    disabled={isSubmitting}
+                  />
+                </div>
+              </form>
+            </div>
+
+            <div className="modal-footer-custom">
+              <button
+                type="button"
+                className="btn-close-custom-footer"
+                onClick={() => setShowManualModal(false)}
+                disabled={isSubmitting}
+              >
+                <i className="bi bi-x-circle me-2"></i>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-submit-custom"
+                onClick={handleManualSubmit}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Registrando...
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-check-lg me-2"></i>
+                    Guardar Registro
+                  </>
+                )}
               </button>
             </div>
           </div>

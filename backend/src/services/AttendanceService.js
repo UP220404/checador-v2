@@ -8,6 +8,7 @@ import { getTodayString, dateToString, getTimeString, evaluarPuntualidad, isWeek
 import { verificarUbicacionOficina } from '../utils/geoUtils.js';
 import QRService from './QRService.js';
 import UserService from './UserService.js';
+import AuditService from './AuditService.js';
 
 class AttendanceService {
   constructor() {
@@ -664,6 +665,88 @@ class AttendanceService {
       return result;
     } catch (error) {
       console.error('Error obteniendo registro de hoy:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Registra una asistencia de manera manual (solo administradores)
+   * @param {Object} adminUser - Usuario administrador que realiza la acción
+   * @param {Object} data - { uid, fecha, tipoEvento, hora, estado, observaciones }
+   * @returns {Object} Resultado del registro
+   */
+  async registerManualAttendance(adminUser, data) {
+    try {
+      const { uid, fecha, tipoEvento, hora, estado, observaciones } = data;
+
+      // 1. Obtener datos del empleado
+      const usuario = await UserService.getUserByUid(uid);
+      if (!usuario) {
+        throw new Error('Usuario no encontrado');
+      }
+
+      // 2. Construir timestamp en zona horaria local/Mexico
+      const timestamp = new Date(`${fecha}T${hora}:00`);
+
+      const registro = {
+        uid: uid,
+        nombre: usuario.nombre,
+        email: usuario.correo || usuario.email,
+        tipo: usuario.tipo,
+        fecha: fecha,
+        hora: hora,
+        tipoEvento: tipoEvento,
+        estado: estado, // 'puntual', 'retardo' o 'salida'
+        departamento: usuario.departamento || '',
+        ubicacion: null, // manual no tiene ubicación física de GPS
+        metodo: 'manual_admin',
+        observaciones: observaciones || '',
+        registradoPor: {
+          uid: adminUser.uid,
+          nombre: adminUser.nombre || adminUser.displayName || '',
+          email: adminUser.email || adminUser.correo || ''
+        },
+        timestamp: timestamp
+      };
+
+      // Guardar en Firestore
+      const docRef = await this.db.collection(this.attendanceCollection).add(registro);
+
+      const savedRecord = {
+        id: docRef.id,
+        ...registro
+      };
+
+      // 3. Registrar en Auditoría
+      await AuditService.log({
+        accion: 'crear_registro_asistencia_manual',
+        entidad: 'registros',
+        entidadId: docRef.id,
+        ejecutadoPor: {
+          uid: adminUser.uid,
+          email: adminUser.email || adminUser.correo,
+          nombre: adminUser.nombre || adminUser.displayName || 'Admin',
+          role: adminUser.role || 'admin'
+        },
+        detalles: {
+          empleadoAfectado: registro.email,
+          nombreEmpleadoAfectado: registro.nombre,
+          fecha: registro.fecha,
+          hora: registro.hora,
+          tipoEvento: registro.tipoEvento,
+          estado: registro.estado,
+          observaciones: registro.observaciones
+        }
+      });
+
+      return {
+        success: true,
+        data: savedRecord,
+        message: `Asistencia manual de ${tipoEvento === 'entrada' ? 'entrada' : 'salida'} registrada con éxito para ${usuario.nombre}.`
+      };
+
+    } catch (error) {
+      console.error('Error en registerManualAttendance:', error);
       throw error;
     }
   }

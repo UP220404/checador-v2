@@ -108,6 +108,7 @@ export const api = {
     });
   },
   registerAttendance: (data) => apiClient.post('/attendance/check-in', data),
+  registerManualAttendance: (data) => apiClient.post('/attendance/manual', data),
   deleteAttendanceRecord: (id) => apiClient.delete(`/attendance/${id}`),
 
   // QR
