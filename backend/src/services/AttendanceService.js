@@ -686,7 +686,8 @@ class AttendanceService {
       }
 
       // 2. Construir timestamp en zona horaria local/Mexico
-      const timestamp = new Date(`${fecha}T${hora}:00`);
+      const finalHora = hora.split(':').length === 2 ? `${hora}:00` : hora;
+      const timestamp = new Date(`${fecha}T${finalHora}`);
 
       const registro = {
         uid: uid,

@@ -613,6 +613,7 @@ function Registros() {
                       </label>
                       <input
                         type="time"
+                        step="1"
                         className="form-control-custom"
                         value={manualForm.hora}
                         onChange={(e) => handleManualFormChange('hora', e.target.value)}
