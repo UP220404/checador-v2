@@ -1,5 +1,5 @@
-import { getAuth } from '../config/firebase.js';
-import { ERROR_MESSAGES, HTTP_STATUS, ROLES } from '../config/constants.js';
+import { getAuth, getFirestore } from '../config/firebase.js';
+import { COLLECTIONS, ERROR_MESSAGES, HTTP_STATUS, ROLES } from '../config/constants.js';
 
 /**
  * Middleware para verificar token de Firebase Authentication
@@ -29,12 +29,40 @@ export async function authMiddleware(req, res, next) {
     const auth = getAuth();
     const decodedToken = await auth.verifyIdToken(token, true);
 
+    // Aplicar el proveedor configurado tambien a llamadas directas a la API,
+    // no solo durante la redireccion posterior al login.
+    const userEmail = decodedToken.email?.trim().toLowerCase();
+    if (userEmail) {
+      const usersRef = getFirestore().collection(COLLECTIONS.USUARIOS);
+      let snapshot = await usersRef
+        .where('email', '==', userEmail)
+        .limit(1)
+        .get();
+      if (snapshot.empty) {
+        snapshot = await usersRef.where('correo', '==', userEmail).limit(1).get();
+      }
+
+      if (!snapshot.empty) {
+        const userData = snapshot.docs[0].data();
+        const allowedProvider = userData.authProvider || 'microsoft.com';
+        const loginProvider = decodedToken.firebase?.sign_in_provider || '';
+        if (loginProvider !== allowedProvider) {
+          const providerName = allowedProvider === 'google.com' ? 'Google' : 'Microsoft';
+          return res.status(HTTP_STATUS.FORBIDDEN).json({
+            success: false,
+            message: `Esta cuenta debe iniciar sesion con ${providerName}.`
+          });
+        }
+      }
+    }
+
     // Agregar información del usuario al request
     req.user = {
       uid: decodedToken.uid,
       email: decodedToken.email,
       name: decodedToken.name || decodedToken.email,
-      emailVerified: decodedToken.email_verified
+      emailVerified: decodedToken.email_verified,
+      authProvider: decodedToken.firebase?.sign_in_provider || ''
     };
 
     next();

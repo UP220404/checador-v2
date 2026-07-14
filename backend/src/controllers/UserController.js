@@ -23,6 +23,21 @@ class UserController {
     try {
       const userEmail = req.user.email;
       const userUid = req.user.uid;
+      const loginProvider = req.user.authProvider;
+
+      // Microsoft es el proveedor predeterminado. Google solo se permite para
+      // usuarios marcados expresamente con authProvider = 'google.com'.
+      let user = await UserService.getUserByEmail(userEmail);
+      if (user) {
+        const allowedProvider = user.authProvider || 'microsoft.com';
+        if (loginProvider !== allowedProvider) {
+          const providerName = allowedProvider === 'google.com' ? 'Google' : 'Microsoft';
+          return res.status(HTTP_STATUS.FORBIDDEN).json({
+            success: false,
+            message: `Esta cuenta debe iniciar sesion con ${providerName}.`
+          });
+        }
+      }
 
       if (process.env.NODE_ENV === 'development') {
         console.log('[getCurrentUserRole] Email:', userEmail);
@@ -48,7 +63,6 @@ class UserController {
       }
 
       // Buscar usuario por email o uid
-      let user = await UserService.getUserByEmail(userEmail);
       if (process.env.NODE_ENV === 'development') {
         console.log('[getCurrentUserRole] Usuario por email:', user ? 'encontrado' : 'no encontrado');
       }
@@ -61,9 +75,10 @@ class UserController {
         console.log(`[getCurrentUserRole] UID desfasado detectado para ${userEmail}. Firestore: ${user.uid} → Auth: ${userUid}. Iniciando corrección en background...`);
         const staleUID = user.uid;
         // Ajustamos el uid local para que el resto del flujo sea correcto
-        user = { ...user, uid: userUid };
+        await UserService.autoFixUidMismatch(staleUID, userUid, userEmail);
+        user = await UserService.getUserByUid(userUid);
         // Lanzamos la migración en background (sin await) para no bloquear el login
-        UserService.autoFixUidMismatch(staleUID, userUid, userEmail)
+        Promise.resolve()
           .then(() => console.log(`[getCurrentUserRole] ✅ UID corregido automáticamente para ${userEmail}`))
           .catch(e => console.error(`[getCurrentUserRole] ⚠️  Auto-fix falló para ${userEmail}:`, e.message));
       }

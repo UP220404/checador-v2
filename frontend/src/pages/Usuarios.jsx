@@ -42,6 +42,7 @@ function Usuarios() {
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
+    authProvider: 'microsoft.com',
     role: ROLES.EMPLEADO,
     activo: true,
     remoto: false,
@@ -129,6 +130,7 @@ function Usuarios() {
     setFormData({
       nombre: '',
       email: '',
+      authProvider: 'microsoft.com',
       role: ROLES.EMPLEADO,
       activo: true,
       telefono: '',
@@ -157,6 +159,7 @@ function Usuarios() {
     setFormData({
       nombre: usuario.nombre || '',
       email: usuario.email || '',
+      authProvider: usuario.authProvider || 'microsoft.com',
       role: usuario.role || ROLES.EMPLEADO,
       activo: usuario.activo !== false,
       remoto: usuario.remoto === true || usuario.remoto === 'true',
@@ -208,6 +211,7 @@ function Usuarios() {
       const userPayload = {
         nombre: formData.nombre,
         email: formData.email,
+        authProvider: formData.authProvider,
         role: formData.role,
         activo: formData.activo,
         remoto: formData.remoto,
@@ -928,6 +932,19 @@ function Usuarios() {
                         placeholder="55 1234 5678"
                         disabled={isAdminArea && modoEdicion}
                       />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label">Metodo de inicio de sesion</label>
+                      <select
+                        className="form-select"
+                        value={formData.authProvider}
+                        onChange={(e) => handleFormChange('authProvider', e.target.value)}
+                        disabled={isAdminArea && modoEdicion}
+                      >
+                        <option value="microsoft.com">Microsoft (predeterminado)</option>
+                        <option value="google.com">Google (excepcion)</option>
+                      </select>
+                      <div className="form-text">El usuario solo podra entrar con el metodo seleccionado.</div>
                     </div>
                     <div className="col-md-6">
                       <label className="form-label">Estado</label>

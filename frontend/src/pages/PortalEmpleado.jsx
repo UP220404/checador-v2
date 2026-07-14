@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../config/firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { signOut } from 'firebase/auth';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { api } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -23,7 +23,7 @@ import '../styles/PortalEmpleado.css';
 
 function PortalEmpleado() {
   const navigate = useNavigate();
-  const { userRole } = useAuth();
+  const { user: authenticatedUser, userRole, loading: authLoading } = useAuth();
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -51,19 +51,15 @@ function PortalEmpleado() {
   const isFirstLoad = useRef(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        const token = await firebaseUser.getIdToken();
-        sessionStorage.setItem('authToken', token);
-        await cargarDatosUsuario(firebaseUser.uid);
-      } else {
-        navigate('/');
-      }
-    });
+    if (authLoading) return;
+    if (!authenticatedUser) {
+      navigate('/');
+      return;
+    }
 
-    return () => unsubscribe();
-  }, [navigate]);
+    setUser(authenticatedUser);
+    cargarDatosUsuario(authenticatedUser.uid);
+  }, [authenticatedUser, authLoading, navigate]);
 
   // Listener en tiempo real para notificaciones
   useEffect(() => {

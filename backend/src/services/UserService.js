@@ -9,6 +9,10 @@ import admin from 'firebase-admin';
 import crypto from 'crypto';
 import UserMigrationService from './UserMigrationService.js';
 
+// Evita ejecutar dos migraciones del mismo usuario en paralelo cuando varias
+// peticiones de inicio de sesion llegan al mismo tiempo.
+const uidMigrationLocks = new Map();
+
 class UserService {
   constructor() {
     this.usersCollection = COLLECTIONS.USUARIOS;
@@ -159,6 +163,7 @@ class UserService {
       const userDoc = {
         nombre: userData.nombre,
         email: userData.email,
+        authProvider: userData.authProvider === 'google.com' ? 'google.com' : 'microsoft.com',
         tipo: tipoUsuario,
         role: userData.role || 'empleado',
         fechaCreacion: new Date(),
@@ -200,6 +205,10 @@ class UserService {
 
       if (updateData.tipo && !validarTipoUsuario(updateData.tipo)) {
         throw new Error('Tipo de usuario inválido');
+      }
+
+      if (updateData.authProvider && !['microsoft.com', 'google.com'].includes(updateData.authProvider)) {
+        throw new Error('Proveedor de autenticacion invalido');
       }
 
       const userRef = this.db.collection(this.usersCollection).doc(uid);
@@ -1021,9 +1030,22 @@ class UserService {
    * @param {string} email    - Email del usuario.
    */
   async autoFixUidMismatch(oldUID, newUID, email) {
-    console.log(`🔧 [AutoFix] Corrigiendo UID desfasado. Firestore: ${oldUID} → Auth: ${newUID}`);
-    await UserMigrationService.migrateAllData(oldUID, newUID, email);
-    console.log(`✅ [AutoFix] UID corregido para ${email}`);
+    if (uidMigrationLocks.has(newUID)) {
+      return uidMigrationLocks.get(newUID);
+    }
+
+    const migration = (async () => {
+      console.log(`🔧 [AutoFix] Corrigiendo UID desfasado. Firestore: ${oldUID} → Auth: ${newUID}`);
+      await UserMigrationService.migrateAllData(oldUID, newUID, email);
+      console.log(`✅ [AutoFix] UID corregido para ${email}`);
+    })();
+
+    uidMigrationLocks.set(newUID, migration);
+    try {
+      return await migration;
+    } finally {
+      uidMigrationLocks.delete(newUID);
+    }
   }
 }
 

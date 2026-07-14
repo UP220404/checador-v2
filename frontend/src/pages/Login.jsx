@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { signInWithPopup, OAuthProvider } from 'firebase/auth';
+import { signInWithPopup, OAuthProvider, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { api } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -66,7 +66,7 @@ function Login() {
         // Caso 1: Viene de un escaneo de QR (Redirigir a Checador con los params)
         if (fromQR && qrToken) {
           navigate(`/?qr=${fromQR}&token=${qrToken}`);
-          return;
+          return true;
         }
 
         // Caso 2: Login general - Redirigir según rol
@@ -76,14 +76,17 @@ function Login() {
         } else {
           navigate('/empleado/portal');
         }
+        return true;
       } else {
         // Acceso denegado por el backend
         setError(response.data?.message || 'No autorizado');
+        return false;
       }
     } catch (apiError) {
       console.error('[Login] Error en redirección:', apiError);
       const errorMsg = apiError.response?.data?.message || 'Error al conectar con el servidor';
       setError(errorMsg);
+      return false;
     }
   };
 
@@ -113,7 +116,11 @@ function Login() {
       sessionStorage.setItem('authToken', token);
       sessionStorage.setItem('userEmail', result.user.email);
 
-      await handleRedirect(result.user);
+      const authorized = await handleRedirect(result.user);
+      if (!authorized) {
+        await signOut(auth);
+        sessionStorage.removeItem('authToken');
+      }
 
     } catch (err) {
       console.error('Error en login:', err);
@@ -127,6 +134,40 @@ function Login() {
         setError('La configuración de Microsoft no es válida. Revisa el tenant, el client ID y los redirect URIs en Firebase y Microsoft Entra.');
       } else {
         setError('Error al conectar con Microsoft. Reintenta.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      sessionStorage.removeItem('authError');
+
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const result = await signInWithPopup(auth, provider);
+      const token = await result.user.getIdToken();
+      sessionStorage.setItem('authToken', token);
+      sessionStorage.setItem('userEmail', result.user.email);
+      const authorized = await handleRedirect(result.user);
+      if (!authorized) {
+        await signOut(auth);
+        sessionStorage.removeItem('authToken');
+      }
+    } catch (err) {
+      console.error('Error en login con Google:', err);
+      if (auth.currentUser) await signOut(auth);
+      if (err.code === 'auth/popup-closed-by-user') {
+        setError('Inicio de sesiÃ³n cancelado');
+      } else if (err.code === 'auth/popup-blocked') {
+        setError('El navegador bloqueÃ³ la ventana. Por favor, permÃ­tela.');
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError('Google Sign-In no estÃ¡ habilitado en Firebase Authentication.');
+      } else {
+        setError(err.response?.data?.message || 'Error al conectar con Google. Reintenta.');
       }
     } finally {
       setLoading(false);
@@ -217,6 +258,17 @@ function Login() {
                   Continuar con Microsoft
                 </>
               )}
+            </button>
+
+            <div className="text-center text-muted my-3 small">Acceso para cuentas autorizadas</div>
+
+            <button
+              className="btn btn-outline-secondary w-100"
+              onClick={handleGoogleLogin}
+              disabled={loading}
+            >
+              <i className="bi bi-google me-2"></i>
+              Continuar con Google
             </button>
           </div>
         </motion.div>
