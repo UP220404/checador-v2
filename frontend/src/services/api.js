@@ -273,6 +273,14 @@ export const api = {
   generateMissingRankings: () => apiClient.post('/reports/generate-rankings'),
   getAnalyticsSummary: () => apiClient.get('/reports/analytics'),
 
+  // User-specific attendance report
+  getUserAttendanceReport: (params) =>
+    apiClient.get('/reports/user-attendance', { params }),
+  exportUserAttendanceExcel: (params) =>
+    apiClient.get('/reports/export/user-attendance-excel', { params, responseType: 'blob' }),
+  exportUserAttendancePDF: (params) =>
+    apiClient.get('/reports/export/user-attendance-pdf', { params, responseType: 'blob' }),
+
   // ============================================
   // SISTEMA DE ADMINISTRACIÓN
   // ============================================

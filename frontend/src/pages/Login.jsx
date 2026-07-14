@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithPopup, OAuthProvider } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { api } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -87,13 +87,25 @@ function Login() {
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleMicrosoftLogin = async () => {
     try {
       setLoading(true);
       setError('');
       sessionStorage.removeItem('authError'); // Limpiar errores previos
 
-      const provider = new GoogleAuthProvider();
+      const microsoftTenant = import.meta.env.VITE_MICROSOFT_TENANT_ID?.trim();
+      if (!microsoftTenant) {
+        setError('Falta VITE_MICROSOFT_TENANT_ID. Agrega el Directory (tenant) ID de Microsoft Entra en el archivo .env del frontend para usar el endpoint correcto.');
+        return;
+      }
+
+      const provider = new OAuthProvider('microsoft.com');
+      provider.addScope('User.Read');
+      provider.setCustomParameters({
+        prompt: 'select_account',
+        tenant: microsoftTenant
+      });
+
       const result = await signInWithPopup(auth, provider);
 
       // Guardar información básica
@@ -109,8 +121,12 @@ function Login() {
         setError('Inicio de sesión cancelado');
       } else if (err.code === 'auth/popup-blocked') {
         setError('El navegador bloqueó la ventana. Por favor, permítela.');
+      } else if (err.code === 'auth/operation-not-allowed') {
+        setError('Microsoft Sign-In no está habilitado en Firebase Authentication. Activa el proveedor en la consola de Firebase y agrega los redirect URIs en Microsoft Entra.');
+      } else if (err.code === 'auth/invalid-credential') {
+        setError('La configuración de Microsoft no es válida. Revisa el tenant, el client ID y los redirect URIs en Firebase y Microsoft Entra.');
       } else {
-        setError('Error al conectar con Google. Reintenta.');
+        setError('Error al conectar con Microsoft. Reintenta.');
       }
     } finally {
       setLoading(false);
@@ -180,25 +196,25 @@ function Login() {
 
             <div className="info-banner">
               <i className="bi bi-info-circle-fill"></i>
-              <span>{fromQR ? 'Escaneo de QR detectado. Identifícate para registrar tu asistencia.' : 'Usa tu cuenta institucional de Google para ingresar de forma segura.'}</span>
+              <span>{fromQR ? 'Escaneo de QR detectado. Identifícate para registrar tu asistencia.' : 'Usa tu cuenta institucional de Microsoft para ingresar de forma segura.'}</span>
             </div>
 
             <button
               className="btn-google-premium"
-              onClick={handleGoogleLogin}
+              onClick={handleMicrosoftLogin}
               disabled={loading}
             >
               {loading ? (
                 <span className="spinner-border spinner-border-sm"></span>
               ) : (
                 <>
-                  <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-1 .67-2.28 1.07-3.71 1.07-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                    <path d="M5.84 14.11c-.22-.66-.35-1.36-.35-2.11s.13-1.45.35-2.11V7.05H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.95l3.66-2.84z" fill="#FBBC05"/>
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.05l3.66 2.84c.87-2.6 3.3-4.53 12-4.53z" fill="#EA4335"/>
+                  <svg width="20" height="20" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <rect x="3" y="3" width="8" height="8" rx="1" fill="#f25022"/>
+                    <rect x="13" y="3" width="8" height="8" rx="1" fill="#00a4ef"/>
+                    <rect x="3" y="13" width="8" height="8" rx="1" fill="#7fba00"/>
+                    <rect x="13" y="13" width="8" height="8" rx="1" fill="#ffb900"/>
                   </svg>
-                  Continuar con Google
+                  Continuar con Microsoft
                 </>
               )}
             </button>

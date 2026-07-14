@@ -328,6 +328,105 @@ class ReportController {
   }
 
   /**
+   * GET /api/v1/reports/user-attendance
+   * Reporte de asistencia por usuario específico
+   * Query params: uid, fechaInicio, fechaFin
+   */
+  async getUserAttendanceReport(req, res) {
+    try {
+      const { uid, fechaInicio, fechaFin } = req.query;
+
+      if (!uid || !fechaInicio || !fechaFin) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          message: 'Se requieren los parámetros uid, fechaInicio y fechaFin'
+        });
+      }
+
+      const reporte = await ReportService.generateUserAttendanceReport(uid, fechaInicio, fechaFin);
+
+      res.json({
+        success: true,
+        data: reporte
+      });
+    } catch (error) {
+      console.error('Error en getUserAttendanceReport:', error);
+
+      if (error.message === 'Usuario no encontrado') {
+        return res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          message: error.message
+        });
+      }
+
+      res.status(HTTP_STATUS.INTERNAL_ERROR).json({
+        success: false,
+        message: ERROR_MESSAGES.GENERAL.INTERNAL_ERROR
+      });
+    }
+  }
+
+  /**
+   * GET /api/v1/reports/export/user-attendance-excel
+   * Exportar reporte de asistencia por usuario a Excel
+   * Query params: uid, fechaInicio, fechaFin
+   */
+  async exportUserAttendanceExcel(req, res) {
+    try {
+      const { uid, fechaInicio, fechaFin } = req.query;
+
+      if (!uid || !fechaInicio || !fechaFin) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          message: 'Se requieren los parámetros uid, fechaInicio y fechaFin'
+        });
+      }
+
+      const buffer = await ReportService.exportUserAttendanceToExcel(uid, fechaInicio, fechaFin);
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename=asistencia_usuario_${fechaInicio}_${fechaFin}.xlsx`);
+      res.send(buffer);
+    } catch (error) {
+      console.error('Error en exportUserAttendanceExcel:', error);
+      res.status(HTTP_STATUS.INTERNAL_ERROR).json({
+        success: false,
+        message: error.message || ERROR_MESSAGES.GENERAL.INTERNAL_ERROR
+      });
+    }
+  }
+
+  /**
+   * GET /api/v1/reports/export/user-attendance-pdf
+   * Exportar reporte de asistencia por usuario a PDF
+   * Query params: uid, fechaInicio, fechaFin
+   */
+  async exportUserAttendancePDF(req, res) {
+    try {
+      const { uid, fechaInicio, fechaFin } = req.query;
+
+      if (!uid || !fechaInicio || !fechaFin) {
+        return res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          message: 'Se requieren los parámetros uid, fechaInicio y fechaFin'
+        });
+      }
+
+      const buffer = await ReportService.exportUserAttendanceToPDF(uid, fechaInicio, fechaFin);
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=asistencia_usuario_${fechaInicio}_${fechaFin}.pdf`);
+      res.send(buffer);
+    } catch (error) {
+      console.error('Error en exportUserAttendancePDF:', error);
+      res.status(HTTP_STATUS.INTERNAL_ERROR).json({
+        success: false,
+        message: error.message || ERROR_MESSAGES.GENERAL.INTERNAL_ERROR
+      });
+    }
+  }
+
+  /**
    * GET /api/v1/reports/analytics
    * Obtener resumen optimizado para dashboard de análisis
    * Incluye: ranking de puntualidad, tendencia mensual, top usuarios

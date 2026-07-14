@@ -1277,6 +1277,371 @@ class ReportService {
   }
 
   /**
+   * Generar reporte de asistencia por usuario específico
+   * @param {string} uid - UID del usuario
+   * @param {string} fechaInicio - Fecha inicio (YYYY-MM-DD)
+   * @param {string} fechaFin - Fecha fin (YYYY-MM-DD)
+   */
+  async generateUserAttendanceReport(uid, fechaInicio, fechaFin) {
+    try {
+      // Obtener datos del usuario
+      const usuarios = await UserService.getAllUsers();
+      const usuario = usuarios.find(u => u.uid === uid);
+
+      if (!usuario) {
+        throw new Error('Usuario no encontrado');
+      }
+
+      // Obtener registros de asistencia del usuario en el rango
+      const snapshot = await this.db
+        .collection(this.attendanceCollection)
+        .where('uid', '==', uid)
+        .where('fecha', '>=', fechaInicio)
+        .where('fecha', '<=', fechaFin)
+        .orderBy('fecha', 'asc')
+        .orderBy('hora', 'asc')
+        .get();
+
+      const registros = [];
+      snapshot.forEach(doc => {
+        registros.push({ id: doc.id, ...doc.data() });
+      });
+
+      // Obtener ausencias aprobadas del usuario
+      const absencesSnapshot = await this.db
+        .collection(this.absencesCollection)
+        .where('emailUsuario', '==', usuario.correo || usuario.email)
+        .where('estado', '==', 'aprobado')
+        .get();
+
+      const ausencias = [];
+      absencesSnapshot.forEach(doc => {
+        const data = doc.data();
+        if (data.fechaInicio <= fechaFin && data.fechaFin >= fechaInicio) {
+          ausencias.push({ id: doc.id, ...data });
+        }
+      });
+
+      // Agregar ausencias justificadas como registros virtuales
+      ausencias.forEach(a => {
+        let current = new Date(a.fechaInicio + 'T00:00:00');
+        const end = new Date(a.fechaFin + 'T00:00:00');
+
+        while (current <= end) {
+          const fStr = current.toISOString().split('T')[0];
+          if (fStr >= fechaInicio && fStr <= fechaFin) {
+            const diaSemana = current.getDay();
+            if (diaSemana !== 0 && diaSemana !== 6) {
+              const yaAsistio = registros.some(r => r.fecha === fStr);
+              if (!yaAsistio) {
+                registros.push({
+                  nombre: usuario.nombre,
+                  email: usuario.correo || usuario.email,
+                  fecha: fStr,
+                  hora: '-',
+                  tipoEvento: 'ausencia',
+                  estado: 'justificado',
+                  tipoAusencia: a.tipo
+                });
+              }
+            }
+          }
+          current.setDate(current.getDate() + 1);
+        }
+      });
+
+      // Ordenar registros
+      registros.sort((a, b) => {
+        if (a.fecha !== b.fecha) return a.fecha.localeCompare(b.fecha);
+        if (a.tipoEvento === 'ausencia') return 1;
+        if (b.tipoEvento === 'ausencia') return -1;
+        return (a.hora || '').localeCompare(b.hora || '');
+      });
+
+      // Calcular estadísticas
+      const entradas = registros.filter(r => r.tipoEvento === 'entrada');
+      const salidas = registros.filter(r => r.tipoEvento === 'salida');
+      const ausenciasJustificadas = registros.filter(r => r.tipoEvento === 'ausencia');
+
+      const diasAsistidos = new Set(entradas.map(r => r.fecha));
+      const retardos = entradas.filter(r => r.estado === 'retardo').length;
+      const puntuales = entradas.filter(r => r.estado === 'puntual').length;
+
+      // Calcular días laborables en el rango
+      let diasLaborables = 0;
+      let current = new Date(fechaInicio + 'T00:00:00');
+      const end = new Date(fechaFin + 'T00:00:00');
+      while (current <= end) {
+        const diaSemana = current.getDay();
+        if (diaSemana !== 0 && diaSemana !== 6) {
+          diasLaborables++;
+        }
+        current.setDate(current.getDate() + 1);
+      }
+
+      const stats = {
+        totalRegistros: registros.length,
+        entradas: entradas.length,
+        salidas: salidas.length,
+        diasAsistidos: diasAsistidos.size,
+        diasJustificados: ausenciasJustificadas.length,
+        retardos,
+        puntuales,
+        diasLaborables,
+        porcentajeAsistencia: diasLaborables > 0 ? ((diasAsistidos.size / diasLaborables) * 100).toFixed(1) : '0.0',
+        porcentajePuntualidad: entradas.length > 0 ? ((puntuales / entradas.length) * 100).toFixed(1) : '0.0'
+      };
+
+      return {
+        usuario: {
+          uid: usuario.uid,
+          nombre: usuario.nombre,
+          email: usuario.correo || usuario.email,
+          tipo: usuario.tipo,
+          departamento: usuario.departamento
+        },
+        periodo: { fechaInicio, fechaFin },
+        registros,
+        estadisticas: stats
+      };
+    } catch (error) {
+      console.error('Error generando reporte por usuario:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Exportar reporte de asistencia por usuario a Excel
+   */
+  async exportUserAttendanceToExcel(uid, fechaInicio, fechaFin) {
+    try {
+      const reporte = await this.generateUserAttendanceReport(uid, fechaInicio, fechaFin);
+
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Checador V2';
+      workbook.created = new Date();
+
+      // Hoja 1: Resumen del empleado
+      const summarySheet = workbook.addWorksheet('Resumen');
+      summarySheet.columns = [
+        { header: 'Campo', key: 'campo', width: 25 },
+        { header: 'Valor', key: 'valor', width: 35 }
+      ];
+
+      summarySheet.mergeCells('A1:B1');
+      const titleCell = summarySheet.getCell('A1');
+      titleCell.value = `Reporte de Asistencia - ${reporte.usuario.nombre}`;
+      titleCell.font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF198754' } };
+      titleCell.alignment = { horizontal: 'center' };
+
+      summarySheet.addRow(['Empleado', reporte.usuario.nombre]);
+      summarySheet.addRow(['Email', reporte.usuario.email]);
+      summarySheet.addRow(['Tipo', reporte.usuario.tipo]);
+      summarySheet.addRow(['Departamento', reporte.usuario.departamento || 'N/A']);
+      summarySheet.addRow(['Período', `${reporte.periodo.fechaInicio} a ${reporte.periodo.fechaFin}`]);
+      summarySheet.addRow(['']);
+      summarySheet.addRow(['Días Asistidos', `${reporte.estadisticas.diasAsistidos} de ${reporte.estadisticas.diasLaborables}`]);
+      summarySheet.addRow(['% Asistencia', `${reporte.estadisticas.porcentajeAsistencia}%`]);
+      summarySheet.addRow(['Puntual', reporte.estadisticas.puntuales]);
+      summarySheet.addRow(['Retardos', reporte.estadisticas.retardos]);
+      summarySheet.addRow(['% Puntualidad', `${reporte.estadisticas.porcentajePuntualidad}%`]);
+      summarySheet.addRow(['Justificaciones', reporte.estadisticas.diasJustificados]);
+
+      // Estilo para las filas de datos
+      for (let i = 3; i <= 12; i++) {
+        const row = summarySheet.getRow(i);
+        row.getCell(1).font = { bold: true };
+        if (i % 2 === 0) {
+          row.eachCell(cell => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE9ECEF' } };
+          });
+        }
+      }
+
+      // Hoja 2: Detalle de registros
+      const detailSheet = workbook.addWorksheet('Detalle de Registros');
+      detailSheet.columns = [
+        { header: 'Fecha', key: 'fecha', width: 15 },
+        { header: 'Hora', key: 'hora', width: 12 },
+        { header: 'Tipo', key: 'tipo', width: 15 },
+        { header: 'Estado', key: 'estado', width: 15 }
+      ];
+
+      detailSheet.getRow(1).font = { bold: true };
+      detailSheet.getRow(1).eachCell(cell => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF198754' } };
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      });
+
+      reporte.registros.forEach(r => {
+        const tipoLabel = r.tipoEvento === 'entrada' ? 'Entrada' :
+                         r.tipoEvento === 'salida' ? 'Salida' : 'Justificado';
+        let estadoLabel = r.estado || '-';
+        if (r.tipoEvento === 'ausencia') {
+          estadoLabel = r.tipoAusencia || 'Justificado';
+        } else if (r.estado === 'retardo') {
+          estadoLabel = 'Retardo';
+        } else if (r.estado === 'puntual') {
+          estadoLabel = 'Puntual';
+        }
+
+        const row = detailSheet.addRow({
+          fecha: r.fecha,
+          hora: r.hora === '-' ? '-' : r.hora,
+          tipo: tipoLabel,
+          estado: estadoLabel
+        });
+
+        if (r.estado === 'retardo') {
+          row.getCell(4).font = { color: { argb: 'FFFF0000' }, bold: true };
+        }
+      });
+
+      // Auto-filter en detalle
+      detailSheet.autoFilter = {
+        from: 'A1',
+        to: `D${reporte.registros.length + 1}`
+      };
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      return buffer;
+    } catch (error) {
+      console.error('Error exportando reporte usuario a Excel:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Exportar reporte de asistencia por usuario a PDF
+   */
+  async exportUserAttendanceToPDF(uid, fechaInicio, fechaFin) {
+    try {
+      const reporte = await this.generateUserAttendanceReport(uid, fechaInicio, fechaFin);
+
+      return new Promise((resolve, reject) => {
+        try {
+          const doc = new PDFDocument({ margin: 40 });
+          const chunks = [];
+
+          doc.on('data', chunk => chunks.push(chunk));
+          doc.on('end', () => resolve(Buffer.concat(chunks)));
+          doc.on('error', reject);
+
+          const GREEN = '#198754';
+          const DARK_GREY = '#3C3C3C';
+          const LIGHT_GREY = '#F0F0F0';
+          const ALT_GREEN = '#DCFFDC';
+          const YELLOW = '#FFDD33';
+
+          // Header
+          const logoPath = path.join(process.cwd(), 'src/assets/logo-cielito.png');
+          try {
+            if (fs.existsSync(logoPath)) {
+              doc.image(logoPath, 40, 35, { width: 60 });
+            }
+          } catch (e) {
+            console.warn('No se pudo cargar el logo para el PDF:', e.message);
+          }
+
+          doc.fillColor(GREEN)
+             .fontSize(18)
+             .font('Helvetica-Bold')
+             .text('Reporte de Asistencia Individual', 115, 45);
+
+          doc.fillColor(DARK_GREY)
+             .fontSize(11)
+             .font('Helvetica')
+             .text(`Empleado: ${reporte.usuario.nombre}`, 115, 68);
+          doc.text(`Email: ${reporte.usuario.email}`);
+          doc.text(`Tipo: ${reporte.usuario.tipo} | Depto: ${reporte.usuario.departamento || 'N/A'}`);
+          doc.text(`Período: ${fechaInicio} a ${fechaFin}`);
+
+          doc.strokeColor(GREEN)
+             .lineWidth(2)
+             .moveTo(40, 115)
+             .lineTo(570, 115)
+             .stroke();
+
+          // Estadísticas
+          doc.moveDown(1);
+          doc.fontSize(12).font('Helvetica-Bold').text('Resumen Estadístico', 40);
+          doc.moveDown(0.3);
+          doc.fontSize(10).font('Helvetica');
+          doc.text(`Días asistidos: ${reporte.estadisticas.diasAsistidos} de ${reporte.estadisticas.diasLaborables} (${reporte.estadisticas.porcentajeAsistencia}%)`);
+          doc.text(`Puntual: ${reporte.estadisticas.puntuales} | Retardos: ${reporte.estadisticas.retardos} (${reporte.estadisticas.porcentajePuntualidad}% puntualidad)`);
+          doc.text(`Justificaciones: ${reporte.estadisticas.diasJustificados}`);
+
+          doc.moveDown(1);
+
+          // Tabla de registros
+          doc.fontSize(12).font('Helvetica-Bold').text('Detalle de Registros', 40);
+          doc.moveDown(0.5);
+
+          const tableTop = doc.y;
+          const colX = [40, 150, 250, 350, 450];
+          const colLabels = ['Fecha', 'Hora', 'Tipo', 'Estado', 'Observación'];
+
+          doc.rect(40, tableTop, 530, 20).fill(GREEN);
+          doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(9);
+          colLabels.forEach((label, i) => {
+            doc.text(label, colX[i] + 5, tableTop + 6);
+          });
+
+          let currentY = tableTop + 20;
+
+          reporte.registros.forEach((r, index) => {
+            if (currentY > 730) {
+              doc.addPage();
+              currentY = 50;
+              doc.rect(40, currentY, 530, 20).fill(GREEN);
+              doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(9);
+              colLabels.forEach((label, i) => {
+                doc.text(label, colX[i] + 5, currentY + 6);
+              });
+              currentY += 20;
+            }
+
+            const isAlt = index % 2 !== 0;
+            doc.rect(40, currentY, 530, 18).fill(isAlt ? ALT_GREEN : LIGHT_GREY);
+
+            if (r.estado === 'retardo') {
+              doc.rect(colX[3], currentY, 100, 18).fill(YELLOW);
+            }
+
+            doc.fillColor(DARK_GREY).font('Helvetica').fontSize(8);
+
+            const tipoLabel = r.tipoEvento === 'entrada' ? 'Entrada' :
+                             r.tipoEvento === 'salida' ? 'Salida' : 'Justificado';
+            let estadoLabel = r.estado || '-';
+            if (r.tipoEvento === 'ausencia') {
+              estadoLabel = r.tipoAusencia || 'Justificado';
+            } else if (r.estado === 'retardo') {
+              estadoLabel = 'Retardo';
+            } else if (r.estado === 'puntual') {
+              estadoLabel = 'Puntual';
+            }
+
+            doc.text(r.fecha || '-', colX[0] + 5, currentY + 5);
+            doc.text(r.hora === '-' ? '-' : r.hora, colX[1] + 5, currentY + 5);
+            doc.text(tipoLabel, colX[2] + 5, currentY + 5);
+            doc.text(estadoLabel, colX[3] + 5, currentY + 5);
+
+            currentY += 18;
+          });
+
+          doc.end();
+        } catch (error) {
+          reject(error);
+        }
+      });
+    } catch (error) {
+      console.error('Error exportando reporte usuario a PDF:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Generar resumen optimizado para análisis (dashboard)
    * Incluye: ranking de puntualidad, tendencia mensual, top usuarios
    * @param {string|null} departmentFilter - Filtrar por departamento si es admin_area

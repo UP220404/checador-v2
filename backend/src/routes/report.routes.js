@@ -26,11 +26,20 @@ router.get('/payroll/:periodoId', ReportController.getPayrollReport.bind(ReportC
 
 // Exportaciones
 
+// GET /api/v1/reports/user-attendance - Reporte de asistencia por usuario
+router.get('/user-attendance', ReportController.getUserAttendanceReport.bind(ReportController));
+
 // GET /api/v1/reports/export/attendance-excel - Exportar asistencias a Excel
 router.get('/export/attendance-excel', ReportController.exportAttendanceExcel.bind(ReportController));
 
 // GET /api/v1/reports/export/attendance-pdf - Exportar asistencias a PDF
 router.get('/export/attendance-pdf', ReportController.exportAttendancePDF.bind(ReportController));
+
+// GET /api/v1/reports/export/user-attendance-excel - Exportar asistencia por usuario a Excel
+router.get('/export/user-attendance-excel', ReportController.exportUserAttendanceExcel.bind(ReportController));
+
+// GET /api/v1/reports/export/user-attendance-pdf - Exportar asistencia por usuario a PDF
+router.get('/export/user-attendance-pdf', ReportController.exportUserAttendancePDF.bind(ReportController));
 
 // GET /api/v1/reports/export/payroll-excel/:periodoId - Exportar nómina a Excel
 router.get('/export/payroll-excel/:periodoId', ReportController.exportPayrollExcel.bind(ReportController));
