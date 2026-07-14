@@ -46,6 +46,13 @@ class UserController {
       }
 
       // Si el middleware ya adjuntó el rol, usarlo directamente
+      // Reconciliar tambien las cuentas administrativas antes de la salida
+      // rapida por rol; de lo contrario conservan el UID anterior.
+      if (user && user.uid !== userUid) {
+        await UserService.autoFixUidMismatch(user.uid, userUid, userEmail);
+        user = await UserService.getUserByUid(userUid);
+      }
+
       if (req.user.role && req.user.role !== ROLES.EMPLEADO) {
         if (process.env.NODE_ENV === 'development') {
           console.log('[getCurrentUserRole] Usando rol del middleware:', req.user.role);
@@ -242,7 +249,18 @@ class UserController {
         });
       }
 
-      const user = await UserService.getUserByUid(uid);
+      let user = await UserService.getUserByUid(uid);
+
+      // Si Firebase entrego un UID nuevo pero Firestore aun conserva el UID
+      // anterior, resolverlo aqui mismo. Este endpoint es el que consume el
+      // portal y no debe depender de que otra peticion haya migrado primero.
+      if (!user && req.user.uid === uid && req.user.email) {
+        const userByEmail = await UserService.getUserByEmail(req.user.email);
+        if (userByEmail && userByEmail.uid !== uid) {
+          await UserService.autoFixUidMismatch(userByEmail.uid, uid, req.user.email);
+          user = await UserService.getUserByUid(uid);
+        }
+      }
 
       if (!user) {
         return res.status(HTTP_STATUS.NOT_FOUND).json({
