@@ -32,8 +32,10 @@ export async function authMiddleware(req, res, next) {
     // Aplicar el proveedor configurado tambien a llamadas directas a la API,
     // no solo durante la redireccion posterior al login.
     const userEmail = decodedToken.email?.trim().toLowerCase();
+    const usersRef = getFirestore().collection(COLLECTIONS.USUARIOS);
+    let userDoc = null;
+
     if (userEmail) {
-      const usersRef = getFirestore().collection(COLLECTIONS.USUARIOS);
       let snapshot = await usersRef
         .where('email', '==', userEmail)
         .limit(1)
@@ -43,16 +45,30 @@ export async function authMiddleware(req, res, next) {
       }
 
       if (!snapshot.empty) {
-        const userData = snapshot.docs[0].data();
-        const allowedProvider = userData.authProvider || 'microsoft.com';
-        const loginProvider = decodedToken.firebase?.sign_in_provider || '';
-        if (loginProvider !== allowedProvider) {
-          const providerName = allowedProvider === 'google.com' ? 'Google' : 'Microsoft';
-          return res.status(HTTP_STATUS.FORBIDDEN).json({
-            success: false,
-            message: `Esta cuenta debe iniciar sesion con ${providerName}.`
-          });
-        }
+        userDoc = snapshot.docs[0];
+      }
+    }
+
+    // Al migrar el email, la cuenta anterior de Google conserva temporalmente
+    // el UID que identifica el documento. Resolver tambien por UID evita que el
+    // email viejo se salte la restriccion de proveedor.
+    if (!userDoc && decodedToken.uid) {
+      const snapshotByUid = await usersRef.doc(decodedToken.uid).get();
+      if (snapshotByUid.exists) {
+        userDoc = snapshotByUid;
+      }
+    }
+
+    if (userDoc) {
+      const userData = userDoc.data();
+      const allowedProvider = userData.authProvider || 'microsoft.com';
+      const loginProvider = decodedToken.firebase?.sign_in_provider || '';
+      if (loginProvider !== allowedProvider) {
+        const providerName = allowedProvider === 'google.com' ? 'Google' : 'Microsoft';
+        return res.status(HTTP_STATUS.FORBIDDEN).json({
+          success: false,
+          message: `Esta cuenta debe iniciar sesion con ${providerName}.`
+        });
       }
     }
 

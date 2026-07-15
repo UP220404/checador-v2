@@ -35,6 +35,9 @@ class AttendanceService {
       }
 
       const userEmail = (usuario.correo || usuario.email || '').toString().trim().toLowerCase();
+      if (!userEmail) {
+        throw new Error('El usuario no tiene un email configurado');
+      }
       const remoteEmails = USUARIOS_REMOTOS.map(e => e.toString().trim().toLowerCase());
       const pruebasEmails = USUARIOS_MODO_PRUEBAS.map(e => e.toString().trim().toLowerCase());
       const multiRegistroEmails = USUARIOS_MULTI_REGISTRO.map(e => e.toString().trim().toLowerCase());
@@ -51,7 +54,7 @@ class AttendanceService {
         const qrValidation = await QRService.validateToken(
           qrData.qrCode,
           qrData.token,
-          usuario.correo
+          userEmail
         );
 
         if (!qrValidation.valido) {
@@ -249,7 +252,7 @@ class AttendanceService {
     const registro = {
       uid: uid,
       nombre: usuario.nombre,
-      email: usuario.correo,
+      email: (usuario.correo || usuario.email).toString().trim().toLowerCase(),
       tipo: usuario.tipo,
       fecha: fecha,
       hora: hora,
