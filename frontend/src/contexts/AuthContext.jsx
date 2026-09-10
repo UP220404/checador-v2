@@ -14,6 +14,7 @@ const AuthContext = createContext(null);
 
 import { ROLES } from '../config/constants';
 
+const MANTENIMIENTO = true;
 const REFRESH_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutos entre refetches
 
 export function AuthProvider({ children }) {
@@ -30,6 +31,16 @@ export function AuthProvider({ children }) {
     try {
       const token = await firebaseUser.getIdToken();
       sessionStorage.setItem('authToken', token);
+
+      if (MANTENIMIENTO) {
+        setUser(firebaseUser);
+        setUserRole('empleado');
+        setUserName(firebaseUser.displayName || '');
+        setUserDepartamento('');
+        sessionStorage.setItem('userEmail', firebaseUser.email || '');
+        sessionStorage.setItem('userName', firebaseUser.displayName || '');
+        return;
+      }
 
       const response = await api.getCurrentUserRole();
 

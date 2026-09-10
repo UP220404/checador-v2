@@ -7,6 +7,8 @@ import ParticlesBackground from '../components/ParticlesBackground';
 import logoCielito from '../assets/logo-cielito.png';
 import '../styles/Checador.css';
 
+const MANTENIMIENTO = true;
+
 function Checador() {
   const [user, setUser] = useState(null);
   const [userData, setUserData] = useState(null);
@@ -37,15 +39,19 @@ function Checador() {
       }));
     }, 1000);
 
-    // Validar QR inicial
-    validarQR();
+    // Validar QR inicial (solo si no está en mantenimiento)
+    if (!MANTENIMIENTO) {
+      validarQR();
+    }
 
     // Auth listener
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        await cargarDatosUsuario(firebaseUser.uid);
-        await cargarHistorial(firebaseUser.uid);
+        if (!MANTENIMIENTO) {
+          await cargarDatosUsuario(firebaseUser.uid);
+          await cargarHistorial(firebaseUser.uid);
+        }
       } else {
         setUser(null);
         setUserData(null);
@@ -63,7 +69,7 @@ function Checador() {
 
   // Lógica de registro automático
   useEffect(() => {
-    if (qrValido && user && userData && !registradoRef.current && !registroInfo) {
+    if (!MANTENIMIENTO && qrValido && user && userData && !registradoRef.current && !registroInfo) {
       // Candado definitivo para evitar bucles
       registradoRef.current = true;
       setAutoRegistrando(true);
@@ -146,7 +152,7 @@ function Checador() {
   }, [userData, user]);
 
   useEffect(() => {
-    if (isRemoteUser && !qrValido) {
+    if (!MANTENIMIENTO && isRemoteUser && !qrValido) {
       setQrValido(true);
       mostrarStatus('info', '🌐 Usuario remoto habilitado. Puedes marcar asistencia sin QR.');
     }
@@ -277,119 +283,152 @@ function Checador() {
             <div className="brand-divider mx-auto mt-2" style={{ width: '60px' }}></div>
           </div>
 
-          {isRemoteUser && (
-            <div className="alert alert-info py-2 mb-3" style={{ fontSize: '0.95rem' }}>
-              🌐 Este usuario tiene permitido checar de forma remota. No es necesario escanear QR.
-            </div>
-          )}
-
-          <div className="mb-4 text-center">
-            <p className="mb-0 fw-medium text-white-50" style={{ fontSize: '1.1rem' }}>
-              {user ? (
-                <span>
-                  Bienvenido, <span className="text-white fw-bold">{userData?.name || user.displayName || user.email}</span>
-                </span>
-              ) : 'Identificación requerida'}
-            </p>
-          </div>
-
-          <div className="time-display-premium mb-4 text-center">
-            <div className="display-4 fw-bold" style={{ color: '#ffffff', letterSpacing: '2px', textShadow: '0 0 20px rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
-              {time}
-            </div>
-            <div className="text-white-50 small text-uppercase" style={{ letterSpacing: '1px' }}>{date}</div>
-          </div>
-
-          <div className="d-grid gap-3 mb-4">
-            <button
-              onClick={registrarAsistencia}
-              disabled={autoRegistrando && !registroInfo}
-              className={`btn btn-lg rounded-pill ${qrValido ? 'btn-success text-white fw-bold shadow-sm' : 'btn-outline-secondary text-white-50'}`}
-              style={qrValido ? { background: 'linear-gradient(135deg, #198754 0%, #157347 100%)', border: 'none' } : {}}
-            >
-              <i className={`bi ${autoRegistrando && !registroInfo ? 'bi-hourglass-split' : 'bi-fingerprint'} me-2 fs-5`}></i>
-              {autoRegistrando && !registroInfo ? 'Procesando...' : 'Registrar Asistencia'}
-            </button>
-            
-            <div className="d-flex justify-content-between align-items-center mt-2 px-2">
-              <a href="/empleado/portal" className="text-white-50 text-decoration-none small hover-white transition-all">
-                <i className="bi bi-person-workspace me-1"></i>
-                Ir a mi Portal
-              </a>
-
+          {MANTENIMIENTO ? (
+            <div className="text-center">
+              <div className="p-4 rounded-4 mb-3" style={{ background: 'rgba(255, 193, 7, 0.15)', border: '1px solid rgba(255, 193, 7, 0.3)' }}>
+                <div className="mb-3">
+                  <i className="bi bi-tools display-4 text-warning"></i>
+                </div>
+                <h5 className="fw-bold text-warning mb-3">Sistema en Mantenimiento</h5>
+                <p className="text-white mb-3" style={{ fontSize: '0.95rem', lineHeight: '1.6' }}>
+                  El checador se encuentra temporalmente fuera de servicio por mantenimiento programado.
+                </p>
+                <div className="p-3 rounded-3 mb-3" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                  <p className="text-white-50 mb-2" style={{ fontSize: '0.9rem' }}>
+                    <i className="bi bi-journal-text me-2 text-info"></i>
+                    Por favor, <strong className="text-info">registren su salida en la bitácora</strong> de Control de Asistencia.
+                  </p>
+                </div>
+                <p className="text-white-50 small mb-0">
+                  <i className="bi bi-clock-history me-1"></i>
+                  El sistema estará funcionando normalmente <strong className="text-success">mañana antes de las 7:00 AM</strong>.
+                </p>
+              </div>
               <button
                 onClick={handleLogout}
-                className="btn btn-link text-danger text-decoration-none small p-0 m-0 opacity-75 hover-opacity-100"
+                className="btn btn-outline-light rounded-pill px-4 py-2"
               >
-                <i className="bi bi-box-arrow-right me-1"></i>
+                <i className="bi bi-box-arrow-right me-2"></i>
                 Cerrar Sesión
               </button>
             </div>
-          </div>
-
-          <AnimatePresence>
-            {status.show && (
-              <motion.div 
-                className={`alert alert-${status.type} text-center`}
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-              >
-                {status.message}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {registroInfo && (
-            <motion.div 
-              className="mt-4 p-4 rounded-4 text-start border border-success border-opacity-25"
-              style={{ background: 'rgba(25, 135, 84, 0.1)', backdropFilter: 'blur(10px)' }}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-            >
-              <div className="d-flex align-items-center mb-3">
-                <div className="bg-success text-white p-2 rounded-circle me-3 shadow-sm d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px' }}>
-                  <i className="bi bi-calendar-check fs-5"></i>
+          ) : (
+            <>
+              {isRemoteUser && (
+                <div className="alert alert-info py-2 mb-3" style={{ fontSize: '0.95rem' }}>
+                  🌐 Este usuario tiene permitido checar de forma remota. No es necesario escanear QR.
                 </div>
-                <div>
-                  <h6 className="mb-0 fw-bold text-white">Registro Exitoso</h6>
-                  <p className="text-white-50 small mb-0">{registroInfo.fecha}</p>
+              )}
+
+              <div className="mb-4 text-center">
+                <p className="mb-0 fw-medium text-white-50" style={{ fontSize: '1.1rem' }}>
+                  {user ? (
+                    <span>
+                      Bienvenido, <span className="text-white fw-bold">{userData?.name || user.displayName || user.email}</span>
+                    </span>
+                  ) : 'Identificación requerida'}
+                </p>
+              </div>
+
+              <div className="time-display-premium mb-4 text-center">
+                <div className="display-4 fw-bold" style={{ color: '#ffffff', letterSpacing: '2px', textShadow: '0 0 20px rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
+                  {time}
+                </div>
+                <div className="text-white-50 small text-uppercase" style={{ letterSpacing: '1px' }}>{date}</div>
+              </div>
+
+              <div className="d-grid gap-3 mb-4">
+                <button
+                  onClick={registrarAsistencia}
+                  disabled={autoRegistrando && !registroInfo}
+                  className={`btn btn-lg rounded-pill ${qrValido ? 'btn-success text-white fw-bold shadow-sm' : 'btn-outline-secondary text-white-50'}`}
+                  style={qrValido ? { background: 'linear-gradient(135deg, #198754 0%, #157347 100%)', border: 'none' } : {}}
+                >
+                  <i className={`bi ${autoRegistrando && !registroInfo ? 'bi-hourglass-split' : 'bi-fingerprint'} me-2 fs-5`}></i>
+                  {autoRegistrando && !registroInfo ? 'Procesando...' : 'Registrar Asistencia'}
+                </button>
+                
+                <div className="d-flex justify-content-between align-items-center mt-2 px-2">
+                  <a href="/empleado/portal" className="text-white-50 text-decoration-none small hover-white transition-all">
+                    <i className="bi bi-person-workspace me-1"></i>
+                    Ir a mi Portal
+                  </a>
+
+                  <button
+                    onClick={handleLogout}
+                    className="btn btn-link text-danger text-decoration-none small p-0 m-0 opacity-75 hover-opacity-100"
+                  >
+                    <i className="bi bi-box-arrow-right me-1"></i>
+                    Cerrar Sesión
+                  </button>
                 </div>
               </div>
 
-              <div className="attendance-details-grid small mb-4">
-                <div className="d-flex justify-content-between p-2 rounded-3 mb-1" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                  <span className="text-white-50">Colaborador:</span>
-                  <span className="fw-bold text-white">{registroInfo.nombre}</span>
-                </div>
-                <div className="d-flex justify-content-between p-2 rounded-3 mb-1" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                  <span className="text-white-50">Movimiento:</span>
-                  <span className={`fw-bold ${registroInfo.evento === 'ENTRADA' ? 'text-info' : 'text-warning'}`}>
-                    {registroInfo.evento}
-                  </span>
-                </div>
-                <div className="d-flex justify-content-between p-2 rounded-3 mb-1" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                  <span className="text-white-50">Hora:</span>
-                  <span className="fw-bold text-white">{registroInfo.hora}</span>
-                </div>
-                <div className="d-flex justify-content-between p-2 rounded-3" style={{ background: 'rgba(255,255,255,0.05)' }}>
-                  <span className="text-white-50">Estado:</span>
-                  <span className={`badge rounded-pill ${
-                    registroInfo.estado === 'puntual' ? 'bg-success text-white' : 
-                    registroInfo.estado === 'retardo' ? 'bg-warning text-dark' : 'bg-info text-dark'
-                  }`}>
-                    {registroInfo.estado.toUpperCase()}
-                  </span>
-                </div>
-              </div>
+              <AnimatePresence>
+                {status.show && (
+                  <motion.div 
+                    className={`alert alert-${status.type} text-center`}
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                  >
+                    {status.message}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-              <div className="d-grid gap-2">
-                <a href="/empleado/portal" className="btn btn-outline-light rounded-pill py-2">
-                  <i className="bi bi-person-workspace me-2"></i>
-                  Ver Resumen Semanal
-                </a>
-              </div>
-            </motion.div>
+              {registroInfo && (
+                <motion.div 
+                  className="mt-4 p-4 rounded-4 text-start border border-success border-opacity-25"
+                  style={{ background: 'rgba(25, 135, 84, 0.1)', backdropFilter: 'blur(10px)' }}
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                >
+                  <div className="d-flex align-items-center mb-3">
+                    <div className="bg-success text-white p-2 rounded-circle me-3 shadow-sm d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px' }}>
+                      <i className="bi bi-calendar-check fs-5"></i>
+                    </div>
+                    <div>
+                      <h6 className="mb-0 fw-bold text-white">Registro Exitoso</h6>
+                      <p className="text-white-50 small mb-0">{registroInfo.fecha}</p>
+                    </div>
+                  </div>
+
+                  <div className="attendance-details-grid small mb-4">
+                    <div className="d-flex justify-content-between p-2 rounded-3 mb-1" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                      <span className="text-white-50">Colaborador:</span>
+                      <span className="fw-bold text-white">{registroInfo.nombre}</span>
+                    </div>
+                    <div className="d-flex justify-content-between p-2 rounded-3 mb-1" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                      <span className="text-white-50">Movimiento:</span>
+                      <span className={`fw-bold ${registroInfo.evento === 'ENTRADA' ? 'text-info' : 'text-warning'}`}>
+                        {registroInfo.evento}
+                      </span>
+                    </div>
+                    <div className="d-flex justify-content-between p-2 rounded-3 mb-1" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                      <span className="text-white-50">Hora:</span>
+                      <span className="fw-bold text-white">{registroInfo.hora}</span>
+                    </div>
+                    <div className="d-flex justify-content-between p-2 rounded-3" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                      <span className="text-white-50">Estado:</span>
+                      <span className={`badge rounded-pill ${
+                        registroInfo.estado === 'puntual' ? 'bg-success text-white' : 
+                        registroInfo.estado === 'retardo' ? 'bg-warning text-dark' : 'bg-info text-dark'
+                      }`}>
+                        {registroInfo.estado.toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="d-grid gap-2">
+                    <a href="/empleado/portal" className="btn btn-outline-light rounded-pill py-2">
+                      <i className="bi bi-person-workspace me-2"></i>
+                      Ver Resumen Semanal
+                    </a>
+                  </div>
+                </motion.div>
+              )}
+            </>
           )}
 
         </motion.div>
