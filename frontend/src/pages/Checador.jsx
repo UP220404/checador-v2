@@ -7,7 +7,7 @@ import ParticlesBackground from '../components/ParticlesBackground';
 import logoCielito from '../assets/logo-cielito.png';
 import '../styles/Checador.css';
 
-const MANTENIMIENTO = true;
+const MANTENIMIENTO = false;
 
 function Checador() {
   const [user, setUser] = useState(null);
