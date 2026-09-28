@@ -673,6 +673,110 @@ class AttendanceService {
   }
 
   /**
+   * Obtiene resumen de retardos totales por usuario
+   * Filtra por departamento si el usuario es admin_area
+   * @param {string} departamento - Departamento a filtrar (null para ver todos)
+   * @param {string} startDate - Fecha inicio opcional (YYYY-MM-DD)
+   * @param {string} endDate - Fecha fin opcional (YYYY-MM-DD)
+   * @returns {Array} Lista de usuarios con su total de retardos
+   */
+  async getRetardsSummary(departamento = null, startDate = null, endDate = null) {
+    try {
+      // Si no se especifican fechas, usar el mes actual para limitar la consulta
+      if (!startDate && !endDate) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const firstDay = `${year}-${month}-01`;
+        const lastDay = `${year}-${month}-${new Date(year, now.getMonth() + 1, 0).getDate()}`;
+        startDate = firstDay;
+        endDate = lastDay;
+      }
+
+      // Consulta filtrada en Firestore para reducir lecturas
+      let query = this.db
+        .collection(this.attendanceCollection)
+        .where('tipoEvento', '==', 'entrada')
+        .where('estado', '==', 'retardo');
+
+      if (startDate) {
+        query = query.where('fecha', '>=', startDate);
+      }
+      if (endDate) {
+        query = query.where('fecha', '<=', endDate);
+      }
+
+      const snapshot = await query.get();
+
+      let registros = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      // Obtener usuarios solo si necesitamos filtrar por departamento
+      let userMap = {};
+      if (departamento) {
+        const allUsers = await UserService.getAllUsers();
+        allUsers.forEach(u => {
+          userMap[u.uid || u.id] = u;
+        });
+
+        const userUIDs = new Set(
+          allUsers
+            .filter(u => u.departamento?.trim().toLowerCase() === departamento.trim().toLowerCase())
+            .map(u => u.uid || u.id)
+        );
+        registros = registros.filter(reg => userUIDs.has(reg.uid));
+      } else {
+        // Sin filtro de departamento: obtener info básica de usuarios
+        const allUsers = await UserService.getAllUsers();
+        allUsers.forEach(u => {
+          userMap[u.uid || u.id] = u;
+        });
+      }
+
+      // Agrupar retardos por uid
+      const retardosPorUsuario = {};
+      registros.forEach(reg => {
+        if (!retardosPorUsuario[reg.uid]) {
+          retardosPorUsuario[reg.uid] = {
+            uid: reg.uid,
+            nombre: reg.nombre || 'Sin nombre',
+            email: reg.email || '',
+            departamento: '',
+            totalRetardos: 0,
+            retardos: []
+          };
+        }
+        retardosPorUsuario[reg.uid].totalRetardos++;
+        retardosPorUsuario[reg.uid].retardos.push({
+          fecha: reg.fecha,
+          hora: reg.hora
+        });
+      });
+
+      // Enriquecer con datos del usuario (departamento, etc.)
+      const resultado = Object.values(retardosPorUsuario).map(item => {
+        const usuario = userMap[item.uid];
+        if (usuario) {
+          item.departamento = usuario.departamento || '';
+          item.nombre = usuario.nombre || item.nombre;
+          item.email = usuario.correo || usuario.email || item.email;
+        }
+        return item;
+      });
+
+      // Ordenar por total de retardos descendente
+      resultado.sort((a, b) => b.totalRetardos - a.totalRetardos);
+
+      return resultado;
+    } catch (error) {
+      console.error('Error obteniendo resumen de retardos:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Registra una asistencia de manera manual (solo administradores)
    * @param {Object} adminUser - Usuario administrador que realiza la acción
    * @param {Object} data - { uid, fecha, tipoEvento, hora, estado, observaciones }

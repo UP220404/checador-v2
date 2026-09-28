@@ -26,6 +26,7 @@ import Organigrama from './pages/Organigrama';
 import MarketingCarousel from './pages/MarketingCarousel';
 import AdminBackdoor from './pages/AdminBackdoor';
 import Vacaciones from './pages/Vacaciones';
+import Retardos from './pages/Retardos';
 import './App.css';
 
 const queryClient = new QueryClient({
@@ -68,6 +69,7 @@ function App() {
           <Route path="/admin/registros"   element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Registros /></PrivateRoute>} />
           <Route path="/admin/analisis"    element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh']}><Analisis /></PrivateRoute>} />
           <Route path="/admin/ausencias"   element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Ausencias /></PrivateRoute>} />
+          <Route path="/admin/retardos"    element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Retardos /></PrivateRoute>} />
           <Route path="/admin/seguridad"   element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh']}><Seguridad /></PrivateRoute>} />
           <Route path="/admin/reportes"    element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh']}><Reportes /></PrivateRoute>} />
           <Route path="/admin/vacaciones"  element={<PrivateRoute requiredRoles={['super_admin','director','admin_rh','admin_area']}><Vacaciones /></PrivateRoute>} />

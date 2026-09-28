@@ -73,4 +73,12 @@ router.get('/monthly/:uid/:year/:month', authMiddleware, AttendanceController.ge
  */
 router.get('/today-record/:uid', authMiddleware, AttendanceController.getTodayRecord);
 
+/**
+ * GET /api/v1/attendance/retards/summary
+ * Obtiene resumen de retardos totales por usuario
+ * Para admin_area, filtra automáticamente por su departamento
+ * Requiere: autenticación + admin
+ */
+router.get('/retards/summary', authMiddleware, adminMiddleware, AttendanceController.getRetardsSummary);
+
 export default router;

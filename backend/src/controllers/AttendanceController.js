@@ -14,6 +14,7 @@ class AttendanceController {
     this.getMonthlyReport = this.getMonthlyReport.bind(this);
     this.getTodayRecord = this.getTodayRecord.bind(this);
     this.registerManual = this.registerManual.bind(this);
+    this.getRetardsSummary = this.getRetardsSummary.bind(this);
   }
 
   // Helper para verificar si el usuario tiene permisos de admin (Email o Rol)
@@ -322,6 +323,48 @@ class AttendanceController {
         success: false,
         message: ERROR_MESSAGES.GENERAL.INTERNAL_ERROR,
         ...(process.env.NODE_ENV === 'development' && { error: error.message })
+      });
+    }
+  }
+
+  /**
+   * GET /api/v1/attendance/retards/summary
+   * Obtiene resumen de retardos totales por usuario
+   * Para admin_area, filtra automáticamente por su departamento
+   */
+  async getRetardsSummary(req, res) {
+    try {
+      if (!this._isUserAdmin(req.user)) {
+        return res.status(HTTP_STATUS.FORBIDDEN).json({
+          success: false,
+          message: 'Acceso restringido a administradores'
+        });
+      }
+
+      // Si es admin_area, filtrar por su departamento automáticamente
+      const departamento = req.user.role?.toLowerCase() === ROLES.ADMIN_AREA
+        ? req.user.departamento
+        : (req.query.departamento || null);
+
+      const { startDate, endDate } = req.query;
+
+      const summary = await AttendanceService.getRetardsSummary(
+        departamento,
+        startDate || null,
+        endDate || null
+      );
+
+      res.json({
+        success: true,
+        count: summary.length,
+        data: summary
+      });
+
+    } catch (error) {
+      console.error('Error obteniendo resumen de retardos:', error);
+      res.status(HTTP_STATUS.INTERNAL_ERROR).json({
+        success: false,
+        message: ERROR_MESSAGES.GENERAL.INTERNAL_ERROR
       });
     }
   }

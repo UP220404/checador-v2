@@ -200,6 +200,9 @@ export const api = {
   getAttendanceMonthlyReport: (uid, year, month) => apiClient.get(`/attendance/monthly/${uid}/${year}/${month}`),
   getTodayRecord: (uid) => apiClient.get(`/attendance/today-record/${uid}`),
 
+  // Retards Summary (Admin/Area)
+  getRetardsSummary: (params = {}) => apiClient.get('/attendance/retards/summary', { params }),
+
   // Documents
   getMyDocuments: (params) => apiClient.get('/documents/my', { params }),
   getAllDocumentsAdmin: () => apiClient.get('/documents/admin/all'),

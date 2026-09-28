@@ -37,8 +37,16 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+
+  // No interceptar peticiones a la API ni de otros orígenes
+  if (event.request.method !== 'GET' ||
+      url.pathname.startsWith('/api') ||
+      url.origin !== self.location.origin) {
+    return;
+  }
+
   // Estrategia Network-First para la navegación (HTML)
-  // Esto garantiza que siempre obtengamos el index.html nuevo con los hashes de JS actualizados
   if (event.request.mode === 'navigate' || (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html'))) {
     event.respondWith(
       fetch(event.request)
@@ -54,14 +62,23 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Estrategia Stale-While-Revalidate o Cache-First para recursos estáticos
+  // Estrategia Stale-While-Revalidate para recursos estáticos
   event.respondWith(
     caches.match(event.request)
       .then(response => {
         if (response) {
           return response;
         }
-        return fetch(event.request);
+        return fetch(event.request).then(networkResponse => {
+          if (networkResponse.ok) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
+          }
+          return networkResponse;
+        });
+      })
+      .catch(() => {
+        return new Response('Offline', { status: 503 });
       })
   );
 });

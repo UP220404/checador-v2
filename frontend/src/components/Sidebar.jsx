@@ -221,6 +221,7 @@ function Sidebar({ isMobileOpen, onMobileClose }) {
   const menuGeneral = [
     { path: '/admin/dashboard',   icon: 'bi-speedometer2',         label: 'Dashboard' },
     { path: '/admin/registros',   icon: 'bi-table',                label: 'Registros' },
+    { path: '/admin/retardos',    icon: 'bi-clock-history',        label: 'Retardos' },
     { path: '/admin/ausencias',   icon: 'bi-envelope-paper',       label: 'Gestión de Ausencias' },
     { path: '/admin/vacaciones',  icon: 'bi-calendar-heart-fill',  label: 'Vacaciones' },
   ];
